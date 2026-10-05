@@ -68,6 +68,7 @@ export default function Home() {
     );
   }
 
+  // SCHERMATA IDENTITÀ
   if (started === "identita") {
     return (
       <main className="whoApp">
@@ -76,6 +77,7 @@ export default function Home() {
             <span className="logoSmall">WHO</span>
             <p>Crea la tua identità anonima</p>
           </div>
+
           <div className="status">● ONLINE</div>
         </header>
 
@@ -107,6 +109,7 @@ export default function Home() {
                   {avatar === nome ? "✓ " : ""}
                   {nome}
                 </strong>
+
                 <small>
                   {avatar === nome
                     ? "Avatar selezionato"
@@ -131,12 +134,22 @@ export default function Home() {
             <span>
               <strong>CONTINUA →</strong>
               <small>
-             {nickname.trim() || "Inserisci nickname"}   
-</small>
-</span>
-</button>
-</section>
-</main>
-);
-}
-}
+                {nickname.trim() || "Inserisci nickname"}
+              </small>
+            </span>
+          </button>
+        </section>
+      </main>
+    );
+  }
+
+  // SCHERMATA INIZIALE
+  if (started === false) {
+    return (
+      <main className="whoApp">
+        <section className="welcome">
+          <p className="tag">BENVENUTO SU</p>
+
+          <h1>WHO</h1>
+
+          <p>
