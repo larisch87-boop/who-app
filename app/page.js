@@ -131,4 +131,11 @@ export default function Home() {
             <span>
               <strong>CONTINUA →</strong>
               <small>
-                {nickname.trim() || "
+             {nickname.trim() || "Inserisci nickname"}   
+</small>
+</span>
+</button>
+</section>
+</main>
+);
+}
