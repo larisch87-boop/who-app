@@ -25,7 +25,7 @@ if (started === "stanze") {
       </section>
 
       <section className="menu">
-        <button className="card">
+        <button className="card" onClick={() => setStarted("generale")}>
           <span>
             <strong>💬 GENERALE</strong>
             <small>Parla di tutto</small>
@@ -57,7 +57,70 @@ if (started === "stanze") {
   );
 }  
   
+if (started === "generale") {
+  return (
+    <main className="whoApp">
+      <header className="topbar">
+        <div>
+          <span className="logoSmall">WHO</span>
+          <p>Stanza pubblica</p>
+        </div>
+        <div className="status">● ONLINE</div>
+      </header>
 
+      <section className="welcome">
+        <p className="tag">💬 GENERALE</p>
+        <h1>Chat Generale</h1>
+        <p className="subtitle">
+          Parla liberamente mantenendo la tua identità anonima.
+        </p>
+      </section>
+
+      <section className="menu">
+        <div className="card">
+          <span>
+            <strong>Shadow</strong>
+            <small>Ciao a tutti 👋</small>
+          </span>
+        </div>
+
+        <div className="card">
+          <span>
+            <strong>Luna</strong>
+            <small>Chi è online?</small>
+          </span>
+        </div>
+
+        <div className="card">
+          <span>
+            <strong>Neon</strong>
+            <small>Benvenuti nella stanza Generale ⚡</small>
+          </span>
+        </div>
+
+        <input
+          type="text"
+          placeholder="Scrivi un messaggio..."
+          className="card"
+        />
+
+        <button
+          className="card"
+          onClick={() => alert("Invio messaggi: prossimo collegamento Supabase")}
+        >
+          <strong>INVIA</strong>
+        </button>
+
+        <button
+          className="card"
+          onClick={() => setStarted("stanze")}
+        >
+          <strong>← TORNA ALLE STANZE</strong>
+        </button>
+      </section>
+    </main>
+  );
+}
 
 if (started) {
   
