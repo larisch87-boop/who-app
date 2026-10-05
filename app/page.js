@@ -102,17 +102,36 @@ if (started === "generale") {
         </div>
 
         <input
-          type="text"
-          placeholder="Scrivi un messaggio..."
-          className="card"
-        />
+  type="text"
+  id="messageInput"
+  placeholder="Scrivi un messaggio..."
+  className="card"
+/>
 
-        <button
-          className="card"
-          onClick={() => alert("Invio messaggi: prossimo collegamento Supabase")}
-        >
-          <strong>INVIA</strong>
-        </button>
+<button
+  className="card"
+  onClick={async () => {
+    const input = document.getElementById("messageInput");
+    const testo = input.value.trim();
+
+    if (!testo) return;
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        content: testo
+      });
+
+    if (error) {
+      alert("Errore: " + error.message);
+    } else {
+      alert("Messaggio inviato!");
+      input.value = "";
+    }
+  }}
+>
+  <strong>INVIA</strong>
+</button>
 
         <button
           className="card"
