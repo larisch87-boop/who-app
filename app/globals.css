@@ -30,3 +30,74 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+.whoApp {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, #17133a 0%, #090914 45%, #05050b 100%);
+  color: white;
+  padding-bottom: 40px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: rgba(7,7,17,0.85);
+}
+
+.logoSmall {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #a855f7;
+  text-shadow: 0 0 14px #7c3aed;
+}
+
+.topbar p {
+  margin-top: 3px;
+  color: #aaa;
+  font-size: 12px;
+}
+
+.status {
+  color: #38f2b3;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.welcome {
+  padding: 32px 20px 18px;
+}
+
+.tag {
+  color: #a855f7;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+}
+
+.welcome h1 {
+  font-size: 30px;
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  color: #a7a7b3;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.menu {
+  display: grid;
+  gap: 14px;
+  padding: 12px 20px;
+}
+
+.card {
+  width: 100%;
+ 
