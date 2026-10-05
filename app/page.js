@@ -7,7 +7,25 @@ import { createClient } from "@supabase/supabase-js"; const supabase = createCli
 ); 
 export default function Home() {
   const [started, setStarted] = useState(false);
+const [messages, setMessages] = useState([]); 
+  useEffect(() => {
+  async function caricaMessaggi() {
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("room", "generale")
+      .order("id", { ascending: true });
 
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setMessages(data || []);
+  }
+
+  caricaMessaggi();
+}, []);
 if (started === "stanze") {
   return (
     <main className="whoApp">
@@ -100,7 +118,14 @@ if (started === "generale") {
             <small>Benvenuti nella stanza Generale ⚡</small>
           </span>
         </div>
-
+{messages.map((msg) => (
+  <div className="card" key={msg.id}>
+    <span>
+      <strong>{msg.nickname}</strong>
+      <small>{msg.content}</small>
+    </span>
+  </div>
+))}
         <input
   type="text"
   id="messageInput"
@@ -123,7 +148,17 @@ if (started === "generale") {
         nickname: "Shadow",
         content: testo
       });
-
+if (!error) {
+  setMessages((prev) => [
+    ...prev,
+    {
+      id: Date.now(),
+      room: "generale",
+      nickname: "Shadow",
+      content: testo,
+    },
+  ]);
+}
     if (error) {
       alert("Errore: " + error.message);
       return;
