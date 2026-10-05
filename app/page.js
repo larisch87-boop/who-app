@@ -98,26 +98,7 @@ if (started === "generale") {
       </section>
 
       <section className="menu">
-        <div className="card">
-          <span>
-            <strong>Shadow</strong>
-            <small>Ciao a tutti 👋</small>
-          </span>
-        </div>
-
-        <div className="card">
-          <span>
-            <strong>Luna</strong>
-            <small>Chi è online?</small>
-          </span>
-        </div>
-
-        <div className="card">
-          <span>
-            <strong>Neon</strong>
-            <small>Benvenuti nella stanza Generale ⚡</small>
-          </span>
-        </div>
+      
 {messages.map((msg) => (
   <div className="card" key={msg.id}>
     <span>
