@@ -116,37 +116,26 @@ if (started === "generale") {
 
     if (!testo) return;
 
- const { error } = await supabase
-  .from("messages")
-  .insert({
-    room: "generale",
-    nickname: "Shadow",
-    content: testo
-  });   
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        room: "generale",
+        nickname: "Shadow",
+        content: testo
+      });
 
-    
-      alert("Messaggio inviato!");
-      input.value = "";
+    if (error) {
+      alert("Errore: " + error.message);
+      return;
     }
+
+    alert("Messaggio inviato!");
+    input.value = "";
   }}
 >
   <strong>INVIA</strong>
 </button>
-
-        <button
-          className="card"
-          onClick={() => setStarted("stanze")}
-        >
-          <strong>← TORNA ALLE STANZE</strong>
-        </button>
-      </section>
-    </main>
-  );
-}
-
-if (started) {
   
-    return (
       <main className="whoApp">
         <header className="topbar">
           <div>
