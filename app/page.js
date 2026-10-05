@@ -16,6 +16,11 @@ const avatars = [
   image: `/${name.toLowerCase()}.png`
 }));
 
+const ownerAvatar = {
+  name: "UNKNOWN",
+  image: "/file_000000005e3881f4b9b9109dab033a80.png"
+};
+
 const shopItems = [
   { id:"void-crown", name:"VOID CROWN", rarity:"LEGENDARY", price:1200, image:"/shop/void-crown.png" },
   { id:"phantom-mask", name:"PHANTOM MASK", rarity:"LEGENDARY", price:1000, image:"/shop/phantom-mask.png" },
@@ -128,6 +133,10 @@ const translations = {
 };
 
 function getAvatar(name) {
+  if (name === ownerAvatar.name) {
+    return ownerAvatar.image;
+  }
+
   return avatars.find((a) => a.name === name)?.image || "/shadow.png";
 }
 
@@ -735,6 +744,11 @@ export default function Home() {
   /* SCELTA AVATAR */
 
   if (started === "identity") {
+    const availableAvatars =
+      nickname.toLowerCase() === "unknown"
+        ? [ownerAvatar, ...avatars]
+        : avatars;
+
     return (
       <main style={background}>
         <Language />
@@ -757,7 +771,7 @@ export default function Home() {
           gap:12,
           padding:"0 18px"
         }}>
-          {avatars.map((item) => {
+          {availableAvatars.map((item) => {
             const selected = avatar === item.name;
 
             return (
@@ -1210,9 +1224,11 @@ export default function Home() {
             marginTop:11
           }}>
             <small>{t.inventory}</small>
+
             <h2 style={{ marginBottom:4 }}>
               {owned.length}
             </h2>
+
             <span style={{ opacity:.6 }}>
               WHO cosmetics
             </span>
@@ -1452,4 +1468,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                                    }
+            }
