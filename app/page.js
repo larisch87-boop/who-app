@@ -9,532 +9,584 @@ const supabase = createClient(
 );
 
 const avatars = [
-  { name: "Shadow", image: "/shadow.png" },
-  { name: "Pixie", image: "/pixie.png" },
-  { name: "King", image: "/king.png" },
-  { name: "Azra", image: "/azra.png" },
-  { name: "Zero", image: "/zero.png" },
-  { name: "Luna", image: "/luna.png" },
-  { name: "Ranger", image: "/ranger.png" },
-  { name: "Neon", image: "/neon.png" },
-  { name: "Ares", image: "/ares.png" },
-  { name: "Vix", image: "/vix.png" },
-  { name: "Nova", image: "/nova.png" },
-  { name: "Ghost", image: "/ghost.png" },
-];
+  "Shadow","Pixie","King","Azra","Zero","Luna",
+  "Ranger","Neon","Ares","Vix","Nova","Ghost"
+].map(name => ({
+  name,
+  image: `/${name.toLowerCase()}.png`
+}));
 
 const shopItems = [
   {
-    id: "purple-frame",
-    icon: "💜",
-    nameIT: "Cornice Neon",
-    nameEN: "Neon Frame",
-    price: 100,
+    id:"void-crown",
+    name:"VOID CROWN",
+    rarity:"LEGENDARY",
+    price:1200,
+    image:"/shop/void-crown.png"
   },
   {
-    id: "crown",
-    icon: "👑",
-    nameIT: "Corona Royal",
-    nameEN: "Royal Crown",
-    price: 300,
+    id:"phantom-mask",
+    name:"PHANTOM MASK",
+    rarity:"LEGENDARY",
+    price:1000,
+    image:"/shop/phantom-mask.png"
   },
   {
-    id: "mask",
-    icon: "🎭",
-    nameIT: "Maschera Mystery",
-    nameEN: "Mystery Mask",
-    price: 180,
+    id:"neon-halo",
+    name:"NEON HALO",
+    rarity:"EPIC",
+    price:650,
+    image:"/shop/neon-halo.png"
   },
   {
-    id: "aura",
-    icon: "⚡",
-    nameIT: "Aura Elettrica",
-    nameEN: "Electric Aura",
-    price: 250,
+    id:"cyber-visor",
+    name:"CYBER VISOR",
+    rarity:"EPIC",
+    price:550,
+    image:"/shop/cyber-visor.png"
   },
   {
-    id: "badge",
-    icon: "💎",
-    nameIT: "Badge Elite",
-    nameEN: "Elite Badge",
-    price: 500,
+    id:"dark-wings",
+    name:"DARK WINGS",
+    rarity:"LIMITED",
+    price:1500,
+    image:"/shop/dark-wings.png"
   },
   {
-    id: "background",
-    icon: "🌌",
-    nameIT: "Sfondo Galaxy",
-    nameEN: "Galaxy Background",
-    price: 350,
-  },
+    id:"plasma-frame",
+    name:"PLASMA FRAME",
+    rarity:"RARE",
+    price:350,
+    image:"/shop/plasma-frame.png"
+  }
 ];
 
-const text = {
-  it: {
-    welcome: "BENVENUTO SU",
-    slogan: "Nessun nome. Nessun giudizio. Solo WHO.",
-    enter: "ENTRA IN WHO",
-    identity: "LA TUA IDENTITÀ",
-    whoAreYou: "Chi vuoi essere?",
-    nickname: "Scegli un nickname...",
-    chooseAvatar: "Scegli il tuo avatar",
-    selected: "Selezionato",
-    choose: "Scegli",
-    continue: "CONTINUA",
-    home: "Home",
-    rooms: "Stanze",
-    shop: "Shop",
-    profile: "Profilo",
-    general: "Generale",
-    generalRoom: "Stanza Generale",
-    publicChat: "CHAT PUBBLICA",
-    write: "Scrivi un messaggio...",
-    send: "INVIA",
-    noMessages: "Nessun messaggio",
-    firstMessage: "Scrivi il primo messaggio.",
-    changeIdentity: "Cambia identità",
-    points: "WHO POINTS",
-    reputation: "Reputazione",
-    level: "Livello",
-    shopTitle: "WHO SHOP",
-    shopSubtitle: "Personalizza la tua identità",
-    buy: "SBLOCCA",
-    owned: "POSSEDUTO",
-    notEnough: "Non hai abbastanza WHO Points.",
-    purchased: "Gadget sbloccato!",
-    roomsTitle: "STANZE",
-    enterRoom: "ENTRA",
-    profileTitle: "IL TUO PROFILO",
-    reports: "Segnalazioni confermate",
-    goodStanding: "Profilo in regola",
-    report: "Segnala",
-    reportSent: "Segnalazione inviata alla moderazione.",
-    reportInfo:
-      "Una segnalazione da sola non toglie punti. I punti possono essere sottratti solo dopo una violazione confermata.",
-    pointsInfo:
-      "Partecipa positivamente, ricevi apprezzamenti e costruisci la tua reputazione.",
-    founder: "FOUNDER",
+const translations = {
+  it:{
+    enter:"ENTRA IN WHO",
+    slogan:"Nessun nome. Nessun giudizio. Solo WHO.",
+    identity:"LA TUA IDENTITÀ",
+    who:"Chi vuoi essere?",
+    nick:"Scegli un nickname...",
+    avatar:"Scegli il tuo avatar",
+    selected:"SELEZIONATO",
+    choose:"SCEGLI",
+    continue:"CONTINUA",
+    chat:"Chat",
+    rooms:"Stanze",
+    shop:"Shop",
+    profile:"Profilo",
+    general:"Generale",
+    publicChat:"CHAT PUBBLICA",
+    write:"Scrivi un messaggio...",
+    send:"INVIA",
+    report:"Segnala",
+    points:"WHO POINTS",
+    createRoom:"CREA UNA STANZA",
+    roomName:"Nome della stanza",
+    roomTheme:"Tema / descrizione",
+    public:"Pubblica",
+    private:"Privata",
+    create:"CREA",
+    official:"STANZE WHO",
+    community:"CREATE DALLA COMMUNITY",
+    shopTitle:"WHO SHOP",
+    collection:"Costruisci la tua identità.",
+    unlock:"SBLOCCA",
+    owned:"POSSEDUTO",
+    insufficient:"WHO Points insufficienti",
+    level:"LIVELLO",
+    reputation:"REPUTAZIONE",
+    good:"IN REGOLA",
+    inventory:"COLLEZIONE",
+    change:"CAMBIA IDENTITÀ",
+    noRooms:"Non hai ancora creato stanze.",
+    creator:"CREATOR",
+    members:"membri"
   },
-
-  en: {
-    welcome: "WELCOME TO",
-    slogan: "No names. No judgment. Just WHO.",
-    enter: "ENTER WHO",
-    identity: "YOUR IDENTITY",
-    whoAreYou: "Who do you want to be?",
-    nickname: "Choose a nickname...",
-    chooseAvatar: "Choose your avatar",
-    selected: "Selected",
-    choose: "Choose",
-    continue: "CONTINUE",
-    home: "Home",
-    rooms: "Rooms",
-    shop: "Shop",
-    profile: "Profile",
-    general: "General",
-    generalRoom: "General Room",
-    publicChat: "PUBLIC CHAT",
-    write: "Write a message...",
-    send: "SEND",
-    noMessages: "No messages",
-    firstMessage: "Write the first message.",
-    changeIdentity: "Change identity",
-    points: "WHO POINTS",
-    reputation: "Reputation",
-    level: "Level",
-    shopTitle: "WHO SHOP",
-    shopSubtitle: "Customize your identity",
-    buy: "UNLOCK",
-    owned: "OWNED",
-    notEnough: "You don't have enough WHO Points.",
-    purchased: "Gadget unlocked!",
-    roomsTitle: "ROOMS",
-    enterRoom: "ENTER",
-    profileTitle: "YOUR PROFILE",
-    reports: "Confirmed reports",
-    goodStanding: "Account in good standing",
-    report: "Report",
-    reportSent: "Report sent to moderation.",
-    reportInfo:
-      "A report alone does not remove points. Points can only be deducted after a confirmed violation.",
-    pointsInfo:
-      "Participate positively, receive appreciation and build your reputation.",
-    founder: "FOUNDER",
-  },
+  en:{
+    enter:"ENTER WHO",
+    slogan:"No names. No judgment. Just WHO.",
+    identity:"YOUR IDENTITY",
+    who:"Who do you want to be?",
+    nick:"Choose a nickname...",
+    avatar:"Choose your avatar",
+    selected:"SELECTED",
+    choose:"CHOOSE",
+    continue:"CONTINUE",
+    chat:"Chat",
+    rooms:"Rooms",
+    shop:"Shop",
+    profile:"Profile",
+    general:"General",
+    publicChat:"PUBLIC CHAT",
+    write:"Write a message...",
+    send:"SEND",
+    report:"Report",
+    points:"WHO POINTS",
+    createRoom:"CREATE A ROOM",
+    roomName:"Room name",
+    roomTheme:"Theme / description",
+    public:"Public",
+    private:"Private",
+    create:"CREATE",
+    official:"WHO ROOMS",
+    community:"CREATED BY THE COMMUNITY",
+    shopTitle:"WHO SHOP",
+    collection:"Build your identity.",
+    unlock:"UNLOCK",
+    owned:"OWNED",
+    insufficient:"Not enough WHO Points",
+    level:"LEVEL",
+    reputation:"REPUTATION",
+    good:"GOOD STANDING",
+    inventory:"COLLECTION",
+    change:"CHANGE IDENTITY",
+    noRooms:"You haven't created any rooms yet.",
+    creator:"CREATOR",
+    members:"members"
+  }
 };
 
-function avatarImage(name) {
-  const found = avatars.find((item) => item.name === name);
-  return found ? found.image : "/shadow.png";
+function getAvatar(name){
+  return avatars.find(a => a.name === name)?.image || "/shadow.png";
 }
 
-export default function Home() {
-  const [started, setStarted] = useState(false);
-  const [page, setPage] = useState("chat");
+export default function Home(){
 
-  const [messages, setMessages] = useState([]);
-  const [nickname, setNickname] = useState("");
-  const [avatar, setAvatar] = useState("Shadow");
-  const [testo, setTesto] = useState("");
+  const [started,setStarted] = useState(false);
+  const [page,setPage] = useState("chat");
 
-  const [language, setLanguage] = useState("it");
+  const [nickname,setNickname] = useState("");
+  const [avatar,setAvatar] = useState("Shadow");
 
-  // Per ora demo locale.
-  // Successivamente questi dati saranno salvati in Supabase.
-  const [points, setPoints] = useState(100);
-  const [ownedItems, setOwnedItems] = useState([]);
-  const [confirmedReports] = useState(0);
+  const [messages,setMessages] = useState([]);
+  const [message,setMessage] = useState("");
 
-  const t = text[language];
+  const [language,setLanguage] = useState("it");
 
-  useEffect(() => {
-    const savedLanguage = localStorage.getItem("who-language");
+  const [points,setPoints] = useState(500);
+  const [owned,setOwned] = useState([]);
 
-    if (savedLanguage === "it" || savedLanguage === "en") {
-      setLanguage(savedLanguage);
+  const [rooms,setRooms] = useState([]);
+  const [creatingRoom,setCreatingRoom] = useState(false);
+  const [roomName,setRoomName] = useState("");
+  const [roomTheme,setRoomTheme] = useState("");
+  const [roomPrivate,setRoomPrivate] = useState(false);
+
+  const t = translations[language];
+
+  useEffect(()=>{
+    const saved = localStorage.getItem("who-language");
+    if(saved === "it" || saved === "en") setLanguage(saved);
+
+    const savedRooms = localStorage.getItem("who-rooms");
+    if(savedRooms){
+      try{
+        setRooms(JSON.parse(savedRooms));
+      }catch{}
     }
-  }, []);
+  },[]);
 
-  function changeLanguage(lang) {
+  function changeLanguage(lang){
     setLanguage(lang);
-    localStorage.setItem("who-language", lang);
+    localStorage.setItem("who-language",lang);
   }
 
-  async function caricaMessaggi() {
-    const { data, error } = await supabase
+  async function loadMessages(){
+
+    const {data,error} = await supabase
       .from("messages")
       .select("*")
-      .eq("room", "generale")
-      .order("id", { ascending: true });
+      .eq("room","generale")
+      .order("id",{ascending:true});
 
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    setMessages(data || []);
+    if(!error) setMessages(data || []);
   }
 
-  useEffect(() => {
-    caricaMessaggi();
-  }, []);
+  useEffect(()=>{
+    loadMessages();
+  },[]);
 
-  async function inviaMessaggio() {
-    const messaggio = testo.trim();
+  async function sendMessage(){
 
-    if (!messaggio) return;
+    if(!message.trim()) return;
 
-    const { error } = await supabase.from("messages").insert({
-      room: "generale",
-      nickname: nickname || "Anonimo",
-      avatar,
-      content: messaggio,
-      likes: 0,
-      dislikes: 0,
-    });
-
-    if (error) {
-      alert("Errore invio: " + error.message);
-      return;
-    }
-
-    setTesto("");
-    await caricaMessaggi();
-  }
-
-  async function vota(id, tipo, valoreAttuale) {
-    const nuovoValore = (valoreAttuale || 0) + 1;
-
-    const { error } = await supabase
+    const {error} = await supabase
       .from("messages")
-      .update({ [tipo]: nuovoValore })
-      .eq("id", id);
+      .insert({
+        room:"generale",
+        nickname:nickname || "Anonimo",
+        avatar,
+        content:message.trim(),
+        likes:0,
+        dislikes:0
+      });
 
-    if (error) {
-      alert("Errore voto: " + error.message);
+    if(error){
+      alert(error.message);
       return;
     }
 
-    setMessages((prev) =>
-      prev.map((msg) =>
-        msg.id === id ? { ...msg, [tipo]: nuovoValore } : msg
+    setMessage("");
+    loadMessages();
+  }
+
+  async function vote(id,type,current){
+
+    const value = (current || 0) + 1;
+
+    const {error} = await supabase
+      .from("messages")
+      .update({[type]:value})
+      .eq("id",id);
+
+    if(error) return;
+
+    setMessages(old =>
+      old.map(m =>
+        m.id === id ? {...m,[type]:value} : m
       )
     );
   }
 
-  function compra(item) {
-    if (ownedItems.includes(item.id)) return;
+  function createRoom(){
 
-    if (points < item.price) {
-      alert(t.notEnough);
+    if(!roomName.trim()) return;
+
+    const newRoom = {
+      id:Date.now(),
+      name:roomName.trim(),
+      theme:roomTheme.trim(),
+      private:roomPrivate,
+      creator:nickname,
+      members:1
+    };
+
+    const updated = [newRoom,...rooms];
+
+    setRooms(updated);
+    localStorage.setItem("who-rooms",JSON.stringify(updated));
+
+    setRoomName("");
+    setRoomTheme("");
+    setRoomPrivate(false);
+    setCreatingRoom(false);
+  }
+
+  function buy(item){
+
+    if(owned.includes(item.id)) return;
+
+    if(points < item.price){
+      alert(t.insufficient);
       return;
     }
 
-    setPoints((old) => old - item.price);
-    setOwnedItems((old) => [...old, item.id]);
-
-    alert(t.purchased);
+    setPoints(p => p-item.price);
+    setOwned(old => [...old,item.id]);
   }
 
-  function segnala() {
-    alert(t.reportSent);
+  const background = {
+    minHeight:"100vh",
+    color:"#fff",
+    background:
+      "radial-gradient(circle at 50% -10%,#38105f 0,#150921 35%,#07050c 75%)",
+    paddingBottom:started === true ? 90 : 25
+  };
+
+  const card = {
+    background:
+      "linear-gradient(145deg,rgba(35,18,54,.96),rgba(12,8,20,.97))",
+    border:"1px solid #542975",
+    borderRadius:22,
+    color:"#fff",
+    boxShadow:"0 12px 35px rgba(0,0,0,.3)"
+  };
+
+  function Language(){
+
+    return(
+      <div style={{
+        display:"flex",
+        justifyContent:"flex-end",
+        gap:6,
+        padding:"13px 17px"
+      }}>
+
+        {["it","en"].map(lang => (
+          <button
+            key={lang}
+            onClick={()=>changeLanguage(lang)}
+            style={{
+              background:language === lang ? "#66258c":"#15101c",
+              border:"1px solid #663a7b",
+              borderRadius:20,
+              padding:"7px 11px",
+              color:"#fff"
+            }}
+          >
+            {lang === "it" ? "🇮🇹 IT":"🇬🇧 EN"}
+          </button>
+        ))}
+
+      </div>
+    );
   }
 
-  const cardStyle = {
-    background:
-      "linear-gradient(145deg, rgba(32,18,52,.96), rgba(13,10,25,.98))",
-    border: "1px solid #5d2b85",
-    borderRadius: "22px",
-    color: "white",
-    boxShadow: "0 8px 28px rgba(0,0,0,.28)",
-  };
+  function Logo(){
 
-  const appStyle = {
-    minHeight: "100vh",
-    color: "white",
-    background:
-      "radial-gradient(circle at top, #30115b 0%, #12091f 38%, #07050d 100%)",
-    paddingBottom: started === true ? "92px" : "30px",
-  };
+    return(
+      <div style={{textAlign:"center"}}>
 
-  const languageSelector = (
-    <div
-      style={{
-        display: "flex",
-        gap: "6px",
-        justifyContent: "flex-end",
-        padding: "14px 18px 0",
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => changeLanguage("it")}
-        style={{
-          border: language === "it" ? "1px solid #c65cff" : "1px solid #513067",
-          background: language === "it" ? "#58217d" : "#17101f",
-          color: "white",
-          borderRadius: "20px",
-          padding: "7px 11px",
-        }}
-      >
-        🇮🇹 IT
-      </button>
+        <div style={{
+          fontSize:74,
+          lineHeight:1,
+          fontWeight:950,
+          letterSpacing:-6,
+          background:
+            "linear-gradient(90deg,#fff,#e993ff,#8c59ff,#5ee8ff)",
+          WebkitBackgroundClip:"text",
+          color:"transparent",
+          filter:"drop-shadow(0 0 20px #922eff)"
+        }}>
+          WHO
+        </div>
 
-      <button
-        type="button"
-        onClick={() => changeLanguage("en")}
-        style={{
-          border: language === "en" ? "1px solid #c65cff" : "1px solid #513067",
-          background: language === "en" ? "#58217d" : "#17101f",
-          color: "white",
-          borderRadius: "20px",
-          padding: "7px 11px",
-        }}
-      >
-        🇬🇧 EN
-      </button>
-    </div>
-  );
+        <div style={{
+          fontSize:10,
+          letterSpacing:7,
+          color:"#ad75ca",
+          marginTop:8
+        }}>
+          BE ANYONE
+        </div>
 
-  // HOME INIZIALE
-  if (started === false) {
-    return (
-      <main style={appStyle}>
-        {languageSelector}
+      </div>
+    );
+  }
 
-        <section
-          style={{
-            minHeight: "82vh",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "20px",
-            textAlign: "center",
-          }}
-        >
-          <div
+  function Nav(){
+
+    const nav = [
+      ["chat","💬",t.chat],
+      ["rooms","◉",t.rooms],
+      ["shop","◆",t.shop],
+      ["profile","●",t.profile]
+    ];
+
+    return(
+      <nav style={{
+        position:"fixed",
+        zIndex:100,
+        bottom:0,
+        left:0,
+        right:0,
+        display:"grid",
+        gridTemplateColumns:"repeat(4,1fr)",
+        background:"rgba(7,4,12,.97)",
+        borderTop:"1px solid #48245f",
+        padding:"9px 4px 12px",
+        backdropFilter:"blur(15px)"
+      }}>
+
+        {nav.map(([id,icon,label])=>(
+          <button
+            key={id}
+            onClick={()=>setPage(id)}
             style={{
-              fontSize: "14px",
-              letterSpacing: "5px",
-              color: "#d398ff",
-              marginBottom: "10px",
+              background:"transparent",
+              border:0,
+              color:page === id ? "#df91ff":"#817589",
+              fontSize:11,
+              fontWeight:700
             }}
           >
-            {t.welcome}
-          </div>
 
-          <div
-            style={{
-              fontSize: "82px",
-              lineHeight: 1,
-              fontWeight: "900",
-              letterSpacing: "-6px",
-              background:
-                "linear-gradient(90deg,#ffffff,#df8cff,#8e5cff,#57d9ff)",
-              WebkitBackgroundClip: "text",
-              color: "transparent",
-              filter: "drop-shadow(0 0 18px rgba(186,70,255,.65))",
-            }}
-          >
-            WHO
-          </div>
+            <span style={{
+              display:"block",
+              fontSize:21,
+              marginBottom:3
+            }}>
+              {icon}
+            </span>
 
-          <div
-            style={{
-              marginTop: "8px",
-              fontSize: "12px",
-              letterSpacing: "6px",
-              color: "#9b68be",
-            }}
-          >
-            BE ANYONE
-          </div>
+            {label}
 
-          <p
-            style={{
-              opacity: 0.76,
-              marginTop: "28px",
-              maxWidth: "330px",
-            }}
-          >
+          </button>
+        ))}
+
+      </nav>
+    );
+  }
+
+  /* WELCOME */
+
+  if(started === false){
+
+    return(
+      <main style={background}>
+
+        <Language/>
+
+        <section style={{
+          minHeight:"78vh",
+          display:"flex",
+          flexDirection:"column",
+          justifyContent:"center",
+          alignItems:"center",
+          padding:22
+        }}>
+
+          <Logo/>
+
+          <p style={{
+            opacity:.72,
+            marginTop:30,
+            textAlign:"center"
+          }}>
             {t.slogan}
           </p>
 
           <button
-            type="button"
-            onClick={() => setStarted("identita")}
+            onClick={()=>setStarted("identity")}
             style={{
-              marginTop: "24px",
-              width: "100%",
-              maxWidth: "360px",
-              border: "1px solid #c658ff",
-              borderRadius: "22px",
-              padding: "18px",
+              marginTop:20,
+              width:"100%",
+              maxWidth:370,
+              padding:18,
+              borderRadius:22,
+              border:"1px solid #d066ff",
               background:
-                "linear-gradient(90deg,#66219a,#382168)",
-              color: "white",
-              fontWeight: "900",
-              fontSize: "16px",
-              boxShadow: "0 0 28px rgba(181,65,255,.25)",
+                "linear-gradient(90deg,#7725a6,#382065)",
+              color:"#fff",
+              fontWeight:900,
+              boxShadow:"0 0 30px rgba(170,50,255,.25)"
             }}
           >
             {t.enter} →
           </button>
+
         </section>
+
       </main>
     );
   }
 
-  // SCELTA IDENTITÀ
-  if (started === "identita") {
-    return (
-      <main style={appStyle}>
-        {languageSelector}
+  /* IDENTITY */
 
-        <section style={{ padding: "10px 18px 18px" }}>
-          <div
-            style={{
-              color: "#cf83ff",
-              fontSize: "12px",
-              letterSpacing: "3px",
-            }}
-          >
+  if(started === "identity"){
+
+    return(
+      <main style={background}>
+
+        <Language/>
+
+        <section style={{padding:"5px 18px 20px"}}>
+
+          <small style={{
+            color:"#d285f6",
+            letterSpacing:3
+          }}>
             {t.identity}
-          </div>
+          </small>
 
-          <h1 style={{ fontSize: "34px", margin: "8px 0 18px" }}>
-            {t.whoAreYou}
+          <h1 style={{fontSize:34}}>
+            {t.who}
           </h1>
 
           <input
-            type="text"
             value={nickname}
+            onChange={e=>setNickname(e.target.value)}
+            placeholder={t.nick}
             maxLength={20}
-            placeholder={t.nickname}
-            onChange={(e) => setNickname(e.target.value)}
             style={{
-              ...cardStyle,
-              boxSizing: "border-box",
-              width: "100%",
-              padding: "17px",
-              fontSize: "16px",
-              outline: "none",
+              ...card,
+              boxSizing:"border-box",
+              width:"100%",
+              padding:17,
+              fontSize:16,
+              outline:0
             }}
           />
 
-          <h3 style={{ marginTop: "26px" }}>{t.chooseAvatar}</h3>
+          <h3 style={{marginTop:26}}>
+            {t.avatar}
+          </h3>
+
         </section>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-            gap: "12px",
-            padding: "0 18px",
-          }}
-        >
-          {avatars.map((item) => {
+        <section style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(2,minmax(0,1fr))",
+          gap:12,
+          padding:"0 18px"
+        }}>
+
+          {avatars.map(item=>{
+
             const selected = avatar === item.name;
 
-            return (
+            return(
               <button
                 key={item.name}
-                type="button"
-                onClick={() => setAvatar(item.name)}
+                onClick={()=>setAvatar(item.name)}
                 style={{
-                  ...cardStyle,
-                  padding: "14px 8px",
-                  border: selected
-                    ? "2px solid #cf63ff"
-                    : "1px solid #5d2b85",
-                  boxShadow: selected
-                    ? "0 0 22px rgba(195,78,255,.45)"
-                    : "none",
+                  ...card,
+                  padding:"13px 7px",
+                  border:selected
+                    ? "2px solid #d168ff"
+                    : card.border,
+                  boxShadow:selected
+                    ? "0 0 22px rgba(199,70,255,.4)"
+                    : card.boxShadow
                 }}
               >
+
                 <img
                   src={item.image}
                   alt={item.name}
                   style={{
-                    width: "100px",
-                    height: "100px",
-                    maxWidth: "100%",
-                    objectFit: "cover",
-                    borderRadius: "50%",
-                    border: selected
-                      ? "3px solid #d870ff"
-                      : "2px solid #653389",
+                    width:100,
+                    height:100,
+                    maxWidth:"100%",
+                    borderRadius:"50%",
+                    objectFit:"cover",
+                    border:selected
+                      ? "3px solid #d86cff"
+                      : "2px solid #5b3470"
                   }}
                 />
 
-                <strong
-                  style={{
-                    display: "block",
-                    marginTop: "9px",
-                    fontSize: "17px",
-                  }}
-                >
-                  {selected ? "✓ " : ""}
+                <strong style={{
+                  display:"block",
+                  marginTop:8
+                }}>
                   {item.name}
                 </strong>
 
-                <small style={{ opacity: 0.65 }}>
-                  {selected ? t.selected : t.choose}
+                <small style={{
+                  color:selected ? "#e39aff":"#887c91"
+                }}>
+                  {selected ? t.selected:t.choose}
                 </small>
+
               </button>
             );
           })}
+
         </section>
 
-        <section style={{ padding: "18px" }}>
+        <div style={{padding:18}}>
+
           <button
-            type="button"
-            onClick={() => {
-              if (!nickname.trim()) {
+            onClick={()=>{
+
+              if(!nickname.trim()){
                 alert(
                   language === "it"
-                    ? "Scegli prima un nickname."
-                    : "Choose a nickname first."
+                    ? "Inserisci un nickname"
+                    : "Enter a nickname"
                 );
                 return;
               }
@@ -544,599 +596,747 @@ export default function Home() {
               setPage("chat");
             }}
             style={{
-              width: "100%",
-              padding: "18px",
-              borderRadius: "20px",
-              border: "1px solid #c75dff",
-              background:
-                "linear-gradient(90deg,#7026a4,#392267)",
-              color: "white",
-              fontWeight: "900",
+              width:"100%",
+              padding:18,
+              borderRadius:20,
+              background:"#68258e",
+              border:"1px solid #c35bea",
+              color:"#fff",
+              fontWeight:900
             }}
           >
             {t.continue} →
           </button>
-        </section>
+
+        </div>
+
       </main>
     );
   }
 
-  function Navigation() {
-    const items = [
-      ["chat", "💬", t.home],
-      ["rooms", "🌐", t.rooms],
-      ["shop", "🛍️", t.shop],
-      ["profile", "👤", t.profile],
+  /* ROOMS */
+
+  if(page === "rooms"){
+
+    const officialRooms = [
+      ["WHO GENERAL","🌐","LIVE"],
+      ["NIGHT WHO","🌙","LIVE"],
+      ["GAMING","🎮","LIVE"],
+      ["MUSIC","♫","LIVE"],
+      ["MEET PEOPLE","✦","LIVE"]
     ];
 
-    return (
-      <nav
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 20,
-          display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          padding: "9px 6px 12px",
-          background: "rgba(8,5,14,.97)",
-          borderTop: "1px solid #4e2768",
-          backdropFilter: "blur(14px)",
-        }}
-      >
-        {items.map(([id, icon, label]) => (
+    return(
+      <main style={background}>
+
+        <Language/>
+
+        <section style={{padding:"0 18px"}}>
+
+          <small style={{
+            color:"#d486fa",
+            letterSpacing:3
+          }}>
+            {t.official}
+          </small>
+
+          <h1 style={{
+            fontSize:36,
+            margin:"7px 0 18px"
+          }}>
+            {t.rooms}
+          </h1>
+
           <button
-            key={id}
-            type="button"
-            onClick={() => setPage(id)}
+            onClick={()=>setCreatingRoom(!creatingRoom)}
             style={{
-              background: "transparent",
-              border: "none",
-              color: page === id ? "#dc8cff" : "#8f8199",
-              fontWeight: page === id ? "800" : "500",
-              fontSize: "11px",
-              padding: "4px",
+              width:"100%",
+              padding:17,
+              marginBottom:18,
+              borderRadius:20,
+              border:"1px solid #d166ff",
+              background:
+                "linear-gradient(90deg,#71299a,#3c1d69)",
+              color:"#fff",
+              fontWeight:900
             }}
           >
-            <span
+            ＋ {t.createRoom}
+          </button>
+
+          {creatingRoom && (
+
+            <div style={{
+              ...card,
+              padding:16,
+              marginBottom:20
+            }}>
+
+              <input
+                value={roomName}
+                onChange={e=>setRoomName(e.target.value)}
+                placeholder={t.roomName}
+                style={{
+                  boxSizing:"border-box",
+                  width:"100%",
+                  padding:13,
+                  marginBottom:9,
+                  borderRadius:13,
+                  border:"1px solid #55306c",
+                  background:"#0d0913",
+                  color:"#fff"
+                }}
+              />
+
+              <input
+                value={roomTheme}
+                onChange={e=>setRoomTheme(e.target.value)}
+                placeholder={t.roomTheme}
+                style={{
+                  boxSizing:"border-box",
+                  width:"100%",
+                  padding:13,
+                  marginBottom:12,
+                  borderRadius:13,
+                  border:"1px solid #55306c",
+                  background:"#0d0913",
+                  color:"#fff"
+                }}
+              />
+
+              <button
+                onClick={()=>setRoomPrivate(!roomPrivate)}
+                style={{
+                  background:"#21142c",
+                  border:"1px solid #583370",
+                  color:"#fff",
+                  borderRadius:13,
+                  padding:"10px 14px",
+                  marginRight:8
+                }}
+              >
+                {roomPrivate ? "🔒 "+t.private:"🌐 "+t.public}
+              </button>
+
+              <button
+                onClick={createRoom}
+                style={{
+                  background:"#68258e",
+                  border:"1px solid #b94ee4",
+                  color:"#fff",
+                  borderRadius:13,
+                  padding:"10px 16px",
+                  fontWeight:800
+                }}
+              >
+                {t.create}
+              </button>
+
+            </div>
+          )}
+
+          {officialRooms.map(([name,icon,status])=>(
+            <div
+              key={name}
               style={{
-                display: "block",
-                fontSize: "22px",
-                marginBottom: "3px",
+                ...card,
+                padding:17,
+                marginBottom:11,
+                display:"flex",
+                alignItems:"center",
+                gap:14
               }}
             >
-              {icon}
-            </span>
-            {label}
-          </button>
-        ))}
-      </nav>
+
+              <div style={{
+                width:50,
+                height:50,
+                borderRadius:16,
+                display:"grid",
+                placeItems:"center",
+                fontSize:25,
+                background:"#28123b"
+              }}>
+                {icon}
+              </div>
+
+              <div style={{flex:1}}>
+                <strong>{name}</strong>
+                <small style={{
+                  display:"block",
+                  color:"#50e99c",
+                  marginTop:4
+                }}>
+                  ● {status}
+                </small>
+              </div>
+
+              <span style={{color:"#cf7aff"}}>→</span>
+
+            </div>
+          ))}
+
+          <h3 style={{marginTop:28}}>
+            {t.community}
+          </h3>
+
+          {rooms.length === 0 && (
+            <p style={{opacity:.55}}>
+              {t.noRooms}
+            </p>
+          )}
+
+          {rooms.map(room=>(
+            <div
+              key={room.id}
+              style={{
+                ...card,
+                padding:17,
+                marginBottom:11
+              }}
+            >
+
+              <div style={{
+                display:"flex",
+                justifyContent:"space-between"
+              }}>
+
+                <strong>
+                  {room.private ? "🔒 ":"🌐 "}
+                  {room.name}
+                </strong>
+
+                <small style={{color:"#d181f5"}}>
+                  {t.creator}
+                </small>
+
+              </div>
+
+              <p style={{
+                opacity:.65,
+                fontSize:13
+              }}>
+                {room.theme || "WHO Community"}
+              </p>
+
+              <small>
+                {room.creator} · {room.members} {t.members}
+              </small>
+
+            </div>
+          ))}
+
+        </section>
+
+        <Nav/>
+
+      </main>
     );
   }
 
-  // SHOP
-  if (page === "shop") {
-    return (
-      <main style={appStyle}>
-        {languageSelector}
+  /* SHOP */
 
-        <section style={{ padding: "5px 18px 16px" }}>
-          <div
-            style={{
-              fontSize: "12px",
-              letterSpacing: "3px",
-              color: "#d17aff",
-            }}
-          >
+  if(page === "shop"){
+
+    return(
+      <main style={background}>
+
+        <Language/>
+
+        <section style={{padding:"0 18px 15px"}}>
+
+          <small style={{
+            color:"#d687ff",
+            letterSpacing:3
+          }}>
             {t.shopTitle}
-          </div>
+          </small>
 
-          <h1 style={{ fontSize: "34px", margin: "6px 0" }}>
+          <h1 style={{
+            fontSize:38,
+            margin:"5px 0"
+          }}>
             {t.shop}
           </h1>
 
-          <p style={{ opacity: 0.7 }}>{t.shopSubtitle}</p>
+          <p style={{opacity:.65}}>
+            {t.collection}
+          </p>
 
-          <div
-            style={{
-              ...cardStyle,
-              marginTop: "18px",
-              padding: "16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <small style={{ color: "#cb81ff" }}>{t.points}</small>
-              <div style={{ fontSize: "30px", fontWeight: "900" }}>
-                ✦ {points}
-              </div>
+          <div style={{
+            ...card,
+            padding:17,
+            marginTop:17
+          }}>
+
+            <small style={{color:"#cf83f5"}}>
+              {t.points}
+            </small>
+
+            <div style={{
+              fontSize:31,
+              fontWeight:950
+            }}>
+              ✦ {points}
             </div>
 
-            <div style={{ fontSize: "36px" }}>💎</div>
           </div>
+
         </section>
 
-        <section
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-            gap: "12px",
-            padding: "0 18px 22px",
-          }}
-        >
-          {shopItems.map((item) => {
-            const owned = ownedItems.includes(item.id);
+        <section style={{
+          display:"grid",
+          gridTemplateColumns:"repeat(2,minmax(0,1fr))",
+          gap:12,
+          padding:"0 18px 20px"
+        }}>
 
-            return (
+          {shopItems.map(item=>{
+
+            const isOwned = owned.includes(item.id);
+
+            return(
               <div
                 key={item.id}
                 style={{
-                  ...cardStyle,
-                  padding: "17px 10px",
-                  textAlign: "center",
+                  ...card,
+                  overflow:"hidden"
                 }}
               >
-                <div
-                  style={{
-                    fontSize: "48px",
-                    marginBottom: "8px",
-                    filter: "drop-shadow(0 0 10px #9d43ff)",
-                  }}
-                >
-                  {item.icon}
+
+                <div style={{
+                  height:155,
+                  position:"relative",
+                  background:
+                    "radial-gradient(circle,#3d175b,#100817)"
+                }}>
+
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    style={{
+                      width:"100%",
+                      height:"100%",
+                      objectFit:"cover"
+                    }}
+                    onError={e=>{
+                      e.currentTarget.style.display="none";
+                    }}
+                  />
+
+                  <div style={{
+                    position:"absolute",
+                    top:8,
+                    left:8,
+                    background:"rgba(5,3,9,.8)",
+                    border:"1px solid #754095",
+                    borderRadius:10,
+                    padding:"5px 7px",
+                    fontSize:9,
+                    letterSpacing:1
+                  }}>
+                    {item.rarity}
+                  </div>
+
                 </div>
 
-                <strong style={{ display: "block" }}>
-                  {language === "it" ? item.nameIT : item.nameEN}
-                </strong>
+                <div style={{padding:12}}>
 
-                <div
-                  style={{
-                    color: "#d693ff",
-                    fontWeight: "800",
-                    margin: "9px 0",
-                  }}
-                >
-                  ✦ {item.price}
+                  <strong style={{fontSize:13}}>
+                    {item.name}
+                  </strong>
+
+                  <div style={{
+                    color:"#df94ff",
+                    fontWeight:900,
+                    margin:"8px 0"
+                  }}>
+                    ✦ {item.price}
+                  </div>
+
+                  <button
+                    disabled={isOwned}
+                    onClick={()=>buy(item)}
+                    style={{
+                      width:"100%",
+                      padding:10,
+                      borderRadius:12,
+                      border:"1px solid #784093",
+                      background:isOwned
+                        ? "#27202c"
+                        : "#592078",
+                      color:"#fff",
+                      fontWeight:800,
+                      fontSize:11
+                    }}
+                  >
+                    {isOwned ? t.owned:t.unlock}
+                  </button>
+
                 </div>
 
-                <button
-                  type="button"
-                  disabled={owned}
-                  onClick={() => compra(item)}
-                  style={{
-                    width: "100%",
-                    borderRadius: "14px",
-                    padding: "10px 4px",
-                    border: "1px solid #8642ae",
-                    background: owned ? "#28202d" : "#542071",
-                    color: "white",
-                    fontWeight: "800",
-                  }}
-                >
-                  {owned ? t.owned : t.buy}
-                </button>
               </div>
             );
           })}
+
         </section>
 
-        <Navigation />
+        <Nav/>
+
       </main>
     );
   }
 
-  // STANZE
-  if (page === "rooms") {
-    const rooms = [
-      ["🌍", t.general, "LIVE"],
-      ["💜", "Friends", "LIVE"],
-      ["🎮", "Gaming", "LIVE"],
-      ["🌙", "Night WHO", "LIVE"],
-      ["🎵", "Music", "LIVE"],
-      ["❤️", "Dating", "LIVE"],
-    ];
+  /* PROFILE */
 
-    return (
-      <main style={appStyle}>
-        {languageSelector}
+  if(page === "profile"){
 
-        <section style={{ padding: "5px 18px" }}>
-          <div
-            style={{
-              color: "#d17aff",
-              letterSpacing: "3px",
-              fontSize: "12px",
-            }}
-          >
-            {t.roomsTitle}
-          </div>
+    const level = Math.max(1,Math.floor(points/250)+1);
 
-          <h1 style={{ fontSize: "34px" }}>{t.rooms}</h1>
+    return(
+      <main style={background}>
 
-          {rooms.map(([icon, name, status]) => (
-            <button
-              key={name}
-              type="button"
-              onClick={() => {
-                if (name === t.general) setPage("chat");
-              }}
-              style={{
-                ...cardStyle,
-                width: "100%",
-                marginBottom: "12px",
-                padding: "17px",
-                display: "flex",
-                alignItems: "center",
-                textAlign: "left",
-                gap: "14px",
-              }}
-            >
-              <span style={{ fontSize: "30px" }}>{icon}</span>
+        <Language/>
 
-              <span style={{ flex: 1 }}>
-                <strong style={{ display: "block" }}>{name}</strong>
-                <small style={{ color: "#54e89a" }}>● {status}</small>
-              </span>
-
-              <strong style={{ color: "#ce75ff" }}>→</strong>
-            </button>
-          ))}
-        </section>
-
-        <Navigation />
-      </main>
-    );
-  }
-
-  // PROFILO
-  if (page === "profile") {
-    const level = Math.max(1, Math.floor(points / 100) + 1);
-
-    return (
-      <main style={appStyle}>
-        {languageSelector}
-
-        <section
-          style={{
-            padding: "8px 18px",
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              color: "#d17aff",
-              letterSpacing: "3px",
-              fontSize: "12px",
-            }}
-          >
-            {t.profileTitle}
-          </div>
+        <section style={{
+          textAlign:"center",
+          padding:"5px 18px 20px"
+        }}>
 
           <img
-            src={avatarImage(avatar)}
+            src={getAvatar(avatar)}
             alt={avatar}
             style={{
-              width: "130px",
-              height: "130px",
-              borderRadius: "50%",
-              objectFit: "cover",
-              border: "4px solid #c65cff",
-              marginTop: "22px",
-              boxShadow: "0 0 32px rgba(192,70,255,.5)",
+              width:135,
+              height:135,
+              objectFit:"cover",
+              borderRadius:"50%",
+              border:"4px solid #d268ff",
+              boxShadow:"0 0 35px #7629a2"
             }}
           />
 
-          <h1 style={{ marginBottom: "3px" }}>{nickname}</h1>
-          <div style={{ color: "#bd78e8" }}>{avatar}</div>
+          <h1 style={{marginBottom:2}}>
+            {nickname}
+          </h1>
+
+          <span style={{color:"#bd7ad6"}}>
+            {avatar}
+          </span>
+
         </section>
 
-        <section style={{ padding: "15px 18px" }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "12px",
-            }}
-          >
-            <div style={{ ...cardStyle, padding: "17px" }}>
+        <section style={{padding:"0 18px"}}>
+
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"1fr 1fr",
+            gap:11
+          }}>
+
+            <div style={{
+              ...card,
+              padding:17
+            }}>
               <small>{t.points}</small>
-              <div style={{ fontSize: "28px", fontWeight: "900" }}>
+              <div style={{
+                fontSize:27,
+                fontWeight:900
+              }}>
                 ✦ {points}
               </div>
             </div>
 
-            <div style={{ ...cardStyle, padding: "17px" }}>
+            <div style={{
+              ...card,
+              padding:17
+            }}>
               <small>{t.level}</small>
-              <div style={{ fontSize: "28px", fontWeight: "900" }}>
+              <div style={{
+                fontSize:27,
+                fontWeight:900
+              }}>
                 {level}
               </div>
             </div>
+
           </div>
 
-          <div
-            style={{
-              ...cardStyle,
-              marginTop: "12px",
-              padding: "17px",
-            }}
-          >
-            <strong>🛡️ {t.reputation}</strong>
-
-            <p style={{ opacity: 0.72, fontSize: "14px" }}>
-              {t.pointsInfo}
+          <div style={{
+            ...card,
+            padding:17,
+            marginTop:11
+          }}>
+            <small>{t.reputation}</small>
+            <h3 style={{
+              color:"#5ce5a1",
+              marginBottom:3
+            }}>
+              ✓ {t.good}
+            </h3>
+            <p style={{
+              opacity:.6,
+              fontSize:13
+            }}>
+              Le segnalazioni non sottraggono automaticamente punti.
+              Una penalità può essere applicata solo dopo una violazione
+              confermata dalla moderazione.
             </p>
-
-            <div style={{ color: "#61eaa3" }}>
-              ✓ {t.goodStanding}
-            </div>
           </div>
 
-          <div
-            style={{
-              ...cardStyle,
-              marginTop: "12px",
-              padding: "17px",
-            }}
-          >
-            <strong>⚠️ {t.reports}: {confirmedReports}</strong>
-
-            <p
-              style={{
-                opacity: 0.65,
-                fontSize: "13px",
-                lineHeight: 1.5,
-              }}
-            >
-              {t.reportInfo}
-            </p>
+          <div style={{
+            ...card,
+            padding:17,
+            marginTop:11
+          }}>
+            <small>{t.inventory}</small>
+            <h2 style={{marginBottom:4}}>
+              {owned.length}
+            </h2>
+            <span style={{opacity:.6}}>
+              WHO cosmetics
+            </span>
           </div>
 
           <button
-            type="button"
-            onClick={() => setStarted("identita")}
+            onClick={()=>setStarted("identity")}
             style={{
-              ...cardStyle,
-              width: "100%",
-              padding: "17px",
-              marginTop: "12px",
+              ...card,
+              width:"100%",
+              padding:17,
+              marginTop:11
             }}
           >
-            {t.changeIdentity}
+            {t.change}
           </button>
+
         </section>
 
-        <Navigation />
+        <Nav/>
+
       </main>
     );
   }
 
-  // CHAT GENERALE
-  return (
-    <main style={appStyle}>
-      {languageSelector}
+  /* CHAT */
 
-      <header
-        style={{
-          padding: "4px 18px 14px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+  return(
+    <main style={background}>
+
+      <Language/>
+
+      <header style={{
+        padding:"0 18px 15px",
+        display:"flex",
+        justifyContent:"space-between"
+      }}>
+
         <div>
-          <div
-            style={{
-              fontSize: "27px",
-              fontWeight: "900",
-              color: "#d98cff",
-              textShadow: "0 0 14px #8d38c8",
-            }}
-          >
+          <strong style={{
+            display:"block",
+            fontSize:28,
+            color:"#dc8dff",
+            textShadow:"0 0 13px #7927a5"
+          }}>
             WHO
-          </div>
-          <small style={{ opacity: 0.65 }}>{t.generalRoom}</small>
+          </strong>
+
+          <small style={{opacity:.55}}>
+            GENERAL ROOM
+          </small>
         </div>
 
-        <div
-          style={{
-            color: "#5ce89e",
-            fontSize: "12px",
-          }}
-        >
+        <small style={{color:"#52e69c"}}>
           ● ONLINE
-        </div>
+        </small>
+
       </header>
 
-      <section style={{ padding: "0 18px 14px" }}>
-        <div
-          style={{
-            color: "#ce7aff",
-            letterSpacing: "2px",
-            fontSize: "11px",
-          }}
-        >
-          {t.publicChat}
-        </div>
+      <section style={{padding:"0 18px 14px"}}>
 
-        <h1 style={{ fontSize: "34px", margin: "5px 0 14px" }}>
+        <small style={{
+          color:"#cd7af3",
+          letterSpacing:2
+        }}>
+          {t.publicChat}
+        </small>
+
+        <h1 style={{
+          fontSize:35,
+          margin:"5px 0 15px"
+        }}>
           {t.general}
         </h1>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-          }}
-        >
+        <div style={{
+          display:"flex",
+          gap:10,
+          alignItems:"center"
+        }}>
+
           <img
-            src={avatarImage(avatar)}
+            src={getAvatar(avatar)}
             alt={avatar}
             style={{
-              width: "48px",
-              height: "48px",
-              borderRadius: "50%",
-              objectFit: "cover",
+              width:50,
+              height:50,
+              objectFit:"cover",
+              borderRadius:"50%"
             }}
           />
 
           <div>
             <strong>{nickname}</strong>
-            <small
-              style={{
-                display: "block",
-                color: "#ad75c8",
-              }}
-            >
+
+            <small style={{
+              display:"block",
+              color:"#b473ce"
+            }}>
               {avatar} · ✦ {points}
             </small>
           </div>
+
         </div>
+
       </section>
 
-      <section style={{ padding: "0 18px" }}>
-        {messages.length === 0 && (
-          <div style={{ ...cardStyle, padding: "17px" }}>
-            <strong>{t.noMessages}</strong>
-            <small style={{ display: "block", opacity: 0.6 }}>
-              {t.firstMessage}
-            </small>
-          </div>
-        )}
+      <section style={{padding:"0 18px"}}>
 
-        {messages.map((msg) => (
+        {messages.map(msg=>(
           <div
             key={msg.id}
             style={{
-              ...cardStyle,
-              padding: "15px",
-              marginBottom: "12px",
+              ...card,
+              padding:15,
+              marginBottom:11
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                gap: "11px",
-                alignItems: "flex-start",
-              }}
-            >
+
+            <div style={{
+              display:"flex",
+              gap:11
+            }}>
+
               <img
-                src={avatarImage(msg.avatar)}
-                alt={msg.avatar || "Avatar"}
+                src={getAvatar(msg.avatar)}
+                alt=""
                 style={{
-                  width: "50px",
-                  height: "50px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  flexShrink: 0,
+                  width:50,
+                  height:50,
+                  objectFit:"cover",
+                  borderRadius:"50%"
                 }}
               />
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <strong>{msg.nickname || "Anonimo"}</strong>
+              <div style={{
+                flex:1,
+                minWidth:0
+              }}>
 
-                <small
-                  style={{
-                    display: "block",
-                    color: "#aa72c5",
-                  }}
-                >
+                <strong>
+                  {msg.nickname || "Anonimo"}
+                </strong>
+
+                <small style={{
+                  display:"block",
+                  color:"#ad73c5"
+                }}>
                   {msg.avatar || "Shadow"}
                 </small>
 
-                <p
-                  style={{
-                    margin: "9px 0 11px",
-                    overflowWrap: "anywhere",
-                  }}
-                >
-                  {msg.content || msg.message || msg.text || ""}
+                <p style={{
+                  overflowWrap:"anywhere"
+                }}>
+                  {msg.content || msg.message || msg.text}
                 </p>
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "7px",
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{
+                  display:"flex",
+                  gap:7
+                }}>
+
                   <button
-                    type="button"
-                    onClick={() =>
-                      vota(msg.id, "likes", msg.likes)
+                    onClick={()=>
+                      vote(msg.id,"likes",msg.likes)
                     }
                   >
                     👍 {msg.likes || 0}
                   </button>
 
                   <button
-                    type="button"
-                    onClick={() =>
-                      vota(msg.id, "dislikes", msg.dislikes)
+                    onClick={()=>
+                      vote(msg.id,"dislikes",msg.dislikes)
                     }
                   >
                     👎 {msg.dislikes || 0}
                   </button>
 
-                  <button type="button" onClick={segnala}>
+                  <button
+                    onClick={()=>
+                      alert(
+                        language === "it"
+                          ? "Segnalazione inviata alla moderazione."
+                          : "Report sent to moderation."
+                      )
+                    }
+                  >
                     🚩 {t.report}
                   </button>
+
                 </div>
+
               </div>
+
             </div>
+
           </div>
         ))}
 
-        <div
-          style={{
-            ...cardStyle,
-            padding: "12px",
-            display: "flex",
-            gap: "8px",
-          }}
-        >
+        <div style={{
+          ...card,
+          padding:11,
+          display:"flex",
+          gap:8
+        }}>
+
           <input
-            type="text"
-            value={testo}
-            placeholder={t.write}
-            onChange={(e) => setTesto(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") inviaMessaggio();
+            value={message}
+            onChange={e=>setMessage(e.target.value)}
+            onKeyDown={e=>{
+              if(e.key === "Enter") sendMessage();
             }}
+            placeholder={t.write}
             style={{
-              flex: 1,
-              minWidth: 0,
-              background: "#0e0916",
-              border: "1px solid #593074",
-              borderRadius: "14px",
-              padding: "13px",
-              color: "white",
-              outline: "none",
+              flex:1,
+              minWidth:0,
+              background:"#0d0913",
+              border:"1px solid #533069",
+              borderRadius:13,
+              color:"#fff",
+              padding:13
             }}
           />
 
           <button
-            type="button"
-            onClick={inviaMessaggio}
+            onClick={sendMessage}
             style={{
-              background: "#67248b",
-              color: "white",
-              border: "1px solid #a94bd3",
-              borderRadius: "14px",
-              padding: "0 14px",
-              fontWeight: "800",
+              background:"#68238d",
+              border:"1px solid #aa48d1",
+              color:"#fff",
+              borderRadius:13,
+              padding:"0 14px",
+              fontWeight:800
             }}
           >
             {t.send}
           </button>
+
         </div>
+
       </section>
 
-      <Navigation />
+      <Nav/>
+
     </main>
   );
-}
+                     }
