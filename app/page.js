@@ -1,14 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js"; const supabase = createClient(
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-); 
+);
+
+const avatars = [
+  "Shadow",
+  "Pixie",
+  "King",
+  "Azra",
+  "Zero",
+  "Luna",
+  "Ranger",
+  "Neon",
+  "Ares",
+  "Vix",
+  "Nova",
+  "Ghost",
+];
+
 export default function Home() {
   const [started, setStarted] = useState(false);
-const [messages, setMessages] = useState([]); 
-  useEffect(() => {
+  const [messages, setMessages] = useState([]);
+  const [nickname, setNickname] = useState("");
+  const [avatar, setAvatar] = useState("Shadow");
+
   async function caricaMessaggi() {
     const { data, error } = await supabase
       .from("messages")
@@ -24,195 +44,91 @@ const [messages, setMessages] = useState([]);
     setMessages(data || []);
   }
 
-  caricaMessaggi();
-}, []);
-if (started === "stanze") {
-  return (
-    <main className="whoApp">
-      <header className="topbar">
-        <div>
-          <span className="logoSmall">WHO</span>
-          <p>Chat pubbliche</p>
-        </div>
-        <div className="status">● ONLINE</div>
-      </header>
+  useEffect(() => {
+    caricaMessaggi();
+  }, []);
 
-      <section className="welcome">
-        <p className="tag">STANZE WHO</p>
-        <h1>Scegli una stanza</h1>
-        <p className="subtitle">
-          Entra e parla mantenendo la tua identità anonima.
-        </p>
-      </section>
-
-      <section className="menu">
-        <button className="card" onClick={() => setStarted("generale")}>
-          <span>
-            <strong>💬 GENERALE</strong>
-            <small>Parla di tutto</small>
-          </span>
-        </button>
-
-        <button className="card">
-          <span>
-            <strong>🌙 NOTTAMBULI</strong>
-            <small>Conversazioni senza orari</small>
-          </span>
-        </button>
-
-        <button className="card">
-          <span>
-            <strong>❤️ RELAZIONI</strong>
-            <small>Amore, amicizia e incontri</small>
-          </span>
-        </button>
-
-        <button className="card" onClick={() => setStarted(true)}>
-          <span>
-            <strong>← INDIETRO</strong>
-            <small>Torna alla Home</small>
-          </span>
-        </button>
-      </section>
-    </main>
-  );
-}  
-  
-if (started === "generale") {
-  return (
-    <main className="whoApp">
-      <header className="topbar">
-        <div>
-          <span className="logoSmall">WHO</span>
-          <p>Stanza pubblica</p>
-        </div>
-        <div className="status">● ONLINE</div>
-      </header>
-
-      <section className="welcome">
-        <p className="tag">💬 GENERALE</p>
-        <h1>Chat Generale</h1>
-        <p className="subtitle">
-          Parla liberamente mantenendo la tua identità anonima.
-        </p>
-      </section>
-
-      <section className="menu">
-      
-{messages.map((msg) => (
-  <div className="card" key={msg.id}>
-    <span>
-      <strong>{msg.nickname}</strong>
-      <small>{msg.content}</small>
-    </span>
-  </div>
-))}
-        <input
-  type="text"
-  id="messageInput"
-  placeholder="Scrivi un messaggio..."
-  className="card"
-/>
-
-<button
-  className="card"
-  onClick={async () => {
-    const input = document.getElementById("messageInput");
-    const testo = input.value.trim();
-
-    if (!testo) return;
+  async function vota(id, tipo, valoreAttuale) {
+    const nuovoValore = (valoreAttuale || 0) + 1;
 
     const { error } = await supabase
       .from("messages")
-      .insert({
-        room: "generale",
-        nickname: "Shadow",
-        content: testo
-      });
-if (!error) {
-  setMessages((prev) => [
-    ...prev,
-    {
-      id: Date.now(),
-      room: "generale",
-      nickname: "Shadow",
-      content: testo,
-    },
-  ]);
-}
+      .update({ [tipo]: nuovoValore })
+      .eq("id", id);
+
     if (error) {
-      alert("Errore: " + error.message);
+      alert("Errore voto: " + error.message);
       return;
     }
 
-    alert("Messaggio inviato!");
-    input.value = "";
-  }}
->
-  <strong>INVIA</strong>
-</button>
-    <button
-  className="card"
-  onClick={() => setStarted("stanze")}
->
-  <strong>← TORNA ALLE STANZE</strong>
-</button>        </section>
-    </main>
-  );
-}
+    setMessages((prev) =>
+      prev.map((msg) =>
+        msg.id === id ? { ...msg, [tipo]: nuovoValore } : msg
+      )
+    );
+  }
 
-if (started) {
-  return (
+  if (started === "identita") {
+    return (
       <main className="whoApp">
         <header className="topbar">
           <div>
             <span className="logoSmall">WHO</span>
-            <p>La tua identità. Le tue conversazioni.</p>
+            <p>Crea la tua identità anonima</p>
           </div>
           <div className="status">● ONLINE</div>
         </header>
 
         <section className="welcome">
-          <p className="tag">BENVENUTO IN WHO</p>
-          <h1>Chi vuoi essere oggi?</h1>
-          <p className="subtitle">
-            Entra senza mostrare chi sei.
-            <br />
-            Scegli un&apos;identità e inizia a parlare.
-          </p>
+          <p className="tag">LA TUA IDENTITÀ</p>
+          <h1>Chi vuoi essere?</h1>
+
+          <input
+            className="card"
+            type="text"
+            value={nickname}
+            maxLength={20}
+            placeholder="Scegli un nickname..."
+            onChange={(e) => setNickname(e.target.value)}
+          />
+
+          <p className="subtitle">Scegli il tuo avatar</p>
         </section>
 
         <section className="menu">
-          <button className="card" onClick={() => setStarted("stanze")}>
-            <span className="icon">●</span>
+          {avatars.map((nome) => (
+            <button
+              key={nome}
+              className="card"
+              onClick={() => setAvatar(nome)}
+            >
+              <span>
+                <strong>
+                  {avatar === nome ? "✓ " : ""}
+                  {nome}
+                </strong>
+                <small>
+                  {avatar === nome
+                    ? "Avatar selezionato"
+                    : "Seleziona avatar"}
+                </small>
+              </span>
+            </button>
+          ))}
+
+          <button
+            className="card"
+            onClick={() => {
+              if (!nickname.trim()) {
+                alert("Scegli prima un nickname.");
+                return;
+              }
+
+              setNickname(nickname.trim());
+              setStarted(true);
+            }}
+          >
             <span>
-              <strong>STANZE</strong>
-              <small>Entra nelle chat pubbliche</small>
-            </span>
-            <b>›</b>
-          </button>
-        </section>
-      </main>
-    );
-  }
-
-  return (
-    <main className="whoApp">
-      <section className="welcome">
-        <p className="tag">WHO</p>
-        <h1>Entra nel mondo WHO</h1>
-        <p className="subtitle">
-          Chat anonime. Nuove identità. Conversazioni vere.
-        </p>
-
-        <button className="card" onClick={() => setStarted(true)}>
-          <span>
-            <strong>ENTRA</strong>
-            <small>Inizia adesso</small>
-          </span>
-          <b>›</b>
-        </button>
-      </section>
-    </main>
-  );
-}
+              <strong>CONTINUA →</strong>
+              <small>
+                {nickname.trim() || "
