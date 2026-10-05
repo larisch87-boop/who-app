@@ -18,21 +18,45 @@ export default function Home() {
 
         <section className="welcome">
           <p className="tag">BENVENUTO IN WHO</p>
-          <h1>Chi vuoi essere<br />oggi?</h1>
+          <h1>Chi vuoi essere oggi?</h1>
           <p className="subtitle">
-            Entra senza mostrare chi sei.<br />
+            Entra senza mostrare chi sei.
+            <br />
             Scegli un&apos;identità e inizia a parlare.
           </p>
         </section>
 
         <section className="menu">
           <button className="card">
-            <span className="icon">◉</span>
+            <span className="icon">●</span>
             <span>
               <strong>STANZE</strong>
               <small>Entra nelle chat pubbliche</small>
             </span>
             <b>›</b>
           </button>
+        </section>
+      </main>
+    );
+  }
 
-          
+  return (
+    <main className="whoApp">
+      <section className="welcome">
+        <p className="tag">WHO</p>
+        <h1>Entra nel mondo WHO</h1>
+        <p className="subtitle">
+          Chat anonime. Nuove identità. Conversazioni vere.
+        </p>
+
+        <button className="card" onClick={() => setStarted(true)}>
+          <span>
+            <strong>ENTRA</strong>
+            <small>Inizia adesso</small>
+          </span>
+          <b>›</b>
+        </button>
+      </section>
+    </main>
+  );
+}
