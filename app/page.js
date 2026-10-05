@@ -62,7 +62,7 @@ export default function Home() {
     const { error } = await supabase.from("messages").insert({
       room: "generale",
       nickname: nickname || "Anonimo",
-      avatar: avatar,
+      avatar,
       content: messaggio,
       likes: 0,
       dislikes: 0,
@@ -106,7 +106,6 @@ export default function Home() {
             <span className="logoSmall">WHO</span>
             <p>Crea la tua identità anonima</p>
           </div>
-
           <div className="status">● ONLINE</div>
         </header>
 
@@ -126,56 +125,89 @@ export default function Home() {
           <p className="subtitle">Scegli il tuo avatar</p>
         </section>
 
-        <section className="menu">
-          {avatars.map((item) => (
-            <button
-              key={item.name}
-              className="card"
-              onClick={() => setAvatar(item.name)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-              }}
-            >
-              <img
-                src={item.image}
-                alt={item.name}
-                width="72"
-                height="72"
-                style={{
-                  width: "72px",
-                  height: "72px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border:
-                    avatar === item.name
-                      ? "3px solid #b84cff"
-                      : "2px solid #63328f",
-                  boxShadow:
-                    avatar === item.name
-                      ? "0 0 18px #a63cff"
-                      : "none",
-                }}
-              />
+        <section
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: "12px",
+            padding: "0 18px 20px",
+          }}
+        >
+          {avatars.map((item) => {
+            const selected = avatar === item.name;
 
-              <span>
-                <strong>
-                  {avatar === item.name ? "✓ " : ""}
+            return (
+              <button
+                key={item.name}
+                type="button"
+                onClick={() => setAvatar(item.name)}
+                style={{
+                  background: selected
+                    ? "linear-gradient(145deg,#24103f,#161025)"
+                    : "linear-gradient(145deg,#181027,#100b1c)",
+                  border: selected
+                    ? "2px solid #c252ff"
+                    : "1px solid #512878",
+                  borderRadius: "22px",
+                  padding: "14px 8px",
+                  color: "white",
+                  minWidth: 0,
+                  boxShadow: selected
+                    ? "0 0 20px rgba(184,76,255,.45)"
+                    : "none",
+                }}
+              >
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  width="100"
+                  height="100"
+                  style={{
+                    display: "block",
+                    width: "100px",
+                    height: "100px",
+                    maxWidth: "100%",
+                    margin: "0 auto 10px",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: selected
+                      ? "3px solid #d069ff"
+                      : "2px solid #63328f",
+                  }}
+                />
+
+                <strong
+                  style={{
+                    display: "block",
+                    fontSize: "17px",
+                  }}
+                >
+                  {selected ? "✓ " : ""}
                   {item.name}
                 </strong>
 
-                <small>
-                  {avatar === item.name
-                    ? "Avatar selezionato"
-                    : "Seleziona avatar"}
+                <small
+                  style={{
+                    display: "block",
+                    marginTop: "5px",
+                    opacity: 0.7,
+                  }}
+                >
+                  {selected ? "Selezionato" : "Scegli"}
                 </small>
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
+        </section>
 
+        <section
+          style={{
+            padding: "0 18px 30px",
+          }}
+        >
           <button
             className="card"
+            style={{ width: "100%" }}
             onClick={() => {
               if (!nickname.trim()) {
                 alert("Scegli prima un nickname.");
@@ -196,13 +228,12 @@ export default function Home() {
     );
   }
 
-  // SCHERMATA INIZIALE
+  // HOME
   if (started === false) {
     return (
       <main className="whoApp">
         <section className="welcome">
           <p className="tag">BENVENUTO SU</p>
-
           <h1>WHO</h1>
 
           <p>
@@ -225,7 +256,7 @@ export default function Home() {
     );
   }
 
-  // CHAT GENERALE
+  // CHAT
   return (
     <main className="whoApp">
       <header className="topbar">
@@ -233,7 +264,6 @@ export default function Home() {
           <span className="logoSmall">WHO</span>
           <p>Stanza Generale</p>
         </div>
-
         <div className="status">● ONLINE</div>
       </header>
 
@@ -341,9 +371,7 @@ export default function Home() {
             placeholder="Scrivi un messaggio..."
             onChange={(e) => setTesto(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                inviaMessaggio();
-              }
+              if (e.key === "Enter") inviaMessaggio();
             }}
           />
 
@@ -364,4 +392,4 @@ export default function Home() {
       </section>
     </main>
   );
-                        }
+              }
