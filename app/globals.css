@@ -100,4 +100,99 @@ a {
 
 .card {
   width: 100%;
- 
+   border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 18px;
+  padding: 18px;
+  text-align: left;
+  color: white;
+  background: linear-gradient(
+    135deg,
+    rgba(124,58,237,0.18),
+    rgba(20,20,40,0.9)
+  );
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  transition: 0.2s ease;
+}
+
+.card:active {
+  transform: scale(0.98);
+}
+
+.card span {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.card strong {
+  font-size: 17px;
+  letter-spacing: 0.4px;
+}
+
+.card small {
+  color: #aaaabd;
+  font-size: 13px;
+}
+
+.chatBox {
+  margin: 12px 20px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.messages {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.message {
+  max-width: 82%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #17172a;
+  line-height: 1.4;
+}
+
+.message.me {
+  align-self: flex-end;
+  background: #6d28d9;
+}
+
+.inputRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.inputRow input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: #10101d;
+  color: white;
+  padding: 13px 14px;
+  border-radius: 14px;
+  outline: none;
+}
+
+.inputRow button {
+  border: 0;
+  border-radius: 14px;
+  padding: 0 18px;
+  background: #7c3aed;
+  color: white;
+  font-weight: 800;
+}
+
+@media (min-width: 700px) {
+  .whoApp {
+    max-width: 600px;
+    margin: 0 auto;
+    border-left: 1px solid rgba(255,255,255,0.08);
+    border-right: 1px solid rgba(255,255,255,0.08);
+  }
+}
