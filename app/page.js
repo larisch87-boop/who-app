@@ -135,7 +135,18 @@ if (started === "generale") {
 >
   <strong>INVIA</strong>
 </button>
-  
+    <button
+  className="card"
+  onClick={() => setStarted("stanze")}
+>
+  <strong>← TORNA ALLE STANZE</strong>
+</button>        </section>
+    </main>
+  );
+}
+
+if (started) {
+  return (
       <main className="whoApp">
         <header className="topbar">
           <div>
