@@ -49,7 +49,7 @@ export default function Home() {
           Chat anonime. Nuove identità. Conversazioni vere.
         </p>
 
-        <button className="card" onClick={() => setStarted(true)}>
+        <button className="card" onClick={() => setStarted("stanze")}>
           <span>
             <strong>ENTRA</strong>
             <small>Inizia adesso</small>
