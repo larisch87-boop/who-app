@@ -9,19 +9,24 @@ const supabase = createClient(
 );
 
 const avatars = [
-  "Shadow",
-  "Pixie",
-  "King",
-  "Azra",
-  "Zero",
-  "Luna",
-  "Ranger",
-  "Neon",
-  "Ares",
-  "Vix",
-  "Nova",
-  "Ghost",
+  { name: "Shadow", image: "/shadow.png" },
+  { name: "Pixie", image: "/pixie.png" },
+  { name: "King", image: "/king.png" },
+  { name: "Azra", image: "/azra.png" },
+  { name: "Zero", image: "/zero.png" },
+  { name: "Luna", image: "/luna.png" },
+  { name: "Ranger", image: "/ranger.png" },
+  { name: "Neon", image: "/neon.png" },
+  { name: "Ares", image: "/ares.png" },
+  { name: "Vix", image: "/vix.png" },
+  { name: "Nova", image: "/nova.png" },
+  { name: "Ghost", image: "/ghost.png" },
 ];
+
+function avatarImage(name) {
+  const found = avatars.find((item) => item.name === name);
+  return found ? found.image : "/shadow.png";
+}
 
 export default function Home() {
   const [started, setStarted] = useState(false);
@@ -92,7 +97,7 @@ export default function Home() {
     );
   }
 
-  // SCHERMATA IDENTITÀ
+  // SCELTA IDENTITÀ
   if (started === "identita") {
     return (
       <main className="whoApp">
@@ -122,20 +127,46 @@ export default function Home() {
         </section>
 
         <section className="menu">
-          {avatars.map((nome) => (
+          {avatars.map((item) => (
             <button
-              key={nome}
+              key={item.name}
               className="card"
-              onClick={() => setAvatar(nome)}
+              onClick={() => setAvatar(item.name)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+              }}
             >
+              <img
+                src={item.image}
+                alt={item.name}
+                width="72"
+                height="72"
+                style={{
+                  width: "72px",
+                  height: "72px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border:
+                    avatar === item.name
+                      ? "3px solid #b84cff"
+                      : "2px solid #63328f",
+                  boxShadow:
+                    avatar === item.name
+                      ? "0 0 18px #a63cff"
+                      : "none",
+                }}
+              />
+
               <span>
                 <strong>
-                  {avatar === nome ? "✓ " : ""}
-                  {nome}
+                  {avatar === item.name ? "✓ " : ""}
+                  {item.name}
                 </strong>
 
                 <small>
-                  {avatar === nome
+                  {avatar === item.name
                     ? "Avatar selezionato"
                     : "Seleziona avatar"}
                 </small>
@@ -208,12 +239,32 @@ export default function Home() {
 
       <section className="welcome">
         <p className="tag">CHAT PUBBLICA</p>
-
         <h1>Generale</h1>
 
-        <p>
-          {avatar} • {nickname}
-        </p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <img
+            src={avatarImage(avatar)}
+            alt={avatar}
+            width="48"
+            height="48"
+            style={{
+              width: "48px",
+              height: "48px",
+              borderRadius: "50%",
+              objectFit: "cover",
+            }}
+          />
+
+          <strong>
+            {avatar} • {nickname}
+          </strong>
+        </div>
       </section>
 
       <section className="menu">
@@ -228,40 +279,58 @@ export default function Home() {
 
         {messages.map((msg) => (
           <div className="card" key={msg.id}>
-            <span>
-              <strong>
-                {msg.avatar || "Shadow"} •{" "}
-                {msg.nickname || "Anonimo"}
-              </strong>
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                alignItems: "flex-start",
+              }}
+            >
+              <img
+                src={avatarImage(msg.avatar)}
+                alt={msg.avatar || "Avatar"}
+                width="52"
+                height="52"
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  flexShrink: 0,
+                }}
+              />
 
-              <small>
-                {msg.content || msg.message || msg.text || ""}
-              </small>
+              <span>
+                <strong>
+                  {msg.avatar || "Shadow"} •{" "}
+                  {msg.nickname || "Anonimo"}
+                </strong>
 
-              <div>
-                <button
-                  type="button"
-                  onClick={() =>
-                    vota(msg.id, "likes", msg.likes)
-                  }
-                >
-                  👍 {msg.likes || 0}
-                </button>
+                <small>
+                  {msg.content || msg.message || msg.text || ""}
+                </small>
 
-                <button
-                  type="button"
-                  onClick={() =>
-                    vota(
-                      msg.id,
-                      "dislikes",
-                      msg.dislikes
-                    )
-                  }
-                >
-                  👎 {msg.dislikes || 0}
-                </button>
-              </div>
-            </span>
+                <div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      vota(msg.id, "likes", msg.likes)
+                    }
+                  >
+                    👍 {msg.likes || 0}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      vota(msg.id, "dislikes", msg.dislikes)
+                    }
+                  >
+                    👎 {msg.dislikes || 0}
+                  </button>
+                </div>
+              </span>
+            </div>
           </div>
         ))}
 
@@ -289,12 +358,10 @@ export default function Home() {
         >
           <span>
             <strong>CAMBIA IDENTITÀ</strong>
-            <small>
-              Nickname o avatar
-            </small>
+            <small>Nickname o avatar</small>
           </span>
         </button>
       </section>
     </main>
   );
-}
+                        }
