@@ -27,7 +27,7 @@ export default function Home() {
         </section>
 
         <section className="menu">
-          <button className="card">
+          <button className="card" onClick={() => alert("STANZE FUNZIONA")}>
             <span className="icon">●</span>
             <span>
               <strong>STANZE</strong>
