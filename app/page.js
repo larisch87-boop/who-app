@@ -116,15 +116,15 @@ if (started === "generale") {
 
     if (!testo) return;
 
-    const { error } = await supabase
-      .from("messages")
-      .insert({
-        content: testo
-      });
+ const { error } = await supabase
+  .from("messages")
+  .insert({
+    room: "generale",
+    nickname: "Shadow",
+    content: testo
+  });   
 
-    if (error) {
-      alert("Errore: " + error.message);
-    } else {
+    
       alert("Messaggio inviato!");
       input.value = "";
     }
