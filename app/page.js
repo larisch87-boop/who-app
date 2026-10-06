@@ -36,7 +36,7 @@ const ownerAvatar = {
 };
 
 /* =========================================================
-   WHO SHOP — VERSIONE CORRETTA
+   WHO SHOP
    ========================================================= */
 
 const fallbackShopItems = [
@@ -47,7 +47,7 @@ const fallbackShopItems = [
     rarity: "LEGENDARY",
     points_price: 1200,
     image_url: "/shop/royal/crown.png",
-    symbol: "♛",
+    symbol: "",
   },
   {
     id: "void-mask",
@@ -97,7 +97,7 @@ const fallbackShopItems = [
 ];
 
 const shopSymbols = {
-  "royal-crown": "♛",
+  "royal-crown": "",
   "void-mask": "◈",
   "glitch-eyes": "◉",
   "dual-aura": "◯",
@@ -244,6 +244,7 @@ function getShopImage(item) {
 }
 
 function getShopSymbol(item) {
+  if (item.id === "royal-crown") return "";
   return item.symbol || shopSymbols[item.id] || "◇";
 }
 
@@ -832,12 +833,6 @@ export default function Home() {
     await loadRooms();
   }
 
-  /* SHOP CORRETTO:
-     per ora utilizziamo i 6 prodotti definiti sopra,
-     evitando che vecchi dati di shop_items rimettano
-     prezzi a zero o nomi precedenti.
-  */
-
   async function loadShop() {
     setShopItems(fallbackShopItems);
   }
@@ -905,7 +900,8 @@ export default function Home() {
     setProfile(data);
     setOwned((old) => [...old, item.id]);
   }
-    /* =========================================================
+
+  /* =========================================================
      COMPONENTS
      ========================================================= */
 
@@ -1058,10 +1054,6 @@ export default function Home() {
       </nav>
     );
   }
-
-  /* =========================================================
-     LOADING
-     ========================================================= */
 
   if (loading) {
     return (
@@ -1244,21 +1236,12 @@ export default function Home() {
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color: "#d285f6",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d285f6", letterSpacing: 3 }}>
             {t.identity}
           </small>
 
           <h1 style={{ fontSize: 34 }}>{t.who}</h1>
-
-          <p style={{ opacity: 0.6 }}>
-            {t.identityHint}
-          </p>
-
+          <p style={{ opacity: 0.6 }}>{t.identityHint}</p>
           <h3>{t.avatar}</h3>
         </section>
 
@@ -1370,12 +1353,7 @@ export default function Home() {
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color: "#d486fa",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d486fa", letterSpacing: 3 }}>
             {t.official}
           </small>
 
@@ -1527,12 +1505,7 @@ export default function Home() {
                 {room.name}
               </strong>
 
-              <p
-                style={{
-                  opacity: 0.65,
-                  fontSize: 13,
-                }}
-              >
+              <p style={{ opacity: 0.65, fontSize: 13 }}>
                 {room.description || "WHO Community"}
               </p>
             </div>
@@ -1545,7 +1518,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     SHOP
+     SHOP — CORRETTO
      ========================================================= */
 
   if (page === "shop") {
@@ -1560,35 +1533,18 @@ export default function Home() {
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color: "#d687ff",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d687ff", letterSpacing: 3 }}>
             {t.shopTitle}
           </small>
 
           <h1 style={{ fontSize: 38 }}>{t.shop}</h1>
 
-          <p style={{ opacity: 0.65 }}>
-            {t.shopHint}
-          </p>
+          <p style={{ opacity: 0.65 }}>{t.shopHint}</p>
 
-          <div
-            style={{
-              ...card,
-              padding: 17,
-            }}
-          >
+          <div style={{ ...card, padding: 17 }}>
             <small>{t.points}</small>
 
-            <div
-              style={{
-                fontSize: 31,
-                fontWeight: 950,
-              }}
-            >
+            <div style={{ fontSize: 31, fontWeight: 950 }}>
               ✦ {points}
             </div>
           </div>
@@ -1611,6 +1567,8 @@ export default function Home() {
               item.points_price ?? item.price ?? 0
             );
 
+            const symbol = getShopSymbol(item);
+
             return (
               <div
                 key={item.id}
@@ -1632,16 +1590,18 @@ export default function Home() {
                     overflow: "hidden",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      fontSize: 64,
-                      color: "#d996f5",
-                      opacity: 0.85,
-                    }}
-                  >
-                    {getShopSymbol(item)}
-                  </div>
+                  {symbol && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        fontSize: 64,
+                        color: "#d996f5",
+                        opacity: 0.85,
+                      }}
+                    >
+                      {symbol}
+                    </div>
+                  )}
 
                   <img
                     src={getShopImage(item)}
@@ -1667,7 +1627,8 @@ export default function Home() {
                       top: 8,
                       left: 8,
                       background: "rgba(8,5,12,.92)",
-                      border: "1px solid rgba(173,91,211,.22)",
+                      border:
+                        "1px solid rgba(173,91,211,.22)",
                       padding: "5px 7px",
                       borderRadius: 8,
                       fontSize: 10,
@@ -1796,24 +1757,14 @@ export default function Home() {
           >
             <div style={{ ...card, padding: 17 }}>
               <small>{t.points}</small>
-              <div
-                style={{
-                  fontSize: 27,
-                  fontWeight: 900,
-                }}
-              >
+              <div style={{ fontSize: 27, fontWeight: 900 }}>
                 ✦ {points}
               </div>
             </div>
 
             <div style={{ ...card, padding: 17 }}>
               <small>{t.level}</small>
-              <div
-                style={{
-                  fontSize: 27,
-                  fontWeight: 900,
-                }}
-              >
+              <div style={{ fontSize: 27, fontWeight: 900 }}>
                 {level}
               </div>
             </div>
@@ -1832,12 +1783,7 @@ export default function Home() {
               ✓ {t.good}
             </h3>
 
-            <div
-              style={{
-                fontSize: 13,
-                opacity: 0.7,
-              }}
-            >
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
               WHO Reputation: {reputation}
             </div>
           </div>
@@ -1853,12 +1799,7 @@ export default function Home() {
 
             <h2>{owned.length}</h2>
 
-            <span
-              style={{
-                opacity: 0.6,
-                fontSize: 13,
-              }}
-            >
+            <span style={{ opacity: 0.6, fontSize: 13 }}>
               {t.ownedItems}
             </span>
 
@@ -1871,20 +1812,25 @@ export default function Home() {
                   marginTop: 13,
                 }}
               >
-                {ownedProducts.map((item) => (
-                  <span
-                    key={item.id}
-                    style={{
-                      padding: "7px 10px",
-                      borderRadius: 20,
-                      background: "#281335",
-                      border: "1px solid #603476",
-                      fontSize: 10,
-                    }}
-                  >
-                    {getShopSymbol(item)} {item.name}
-                  </span>
-                ))}
+                {ownedProducts.map((item) => {
+                  const symbol = getShopSymbol(item);
+
+                  return (
+                    <span
+                      key={item.id}
+                      style={{
+                        padding: "7px 10px",
+                        borderRadius: 20,
+                        background: "#281335",
+                        border: "1px solid #603476",
+                        fontSize: 10,
+                      }}
+                    >
+                      {symbol ? `${symbol} ` : ""}
+                      {item.name}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1974,11 +1920,7 @@ export default function Home() {
           </small>
         </header>
 
-        <section
-          style={{
-            padding: "0 18px 14px",
-          }}
-        >
+        <section style={{ padding: "0 18px 14px" }}>
           <small
             style={{
               color: "#cd7af3",
@@ -2228,4 +2170,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                }
+    }
