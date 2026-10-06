@@ -3,21 +3,14 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-/* =========================================================
-   WHO
-   Main page
-   ========================================================= */
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 );
 
-/* =========================
-   AVATAR
-   Il nome serve SOLO internamente.
-   Nell'interfaccia pubblica mostriamo il nickname.
-   ========================= */
+/* =========================================================
+   WHO — AVATARS
+   ========================================================= */
 
 const avatars = [
   "Shadow",
@@ -42,64 +35,80 @@ const ownerAvatar = {
   image: "/file_000000005e3881f4b9b9109dab033a80.png",
 };
 
-/* =========================
-   SHOP
-   ========================= */
+/* =========================================================
+   SHOP FALLBACK
+   Se shop_items è vuota, questi restano visibili.
+   ========================================================= */
 
-const shopItems = [
+const fallbackShopItems = [
   {
     id: "void-crown",
     name: "VOID CROWN",
+    category: "COSMETIC",
     rarity: "LEGENDARY",
-    price: 1200,
-    image: "/shop/void-crown.png",
+    points_price: 1200,
+    image_url: "/shop/void-crown.png",
     symbol: "♛",
   },
   {
     id: "phantom-mask",
     name: "PHANTOM MASK",
+    category: "COSMETIC",
     rarity: "LEGENDARY",
-    price: 1000,
-    image: "/shop/phantom-mask.png",
+    points_price: 1000,
+    image_url: "/shop/phantom-mask.png",
     symbol: "◈",
   },
   {
     id: "neon-halo",
     name: "NEON HALO",
+    category: "COSMETIC",
     rarity: "EPIC",
-    price: 650,
-    image: "/shop/neon-halo.png",
+    points_price: 650,
+    image_url: "/shop/neon-halo.png",
     symbol: "◯",
   },
   {
     id: "cyber-visor",
     name: "CYBER VISOR",
+    category: "COSMETIC",
     rarity: "EPIC",
-    price: 550,
-    image: "/shop/cyber-visor.png",
+    points_price: 550,
+    image_url: "/shop/cyber-visor.png",
     symbol: "⌁",
   },
   {
     id: "dark-wings",
     name: "DARK WINGS",
+    category: "COSMETIC",
     rarity: "LIMITED",
-    price: 1500,
-    image: "/shop/dark-wings.png",
+    points_price: 1500,
+    image_url: "/shop/dark-wings.png",
     symbol: "◆",
   },
   {
     id: "plasma-frame",
     name: "PLASMA FRAME",
+    category: "COSMETIC",
     rarity: "RARE",
-    price: 350,
-    image: "/shop/plasma-frame.png",
+    points_price: 350,
+    image_url: "/shop/plasma-frame.png",
     symbol: "◇",
   },
 ];
 
-/* =========================
-   TRADUZIONI
-   ========================= */
+const shopSymbols = {
+  "void-crown": "♛",
+  "phantom-mask": "◈",
+  "neon-halo": "◯",
+  "cyber-visor": "⌁",
+  "dark-wings": "◆",
+  "plasma-frame": "◇",
+};
+
+/* =========================================================
+   TRANSLATIONS
+   ========================================================= */
 
 const translations = {
   it: {
@@ -125,8 +134,6 @@ const translations = {
     general: "Generale",
     publicChat: "CHAT PUBBLICA",
     write: "Scrivi un messaggio...",
-    send: "INVIA",
-    report: "Segnala",
     points: "WHO POINTS",
     createRoom: "CREA UNA STANZA",
     roomName: "Nome della stanza",
@@ -137,7 +144,6 @@ const translations = {
     official: "STANZE WHO",
     community: "CREATE DALLA COMMUNITY",
     shopTitle: "WHO SHOP",
-    collection: "Rendi unica la tua identità.",
     unlock: "SBLOCCA",
     owned: "POSSEDUTO",
     insufficient: "WHO Points insufficienti",
@@ -147,14 +153,17 @@ const translations = {
     inventory: "COLLEZIONE",
     change: "CAMBIA AVATAR",
     logout: "ESCI",
-    noRooms: "Non hai ancora creato stanze.",
+    noRooms: "Non ci sono ancora stanze community.",
     creator: "CREATOR",
     members: "membri",
     emptyChat: "Ancora nessun messaggio. Rompi il silenzio.",
     reporting: "Segnalazione inviata alla moderazione.",
-    identityHint: "Il tuo nickname sarà il tuo unico nome pubblico.",
+    alreadyReported: "Hai già segnalato questo messaggio.",
+    identityHint: "Il nickname è il tuo unico nome pubblico.",
     shopHint: "Sblocca oggetti esclusivi e costruisci il tuo stile WHO.",
     ownedItems: "Oggetti posseduti",
+    founder: "FOUNDER",
+    online: "ONLINE",
   },
 
   en: {
@@ -180,8 +189,6 @@ const translations = {
     general: "General",
     publicChat: "PUBLIC CHAT",
     write: "Write a message...",
-    send: "SEND",
-    report: "Report",
     points: "WHO POINTS",
     createRoom: "CREATE A ROOM",
     roomName: "Room name",
@@ -192,7 +199,6 @@ const translations = {
     official: "WHO ROOMS",
     community: "CREATED BY THE COMMUNITY",
     shopTitle: "WHO SHOP",
-    collection: "Make your identity unique.",
     unlock: "UNLOCK",
     owned: "OWNED",
     insufficient: "Not enough WHO Points",
@@ -202,23 +208,26 @@ const translations = {
     inventory: "COLLECTION",
     change: "CHANGE AVATAR",
     logout: "LOG OUT",
-    noRooms: "You haven't created any rooms yet.",
+    noRooms: "There are no community rooms yet.",
     creator: "CREATOR",
     members: "members",
     emptyChat: "No messages yet. Break the silence.",
     reporting: "Report sent to moderation.",
-    identityHint: "Your nickname will be your only public name.",
+    alreadyReported: "You already reported this message.",
+    identityHint: "Your nickname is your only public name.",
     shopHint: "Unlock exclusive items and build your WHO style.",
     ownedItems: "Owned items",
+    founder: "FOUNDER",
+    online: "ONLINE",
   },
 };
 
-/* =========================
-   FUNZIONI UTILI
-   ========================= */
+/* =========================================================
+   UTILS
+   ========================================================= */
 
 function getAvatar(name) {
-  if (name === ownerAvatar.name) return ownerAvatar.image;
+  if (name === "UNKNOWN") return ownerAvatar.image;
 
   return (
     avatars.find((item) => item.name === name)?.image ||
@@ -237,14 +246,22 @@ function internalEmail(nickname) {
   return `${cleanNickname(nickname)}@account.who.local`;
 }
 
+function getShopImage(item) {
+  return item.image_url || `/shop/${item.id}.png`;
+}
+
+function getShopSymbol(item) {
+  return shopSymbols[item.id] || "◇";
+}
+
 /* =========================================================
    APP
    ========================================================= */
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
-
   const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
 
   const [authMode, setAuthMode] = useState("login");
   const [password, setPassword] = useState("");
@@ -262,9 +279,15 @@ export default function Home() {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
+  const [myVotes, setMyVotes] = useState({});
+  const [reportedMessages, setReportedMessages] = useState([]);
+
   const [language, setLanguage] = useState("it");
 
   const [points, setPoints] = useState(500);
+  const [reputation, setReputation] = useState(100);
+
+  const [shopItems, setShopItems] = useState(fallbackShopItems);
   const [owned, setOwned] = useState([]);
 
   const [rooms, setRooms] = useState([]);
@@ -275,9 +298,12 @@ export default function Home() {
 
   const t = translations[language];
 
-  /* =========================
-     STILI
-     ========================= */
+  const isFounder =
+    profile?.role?.toUpperCase() === "FOUNDER";
+
+  /* =========================================================
+     STYLES
+     ========================================================= */
 
   const background = {
     minHeight: "100vh",
@@ -318,87 +344,40 @@ export default function Home() {
     boxShadow: "0 8px 24px rgba(109,36,151,.25)",
   };
 
-  /* =========================
-     CARICAMENTO DATI LOCALI
-     + SESSIONE
-     ========================= */
+  /* =========================================================
+     INITIAL SESSION
+     ========================================================= */
 
   useEffect(() => {
-    const savedLanguage = localStorage.getItem("who-language");
+    const savedLanguage =
+      localStorage.getItem("who-language");
 
     if (savedLanguage === "it" || savedLanguage === "en") {
       setLanguage(savedLanguage);
     }
 
-    const savedAvatar = localStorage.getItem("who-avatar");
+    async function initialize() {
+      const { data } = await supabase.auth.getSession();
 
-    if (savedAvatar) {
-      setAvatar(savedAvatar);
-    }
-
-    const savedPoints = localStorage.getItem("who-points");
-
-    if (savedPoints !== null) {
-      const n = Number(savedPoints);
-
-      if (Number.isFinite(n) && n >= 0) {
-        setPoints(n);
-      }
-    }
-
-    const savedOwned = localStorage.getItem("who-owned");
-
-    if (savedOwned) {
-      try {
-        const parsed = JSON.parse(savedOwned);
-
-        if (Array.isArray(parsed)) {
-          setOwned(parsed);
-        }
-      } catch {}
-    }
-
-    const savedRooms = localStorage.getItem("who-rooms");
-
-    if (savedRooms) {
-      try {
-        const parsed = JSON.parse(savedRooms);
-
-        if (Array.isArray(parsed)) {
-          setRooms(parsed);
-        }
-      } catch {}
-    }
-
-    supabase.auth.getSession().then(({ data }) => {
       const currentSession = data?.session || null;
 
       setSession(currentSession);
 
       if (currentSession) {
-        const savedName =
-          currentSession.user?.user_metadata?.username ||
-          currentSession.user?.email?.split("@")[0] ||
-          "";
-
-        setNickname(savedName);
-        setStarted(true);
+        await loadUserData(currentSession.user);
       }
 
       setLoading(false);
-    });
+    }
+
+    initialize();
 
     const { data } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
 
         if (newSession) {
-          const savedName =
-            newSession.user?.user_metadata?.username ||
-            newSession.user?.email?.split("@")[0] ||
-            "";
-
-          setNickname(savedName);
+          await loadUserData(newSession.user);
         }
 
         setLoading(false);
@@ -411,23 +390,124 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (session && started === true) {
-      loadMessages();
-    }
+    if (!session || !started) return;
+
+    loadMessages();
+    loadRooms();
+    loadShop();
+    loadInventory();
+    loadVotes();
+    loadReports();
+
+    const channel = supabase
+      .channel("who-messages-live")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+        },
+        () => {
+          loadMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session, started]);
 
-  /* =========================
-     LINGUA
-     ========================= */
+  /* =========================================================
+     PROFILE
+     ========================================================= */
+
+  async function loadUserData(user) {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      console.error("PROFILE:", error);
+      return;
+    }
+
+    if (data) {
+      setProfile(data);
+      setNickname(data.nickname || data.username || "");
+      setAvatar(data.avatar || "Shadow");
+      setPoints(Number(data.who_points ?? 500));
+      setReputation(Number(data.reputation ?? 100));
+      setStarted(true);
+      return;
+    }
+
+    const username =
+      user.user_metadata?.username ||
+      user.email?.split("@")[0] ||
+      "who_user";
+
+    const newProfile = {
+      id: user.id,
+      nickname: username,
+      avatar: "Shadow",
+    };
+
+    const { data: created, error: createError } =
+      await supabase
+        .from("profiles")
+        .insert(newProfile)
+        .select()
+        .single();
+
+    if (createError) {
+      console.error("CREATE PROFILE:", createError);
+      return;
+    }
+
+    setProfile(created);
+    setNickname(created.nickname);
+    setAvatar(created.avatar || "Shadow");
+    setPoints(Number(created.who_points ?? 500));
+    setReputation(Number(created.reputation ?? 100));
+    setStarted("identity");
+  }
+
+  async function refreshProfile() {
+    if (!session?.user?.id) return;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+
+    if (data) {
+      setProfile(data);
+      setNickname(data.nickname || "");
+      setAvatar(data.avatar || "Shadow");
+      setPoints(Number(data.who_points ?? 500));
+      setReputation(Number(data.reputation ?? 100));
+    }
+  }
+
+  /* =========================================================
+     LANGUAGE
+     ========================================================= */
 
   function changeLanguage(lang) {
     setLanguage(lang);
     localStorage.setItem("who-language", lang);
   }
 
-  /* =========================
-     ACCOUNT
-     ========================= */
+  /* =========================================================
+     AUTH
+     ========================================================= */
 
   async function registerAccount() {
     setAuthError("");
@@ -475,10 +555,9 @@ export default function Home() {
 
       if (data?.session) {
         setSession(data.session);
-        setStarted("identity");
+        await loadUserData(data.user);
       } else {
         setAuthMode("login");
-
         setAuthError(
           language === "it"
             ? "Account creato. Ora accedi."
@@ -523,9 +602,10 @@ export default function Home() {
       }
 
       setSession(data.session);
-      setNickname(username);
       setPassword("");
-      setStarted(true);
+
+      await loadUserData(data.user);
+
       setPage("chat");
     } finally {
       setAuthBusy(false);
@@ -536,17 +616,49 @@ export default function Home() {
     await supabase.auth.signOut();
 
     setSession(null);
+    setProfile(null);
     setStarted(false);
     setPage("chat");
     setNickname("");
     setPassword("");
-    setMessage("");
     setMessages([]);
+    setOwned([]);
+    setMyVotes({});
   }
 
-  /* =========================
-     CHAT
-     ========================= */
+  /* =========================================================
+     AVATAR
+     ========================================================= */
+
+  async function selectAvatar(name) {
+    if (!session?.user?.id) return;
+
+    if (name === "UNKNOWN" && !isFounder) {
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        avatar: name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setProfile(data);
+    setAvatar(data.avatar);
+  }
+
+  /* =========================================================
+     MESSAGES
+     ========================================================= */
 
   async function loadMessages() {
     setMessagesLoading(true);
@@ -567,7 +679,13 @@ export default function Home() {
   async function sendMessage() {
     const cleanMessage = message.trim();
 
-    if (!cleanMessage || sending) return;
+    if (
+      !cleanMessage ||
+      sending ||
+      !session?.user?.id
+    ) {
+      return;
+    }
 
     setSending(true);
 
@@ -576,7 +694,7 @@ export default function Home() {
       .insert({
         room: "generale",
         nickname: nickname || "Anonimo",
-        avatar,
+        avatar: avatar || "Shadow",
         content: cleanMessage,
         likes: 0,
         dislikes: 0,
@@ -590,116 +708,351 @@ export default function Home() {
 
     setMessage("");
     await loadMessages();
-
     setSending(false);
   }
 
-  async function vote(id, type, current) {
-    const value = Number(current || 0) + 1;
+  /* =========================================================
+     VOTES
+     1 voto per utente / messaggio
+     vote = 1 like
+     vote = -1 dislike
+     ========================================================= */
+
+  async function loadVotes() {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("message_id,vote")
+      .eq("user_id", session.user.id);
+
+    if (error) {
+      console.error("VOTES:", error);
+      return;
+    }
+
+    const map = {};
+
+    (data || []).forEach((vote) => {
+      map[vote.message_id] = Number(vote.vote);
+    });
+
+    setMyVotes(map);
+  }
+
+  async function vote(messageId, newVote) {
+    if (!session?.user?.id) return;
+
+    const previousVote =
+      Number(myVotes[messageId] || 0);
+
+    /* Clic sullo stesso voto = rimuovi voto */
+
+    if (previousVote === newVote) {
+      const { error } = await supabase
+        .from("message_votes")
+        .delete()
+        .eq("message_id", messageId)
+        .eq("user_id", session.user.id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      setMyVotes((old) => {
+        const copy = { ...old };
+        delete copy[messageId];
+        return copy;
+      });
+
+      await syncMessageVoteCounts(messageId);
+      return;
+    }
 
     const { error } = await supabase
+      .from("message_votes")
+      .upsert(
+        {
+          message_id: messageId,
+          user_id: session.user.id,
+          vote: newVote,
+        },
+        {
+          onConflict: "message_id,user_id",
+        }
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setMyVotes((old) => ({
+      ...old,
+      [messageId]: newVote,
+    }));
+
+    await syncMessageVoteCounts(messageId);
+  }
+
+  async function syncMessageVoteCounts(messageId) {
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("vote")
+      .eq("message_id", messageId);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const likes =
+      (data || []).filter(
+        (item) => Number(item.vote) === 1
+      ).length;
+
+    const dislikes =
+      (data || []).filter(
+        (item) => Number(item.vote) === -1
+      ).length;
+
+    const { error: updateError } = await supabase
       .from("messages")
       .update({
-        [type]: value,
+        likes,
+        dislikes,
       })
-      .eq("id", id);
+      .eq("id", messageId);
 
-    if (error) return;
+    if (updateError) {
+      console.error(updateError);
+    }
 
     setMessages((old) =>
       old.map((item) =>
-        item.id === id
+        item.id === messageId
           ? {
               ...item,
-              [type]: value,
+              likes,
+              dislikes,
             }
           : item
       )
     );
   }
 
-  function reportMessage() {
+  /* =========================================================
+     REPORTS
+     ========================================================= */
+
+  async function loadReports() {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from("message_reports")
+      .select("message_id")
+      .eq("reporter_id", session.user.id);
+
+    if (error) {
+      console.error("REPORTS:", error);
+      return;
+    }
+
+    setReportedMessages(
+      (data || []).map((item) => item.message_id)
+    );
+  }
+
+  async function reportMessage(messageId) {
+    if (!session?.user?.id) return;
+
+    if (reportedMessages.includes(messageId)) {
+      alert(t.alreadyReported);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("message_reports")
+      .insert({
+        message_id: messageId,
+        reporter_id: session.user.id,
+        reason: "other",
+        status: "pending",
+      });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setReportedMessages((old) => [
+      ...old,
+      messageId,
+    ]);
+
     alert(t.reporting);
   }
 
-  /* =========================
-     STANZE
-     ========================= */
+  /* =========================================================
+     ROOMS
+     ========================================================= */
 
-  function createRoom() {
+  async function loadRooms() {
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", {
+        ascending: false,
+      });
+
+    if (!error) {
+      setRooms(data || []);
+    }
+  }
+
+  async function createRoom() {
     const cleanName = roomName.trim();
 
-    if (!cleanName) return;
+    if (!cleanName || !session?.user?.id) return;
 
-    const newRoom = {
-      id: Date.now(),
-      name: cleanName.slice(0, 30),
-      theme: roomTheme.trim().slice(0, 100),
-      private: roomPrivate,
-      creator: nickname,
-      members: 1,
-    };
+    const { error } = await supabase
+      .from("rooms")
+      .insert({
+        name: cleanName.slice(0, 30),
+        description: roomTheme
+          .trim()
+          .slice(0, 100),
+        owner_id: session.user.id,
+        is_private: roomPrivate,
+        is_official: false,
+        is_active: true,
+      });
 
-    const updated = [newRoom, ...rooms];
-
-    setRooms(updated);
-
-    localStorage.setItem(
-      "who-rooms",
-      JSON.stringify(updated)
-    );
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     setRoomName("");
     setRoomTheme("");
     setRoomPrivate(false);
     setCreatingRoom(false);
+
+    await loadRooms();
   }
 
-  /* =========================
+  /* =========================================================
      SHOP
-     ========================= */
+     ========================================================= */
 
-  function buy(item) {
+  async function loadShop() {
+    const { data, error } = await supabase
+      .from("shop_items")
+      .select("*")
+      .eq("active", true);
+
+    if (!error && data?.length) {
+      setShopItems(
+        data.map((item) => ({
+          ...item,
+          symbol: getShopSymbol(item),
+        }))
+      );
+    } else {
+      setShopItems(fallbackShopItems);
+    }
+  }
+
+  async function loadInventory() {
+    if (!session?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from("user_inventory")
+      .select("item_id")
+      .eq("user_id", session.user.id);
+
+    if (error) {
+      console.error("INVENTORY:", error);
+      return;
+    }
+
+    setOwned(
+      (data || []).map((item) => item.item_id)
+    );
+  }
+
+  async function buy(item) {
+    if (!session?.user?.id) return;
+
     if (owned.includes(item.id)) return;
 
-    if (points < item.price) {
+    const price = Number(
+      item.points_price ?? item.price ?? 0
+    );
+
+    if (points < price) {
       alert(t.insufficient);
       return;
     }
 
-    const newPoints = points - item.price;
-    const newOwned = [...owned, item.id];
+    /*
+      Prima registriamo l'oggetto.
+      Se RLS blocca l'operazione vedrai
+      l'errore invece di perdere punti.
+    */
 
-    setPoints(newPoints);
-    setOwned(newOwned);
+    const { error: inventoryError } =
+      await supabase
+        .from("user_inventory")
+        .insert({
+          user_id: session.user.id,
+          item_id: item.id,
+        });
 
-    localStorage.setItem(
-      "who-points",
-      String(newPoints)
-    );
+    if (inventoryError) {
+      alert(inventoryError.message);
+      return;
+    }
 
-    localStorage.setItem(
-      "who-owned",
-      JSON.stringify(newOwned)
-    );
+    const newPoints = points - price;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        who_points: newPoints,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      /*
+        rollback semplice:
+        se non possiamo togliere i punti,
+        rimuoviamo l'oggetto appena inserito.
+      */
+
+      await supabase
+        .from("user_inventory")
+        .delete()
+        .eq("user_id", session.user.id)
+        .eq("item_id", item.id);
+
+      alert(error.message);
+      return;
+    }
+
+    setPoints(Number(data.who_points));
+    setProfile(data);
+    setOwned((old) => [...old, item.id]);
   }
 
-  /* =========================
-     AVATAR
-     ========================= */
-
-  function selectAvatar(name) {
-    setAvatar(name);
-
-    localStorage.setItem(
-      "who-avatar",
-      name
-    );
-  }
-
-  /* =========================
-     COMPONENTI
-     ========================= */
+  /* =========================================================
+     COMPONENTS
+     ========================================================= */
 
   function Language() {
     return (
@@ -727,9 +1080,7 @@ export default function Home() {
               fontWeight: 700,
             }}
           >
-            {lang === "it"
-              ? "🇮🇹 IT"
-              : "🇬🇧 EN"}
+            {lang === "it" ? "🇮🇹 IT" : "🇬🇧 EN"}
           </button>
         ))}
       </div>
@@ -749,8 +1100,7 @@ export default function Home() {
               "linear-gradient(90deg,#fff,#e993ff,#8c59ff,#5ee8ff)",
             WebkitBackgroundClip: "text",
             color: "transparent",
-            filter:
-              "drop-shadow(0 0 20px #922eff)",
+            filter: "drop-shadow(0 0 20px #922eff)",
           }}
         >
           WHO
@@ -867,9 +1217,9 @@ export default function Home() {
     );
   }
 
-  /* =========================
+  /* =========================================================
      LOADING
-     ========================= */
+     ========================================================= */
 
   if (loading) {
     return (
@@ -886,7 +1236,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     LOGIN / REGISTRAZIONE
+     LOGIN
      ========================================================= */
 
   if (!session) {
@@ -1041,14 +1391,13 @@ export default function Home() {
   }
 
   /* =========================================================
-     SCELTA AVATAR
+     IDENTITY
      ========================================================= */
 
   if (started === "identity") {
-    const availableAvatars =
-      nickname.toLowerCase() === "unknown"
-        ? [ownerAvatar, ...avatars]
-        : avatars;
+    const availableAvatars = isFounder
+      ? [ownerAvatar, ...avatars]
+      : avatars;
 
     return (
       <main style={background}>
@@ -1070,21 +1419,11 @@ export default function Home() {
             {t.identity}
           </small>
 
-          <h1
-            style={{
-              fontSize: 34,
-              marginBottom: 5,
-            }}
-          >
+          <h1 style={{ fontSize: 34 }}>
             {t.who}
           </h1>
 
-          <p
-            style={{
-              opacity: 0.6,
-              marginTop: 0,
-            }}
-          >
+          <p style={{ opacity: 0.6 }}>
             {t.identityHint}
           </p>
 
@@ -1112,25 +1451,19 @@ export default function Home() {
                 onClick={() =>
                   selectAvatar(item.name)
                 }
-                aria-label={`Avatar ${item.name}`}
                 style={{
                   ...card,
                   padding: "16px 7px",
                   border: selected
                     ? "2px solid #d168ff"
                     : card.border,
-                  boxShadow: selected
-                    ? "0 0 24px rgba(196,79,239,.25)"
-                    : card.boxShadow,
                 }}
               >
                 <img
                   src={item.image}
-                  alt={`Avatar ${item.name}`}
+                  alt=""
                   onError={(event) => {
-                    event.currentTarget.onerror =
-                      null;
-
+                    event.currentTarget.onerror = null;
                     event.currentTarget.src =
                       "/shadow.png";
                   }}
@@ -1145,9 +1478,6 @@ export default function Home() {
                       : "2px solid #5b3470",
                   }}
                 />
-
-                {/* Il nome tecnico dell'avatar
-                    NON viene mostrato all'utente */}
 
                 <small
                   style={{
@@ -1177,11 +1507,6 @@ export default function Home() {
         >
           <button
             onClick={() => {
-              localStorage.setItem(
-                "who-avatar",
-                avatar
-              );
-
               setStarted(true);
               setPage("chat");
             }}
@@ -1199,17 +1524,15 @@ export default function Home() {
   }
 
   /* =========================================================
-     STANZE
+     ROOMS
      ========================================================= */
 
   if (page === "rooms") {
-    const officialRooms = [
-      ["WHO GENERAL", "◎", "LIVE"],
-      ["NIGHT WHO", "☾", "LIVE"],
-      ["GAMING", "◇", "LIVE"],
-      ["MUSIC", "♫", "LIVE"],
-      ["MEET PEOPLE", "✦", "LIVE"],
-    ];
+    const officialRooms =
+      rooms.filter((room) => room.is_official);
+
+    const communityRooms =
+      rooms.filter((room) => !room.is_official);
 
     return (
       <main style={background}>
@@ -1231,20 +1554,13 @@ export default function Home() {
             {t.official}
           </small>
 
-          <h1
-            style={{
-              fontSize: 36,
-              margin: "7px 0 18px",
-            }}
-          >
+          <h1 style={{ fontSize: 36 }}>
             {t.rooms}
           </h1>
 
           <button
             onClick={() =>
-              setCreatingRoom(
-                !creatingRoom
-              )
+              setCreatingRoom(!creatingRoom)
             }
             style={{
               ...primaryButton,
@@ -1266,11 +1582,8 @@ export default function Home() {
             >
               <input
                 value={roomName}
-                maxLength={30}
                 onChange={(e) =>
-                  setRoomName(
-                    e.target.value
-                  )
+                  setRoomName(e.target.value)
                 }
                 placeholder={t.roomName}
                 style={inputStyle}
@@ -1278,11 +1591,8 @@ export default function Home() {
 
               <input
                 value={roomTheme}
-                maxLength={100}
                 onChange={(e) =>
-                  setRoomTheme(
-                    e.target.value
-                  )
+                  setRoomTheme(e.target.value)
                 }
                 placeholder={t.roomTheme}
                 style={{
@@ -1300,9 +1610,7 @@ export default function Home() {
               >
                 <button
                   onClick={() =>
-                    setRoomPrivate(
-                      !roomPrivate
-                    )
+                    setRoomPrivate(!roomPrivate)
                   }
                   style={{
                     flex: 1,
@@ -1311,7 +1619,6 @@ export default function Home() {
                       "1px solid #583370",
                     color: "#fff",
                     borderRadius: 13,
-                    padding: "11px 10px",
                   }}
                 >
                   {roomPrivate
@@ -1324,7 +1631,7 @@ export default function Home() {
                   style={{
                     ...primaryButton,
                     flex: 1,
-                    padding: "11px 10px",
+                    padding: 12,
                   }}
                 >
                   {t.create}
@@ -1333,67 +1640,58 @@ export default function Home() {
             </div>
           )}
 
-          {officialRooms.map(
-            ([name, icon, status]) => (
+          {officialRooms.map((room) => (
+            <div
+              key={room.id}
+              style={{
+                ...card,
+                padding: 17,
+                marginBottom: 11,
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+              }}
+            >
               <div
-                key={name}
                 style={{
-                  ...card,
-                  padding: 17,
-                  marginBottom: 11,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 14,
+                  width: 50,
+                  height: 50,
+                  borderRadius: 16,
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 25,
+                  background:
+                    "linear-gradient(145deg,#35164c,#1a0c26)",
                 }}
               >
-                <div
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 16,
-                    display: "grid",
-                    placeItems: "center",
-                    fontSize: 25,
-                    background:
-                      "linear-gradient(145deg,#35164c,#1a0c26)",
-                    border:
-                      "1px solid #5e3275",
-                  }}
-                >
-                  {icon}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <strong>{name}</strong>
-
-                  <small
-                    style={{
-                      display: "block",
-                      color: "#50e99c",
-                      marginTop: 4,
-                    }}
-                  >
-                    ● {status}
-                  </small>
-                </div>
-
-                <span
-                  style={{
-                    color: "#cf7aff",
-                    fontSize: 20,
-                  }}
-                >
-                  ›
-                </span>
+                ◎
               </div>
-            )
-          )}
+
+              <div style={{ flex: 1 }}>
+                <strong>{room.name}</strong>
+
+                <small
+                  style={{
+                    display: "block",
+                    color: "#50e99c",
+                    marginTop: 4,
+                  }}
+                >
+                  ● LIVE
+                </small>
+              </div>
+
+              <span style={{ color: "#cf7aff" }}>
+                ›
+              </span>
+            </div>
+          ))}
 
           <h3 style={{ marginTop: 28 }}>
             {t.community}
           </h3>
 
-          {rooms.length === 0 && (
+          {communityRooms.length === 0 && (
             <div
               style={{
                 ...card,
@@ -1405,7 +1703,7 @@ export default function Home() {
             </div>
           )}
 
-          {rooms.map((room) => (
+          {communityRooms.map((room) => (
             <div
               key={room.id}
               style={{
@@ -1414,29 +1712,10 @@ export default function Home() {
                 marginBottom: 11,
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  gap: 10,
-                }}
-              >
-                <strong>
-                  {room.private
-                    ? "🔒 "
-                    : "◎ "}
-                  {room.name}
-                </strong>
-
-                <small
-                  style={{
-                    color: "#d181f5",
-                  }}
-                >
-                  {t.creator}
-                </small>
-              </div>
+              <strong>
+                {room.is_private ? "🔒 " : "◎ "}
+                {room.name}
+              </strong>
 
               <p
                 style={{
@@ -1444,18 +1723,9 @@ export default function Home() {
                   fontSize: 13,
                 }}
               >
-                {room.theme ||
+                {room.description ||
                   "WHO Community"}
               </p>
-
-              <small
-                style={{
-                  opacity: 0.7,
-                }}
-              >
-                {room.creator} ·{" "}
-                {room.members} {t.members}
-              </small>
             </div>
           ))}
         </section>
@@ -1490,20 +1760,11 @@ export default function Home() {
             {t.shopTitle}
           </small>
 
-          <h1
-            style={{
-              fontSize: 38,
-              margin: "5px 0",
-            }}
-          >
+          <h1 style={{ fontSize: 38 }}>
             {t.shop}
           </h1>
 
-          <p
-            style={{
-              opacity: 0.65,
-            }}
-          >
+          <p style={{ opacity: 0.65 }}>
             {t.shopHint}
           </p>
 
@@ -1511,21 +1772,12 @@ export default function Home() {
             style={{
               ...card,
               padding: 17,
-              marginTop: 17,
               display: "flex",
-              justifyContent:
-                "space-between",
-              alignItems: "center",
+              justifyContent: "space-between",
             }}
           >
             <div>
-              <small
-                style={{
-                  color: "#cf83f5",
-                }}
-              >
-                {t.points}
-              </small>
+              <small>{t.points}</small>
 
               <div
                 style={{
@@ -1536,23 +1788,6 @@ export default function Home() {
                 ✦ {points}
               </div>
             </div>
-
-            <div
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: "50%",
-                display: "grid",
-                placeItems: "center",
-                background:
-                  "radial-gradient(circle,#71308f,#281036)",
-                border:
-                  "1px solid #a44cc8",
-                fontSize: 21,
-              }}
-            >
-              ✦
-            </div>
           </div>
         </section>
 
@@ -1562,7 +1797,7 @@ export default function Home() {
             gridTemplateColumns:
               "repeat(2,minmax(0,1fr))",
             gap: 12,
-            padding: "0 18px 20px",
+            padding: "0 18px",
             maxWidth: 650,
             margin: "0 auto",
           }}
@@ -1570,6 +1805,12 @@ export default function Home() {
           {shopItems.map((item) => {
             const isOwned =
               owned.includes(item.id);
+
+            const price = Number(
+              item.points_price ??
+                item.price ??
+                0
+            );
 
             return (
               <div
@@ -1585,32 +1826,22 @@ export default function Home() {
                     position: "relative",
                     display: "grid",
                     placeItems: "center",
-                    overflow: "hidden",
                     background:
-                      "radial-gradient(circle at 50% 45%,#55206f 0,#271033 45%,#100817 100%)",
+                      "radial-gradient(circle,#55206f,#100817)",
                   }}
                 >
-                  {/* FALLBACK:
-                      rimane visibile anche
-                      se il PNG non esiste */}
-
                   <div
                     style={{
                       position: "absolute",
-                      inset: 0,
-                      display: "grid",
-                      placeItems: "center",
                       fontSize: 64,
                       color: "#d996f5",
-                      textShadow:
-                        "0 0 30px #a53ed1",
                     }}
                   >
-                    {item.symbol}
+                    {getShopSymbol(item)}
                   </div>
 
                   <img
-                    src={item.image}
+                    src={getShopImage(item)}
                     alt={item.name}
                     onError={(event) => {
                       event.currentTarget.style.display =
@@ -1623,70 +1854,27 @@ export default function Home() {
                       height: "100%",
                       objectFit: "contain",
                       padding: 8,
-                      boxSizing:
-                        "border-box",
+                      boxSizing: "border-box",
                     }}
                   />
 
-                  <div
+                  <small
                     style={{
                       position: "absolute",
                       zIndex: 3,
                       top: 8,
                       left: 8,
-                      background:
-                        "rgba(5,3,9,.82)",
-                      border:
-                        "1px solid #754095",
-                      borderRadius: 10,
-                      padding: "5px 7px",
-                      fontSize: 9,
-                      fontWeight: 900,
-                      letterSpacing: 1,
+                      background: "#0c0710",
+                      padding: 6,
+                      borderRadius: 8,
                     }}
                   >
                     {item.rarity}
-                  </div>
-
-                  {isOwned && (
-                    <div
-                      style={{
-                        position:
-                          "absolute",
-                        zIndex: 3,
-                        top: 8,
-                        right: 8,
-                        width: 26,
-                        height: 26,
-                        display: "grid",
-                        placeItems:
-                          "center",
-                        borderRadius:
-                          "50%",
-                        background:
-                          "#4dba82",
-                        color: "#07130d",
-                        fontWeight: 950,
-                      }}
-                    >
-                      ✓
-                    </div>
-                  )}
+                  </small>
                 </div>
 
-                <div
-                  style={{
-                    padding: 12,
-                  }}
-                >
-                  <strong
-                    style={{
-                      display: "block",
-                      minHeight: 32,
-                      fontSize: 13,
-                      letterSpacing: 0.4,
-                    }}
-                  >
+                <div style={{ padding: 12 }}>
+                  <strong>
                     {item.name}
                   </strong>
 
@@ -1697,14 +1885,12 @@ export default function Home() {
                       margin: "8px 0",
                     }}
                   >
-                    ✦ {item.price}
+                    ✦ {price}
                   </div>
 
                   <button
                     disabled={isOwned}
-                    onClick={() =>
-                      buy(item)
-                    }
+                    onClick={() => buy(item)}
                     style={{
                       width: "100%",
                       padding: 11,
@@ -1713,12 +1899,9 @@ export default function Home() {
                         "1px solid #784093",
                       background: isOwned
                         ? "#242027"
-                        : "linear-gradient(135deg,#67228b,#43175e)",
-                      color: isOwned
-                        ? "#8f8494"
-                        : "#fff",
+                        : "#571b76",
+                      color: "#fff",
                       fontWeight: 900,
-                      fontSize: 11,
                     }}
                   >
                     {isOwned
@@ -1737,7 +1920,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     PROFILO
+     PROFILE
      ========================================================= */
 
   if (page === "profile") {
@@ -1758,7 +1941,7 @@ export default function Home() {
         <section
           style={{
             textAlign: "center",
-            padding: "5px 18px 20px",
+            padding: 20,
           }}
         >
           <SafeAvatar
@@ -1767,27 +1950,19 @@ export default function Home() {
             border
           />
 
-          {/* SOLO nickname.
-              Nessun secondo nome avatar. */}
-
-          <h1
-            style={{
-              marginBottom: 4,
-              fontSize: 32,
-            }}
-          >
-            @{nickname}
-          </h1>
+          <h1>@{nickname}</h1>
 
           <span
             style={{
-              color: "#6de0ad",
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: 1,
+              color: isFounder
+                ? "#e7a3ff"
+                : "#6de0ad",
+              fontWeight: 900,
             }}
           >
-            ● WHO MEMBER
+            {isFounder
+              ? "♛ WHO FOUNDER"
+              : "● WHO MEMBER"}
           </span>
         </section>
 
@@ -1801,55 +1976,30 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "1fr 1fr",
+              gridTemplateColumns: "1fr 1fr",
               gap: 11,
             }}
           >
-            <div
-              style={{
-                ...card,
-                padding: 17,
-              }}
-            >
-              <small
-                style={{
-                  opacity: 0.6,
-                }}
-              >
-                {t.points}
-              </small>
+            <div style={{ ...card, padding: 17 }}>
+              <small>{t.points}</small>
 
               <div
                 style={{
                   fontSize: 27,
                   fontWeight: 900,
-                  marginTop: 4,
                 }}
               >
                 ✦ {points}
               </div>
             </div>
 
-            <div
-              style={{
-                ...card,
-                padding: 17,
-              }}
-            >
-              <small
-                style={{
-                  opacity: 0.6,
-                }}
-              >
-                {t.level}
-              </small>
+            <div style={{ ...card, padding: 17 }}>
+              <small>{t.level}</small>
 
               <div
                 style={{
                   fontSize: 27,
                   fontWeight: 900,
-                  marginTop: 4,
                 }}
               >
                 {level}
@@ -1864,34 +2014,20 @@ export default function Home() {
               marginTop: 11,
             }}
           >
-            <small
-              style={{
-                opacity: 0.6,
-              }}
-            >
-              {t.reputation}
-            </small>
+            <small>{t.reputation}</small>
 
-            <h3
-              style={{
-                color: "#5ce5a1",
-                marginBottom: 3,
-              }}
-            >
+            <h3 style={{ color: "#5ce5a1" }}>
               ✓ {t.good}
             </h3>
 
-            <p
+            <div
               style={{
-                opacity: 0.6,
                 fontSize: 13,
-                lineHeight: 1.5,
+                opacity: 0.7,
               }}
             >
-              {language === "it"
-                ? "Le segnalazioni vengono controllate dalla moderazione prima di eventuali penalità."
-                : "Reports are reviewed by moderation before any penalties are applied."}
-            </p>
+              WHO Reputation: {reputation}
+            </div>
           </div>
 
           <div
@@ -1901,21 +2037,9 @@ export default function Home() {
               marginTop: 11,
             }}
           >
-            <small
-              style={{
-                opacity: 0.6,
-              }}
-            >
-              {t.inventory}
-            </small>
+            <small>{t.inventory}</small>
 
-            <h2
-              style={{
-                marginBottom: 4,
-              }}
-            >
-              {owned.length}
-            </h2>
+            <h2>{owned.length}</h2>
 
             <span
               style={{
@@ -1926,8 +2050,7 @@ export default function Home() {
               {t.ownedItems}
             </span>
 
-            {ownedProducts.length >
-              0 && (
+            {ownedProducts.length > 0 && (
               <div
                 style={{
                   display: "flex",
@@ -1936,27 +2059,22 @@ export default function Home() {
                   marginTop: 13,
                 }}
               >
-                {ownedProducts.map(
-                  (item) => (
-                    <span
-                      key={item.id}
-                      style={{
-                        padding:
-                          "7px 10px",
-                        borderRadius: 20,
-                        background:
-                          "#281335",
-                        border:
-                          "1px solid #603476",
-                        fontSize: 10,
-                        fontWeight: 800,
-                      }}
-                    >
-                      {item.symbol}{" "}
-                      {item.name}
-                    </span>
-                  )
-                )}
+                {ownedProducts.map((item) => (
+                  <span
+                    key={item.id}
+                    style={{
+                      padding: "7px 10px",
+                      borderRadius: 20,
+                      background: "#281335",
+                      border:
+                        "1px solid #603476",
+                      fontSize: 10,
+                    }}
+                  >
+                    {getShopSymbol(item)}{" "}
+                    {item.name}
+                  </span>
+                ))}
               </div>
             )}
           </div>
@@ -1983,8 +2101,7 @@ export default function Home() {
               padding: 17,
               marginTop: 11,
               borderRadius: 20,
-              border:
-                "1px solid #74354e",
+              border: "1px solid #74354e",
               background: "#29121c",
               color: "#ff9db6",
               fontWeight: 900,
@@ -2017,8 +2134,7 @@ export default function Home() {
           style={{
             padding: "0 18px 15px",
             display: "flex",
-            justifyContent:
-              "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
           }}
         >
@@ -2028,19 +2144,12 @@ export default function Home() {
                 display: "block",
                 fontSize: 28,
                 color: "#dc8dff",
-                textShadow:
-                  "0 0 13px #7927a5",
               }}
             >
               WHO
             </strong>
 
-            <small
-              style={{
-                opacity: 0.55,
-                letterSpacing: 1,
-              }}
-            >
+            <small style={{ opacity: 0.55 }}>
               GENERAL ROOM
             </small>
           </div>
@@ -2048,15 +2157,13 @@ export default function Home() {
           <small
             style={{
               color: "#52e69c",
-              background:
-                "rgba(55,190,126,.08)",
               border:
                 "1px solid rgba(82,230,156,.22)",
               borderRadius: 20,
               padding: "7px 10px",
             }}
           >
-            ● ONLINE
+            ● {t.online}
           </small>
         </header>
 
@@ -2097,23 +2204,8 @@ export default function Home() {
               size={52}
             />
 
-            <div
-              style={{
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              {/* QUI ORA APPARE SOLO
-                  IL NICKNAME */}
-
-              <strong
-                style={{
-                  display: "block",
-                  overflow: "hidden",
-                  textOverflow:
-                    "ellipsis",
-                }}
-              >
+            <div style={{ flex: 1 }}>
+              <strong>
                 @{nickname}
               </strong>
 
@@ -2121,211 +2213,182 @@ export default function Home() {
                 style={{
                   display: "block",
                   color: "#bd82d4",
-                  marginTop: 3,
                 }}
               >
                 ✦ {points} WHO Points
               </small>
             </div>
 
-            <span
-              style={{
-                color: "#58dfa0",
-                fontSize: 11,
-              }}
-            >
-              ●
-            </span>
+            {isFounder && (
+              <small
+                style={{
+                  color: "#e59cff",
+                  fontWeight: 900,
+                }}
+              >
+                ♛ FOUNDER
+              </small>
+            )}
           </div>
         </section>
 
-        <section
-          style={{
-            padding: "0 18px",
-          }}
-        >
-          {messagesLoading &&
-            messages.length === 0 && (
-              <div
-                style={{
-                  ...card,
-                  padding: 20,
-                  marginBottom: 11,
-                  textAlign: "center",
-                  opacity: 0.65,
-                }}
-              >
-                •••
-              </div>
-            )}
-
+        <section style={{ padding: "0 18px" }}>
           {!messagesLoading &&
             messages.length === 0 && (
               <div
                 style={{
                   ...card,
                   padding: 20,
-                  marginBottom: 11,
                   textAlign: "center",
                   opacity: 0.6,
-                  fontSize: 13,
                 }}
               >
                 {t.emptyChat}
               </div>
             )}
 
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              style={{
-                ...card,
-                padding: 15,
-                marginBottom: 11,
-              }}
-            >
+          {messages.map((msg) => {
+            const userVote =
+              Number(myVotes[msg.id] || 0);
+
+            const reported =
+              reportedMessages.includes(msg.id);
+
+            return (
               <div
+                key={msg.id}
                 style={{
-                  display: "flex",
-                  gap: 11,
-                  alignItems:
-                    "flex-start",
+                  ...card,
+                  padding: 15,
+                  marginBottom: 11,
                 }}
               >
-                <SafeAvatar
-                  name={
-                    msg.avatar ||
-                    "Shadow"
-                  }
-                  size={48}
-                />
-
                 <div
                   style={{
-                    flex: 1,
-                    minWidth: 0,
+                    display: "flex",
+                    gap: 11,
                   }}
                 >
-                  {/* NICKNAME = UNICO NOME
-                      PUBBLICO */}
-
-                  <strong
-                    style={{
-                      color: "#f4e8fa",
-                      fontSize: 14,
-                    }}
-                  >
-                    @
-                    {msg.nickname ||
-                      "anonimo"}
-                  </strong>
-
-                  {/* NIENTE Shadow/Luna/
-                      Pixie sotto al nickname */}
-
-                  <p
-                    style={{
-                      overflowWrap:
-                        "anywhere",
-                      lineHeight: 1.45,
-                      margin:
-                        "8px 0 12px",
-                      color: "#eee8f1",
-                    }}
-                  >
-                    {msg.content ||
-                      msg.message ||
-                      msg.text}
-                  </p>
+                  <SafeAvatar
+                    name={msg.avatar || "Shadow"}
+                    size={48}
+                  />
 
                   <div
                     style={{
-                      display: "flex",
-                      gap: 7,
-                      flexWrap: "wrap",
-                      alignItems:
-                        "center",
+                      flex: 1,
+                      minWidth: 0,
                     }}
                   >
-                    <button
-                      onClick={() =>
-                        vote(
-                          msg.id,
-                          "likes",
-                          msg.likes
-                        )
-                      }
-                      aria-label="Like"
-                      style={{
-                        border:
-                          "1px solid #4d3a5b",
-                        background:
-                          "#151019",
-                        color: "#c9bdcf",
-                        borderRadius: 20,
-                        padding:
-                          "7px 11px",
-                        fontWeight: 800,
-                      }}
-                    >
-                      ♡{" "}
-                      {Number(
-                        msg.likes || 0
-                      )}
-                    </button>
+                    <strong>
+                      @{msg.nickname || "anonimo"}
+                    </strong>
 
-                    <button
-                      onClick={() =>
-                        vote(
-                          msg.id,
-                          "dislikes",
-                          msg.dislikes
-                        )
-                      }
-                      aria-label="Dislike"
+                    <p
                       style={{
-                        border:
-                          "1px solid #4d3a5b",
-                        background:
-                          "#151019",
-                        color: "#c9bdcf",
-                        borderRadius: 20,
-                        padding:
-                          "7px 11px",
-                        fontWeight: 800,
+                        overflowWrap: "anywhere",
+                        lineHeight: 1.45,
+                        margin: "8px 0 12px",
                       }}
                     >
-                      ⌄{" "}
-                      {Number(
-                        msg.dislikes || 0
-                      )}
-                    </button>
+                      {msg.content}
+                    </p>
 
-                    <button
-                      onClick={
-                        reportMessage
-                      }
-                      aria-label={t.report}
+                    <div
                       style={{
-                        marginLeft:
-                          "auto",
-                        border: 0,
-                        background:
-                          "transparent",
-                        color: "#8e7e96",
-                        borderRadius: 20,
-                        padding:
-                          "7px 5px",
-                        fontSize: 11,
+                        display: "flex",
+                        gap: 7,
+                        alignItems: "center",
                       }}
                     >
-                      ◇ {t.report}
-                    </button>
+                      <button
+                        onClick={() =>
+                          vote(msg.id, 1)
+                        }
+                        style={{
+                          border:
+                            userVote === 1
+                              ? "1px solid #ce72f4"
+                              : "1px solid #4d3a5b",
+                          background:
+                            userVote === 1
+                              ? "#48205a"
+                              : "#151019",
+                          color:
+                            userVote === 1
+                              ? "#efb2ff"
+                              : "#c9bdcf",
+                          borderRadius: 20,
+                          padding: "7px 11px",
+                          fontWeight: 900,
+                        }}
+                      >
+                        ♡ {Number(msg.likes || 0)}
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          vote(msg.id, -1)
+                        }
+                        style={{
+                          border:
+                            userVote === -1
+                              ? "1px solid #d45d83"
+                              : "1px solid #4d3a5b",
+                          background:
+                            userVote === -1
+                              ? "#491d2c"
+                              : "#151019",
+                          color:
+                            userVote === -1
+                              ? "#ff9cb9"
+                              : "#c9bdcf",
+                          borderRadius: 20,
+                          padding: "7px 11px",
+                          fontWeight: 900,
+                        }}
+                      >
+                        ⌄{" "}
+                        {Number(
+                          msg.dislikes || 0
+                        )}
+                      </button>
+
+                      <button
+                        disabled={reported}
+                        onClick={() =>
+                          reportMessage(msg.id)
+                        }
+                        style={{
+                          marginLeft: "auto",
+                          border:
+                            reported
+                              ? "1px solid #563946"
+                              : "1px solid #49374f",
+                          background:
+                            reported
+                              ? "#25161c"
+                              : "#110d14",
+                          color:
+                            reported
+                              ? "#8d6673"
+                              : "#b5a3bb",
+                          borderRadius: 20,
+                          padding: "7px 10px",
+                          fontSize: 11,
+                        }}
+                      >
+                        ⚑{" "}
+                        {reported
+                          ? "SEGNALATO"
+                          : t.report}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <div
             style={{
@@ -2336,17 +2399,13 @@ export default function Home() {
               position: "sticky",
               bottom: 83,
               zIndex: 20,
-              backdropFilter:
-                "blur(15px)",
             }}
           >
             <input
               value={message}
               maxLength={500}
               onChange={(e) =>
-                setMessage(
-                  e.target.value
-                )
+                setMessage(e.target.value)
               }
               onKeyDown={(e) => {
                 if (
@@ -2368,7 +2427,6 @@ export default function Home() {
                 color: "#fff",
                 padding: 13,
                 outline: 0,
-                fontSize: 15,
               }}
             />
 
@@ -2380,7 +2438,7 @@ export default function Home() {
               onClick={sendMessage}
               style={{
                 ...primaryButton,
-                padding: "0 15px",
+                padding: "0 17px",
                 opacity:
                   sending ||
                   !message.trim()
@@ -2397,4 +2455,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-}
+         }
