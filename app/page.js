@@ -1655,7 +1655,7 @@ export default function Home() {
                       width: "100%",
                       height: "100%",
                       objectFit: "contain",
-                      padding: 8,
+                      padding: 0,
                       boxSizing: "border-box",
                     }}
                   />
