@@ -46,7 +46,7 @@ const fallbackShopItems = [
     category: "COSMETIC",
     rarity: "LEGENDARY",
     points_price: 1200,
-    image_url: "/shop/royal-crown.png",
+    image_url: "/shop/royal/crown.png",
     symbol: "♛",
   },
   {
