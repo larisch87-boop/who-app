@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -36,12 +36,13 @@ const ownerAvatar = {
 };
 
 /* =========================================================
-   WHO — STANZE UFFICIALI
+   WHO — STANZE
    ========================================================= */
 
 const defaultOfficialRooms = [
   {
     id: "who-general",
+    room_key: "generale",
     name: "WHO GENERAL",
     description: "La community principale di WHO",
     is_official: true,
@@ -50,6 +51,7 @@ const defaultOfficialRooms = [
   },
   {
     id: "night-who",
+    room_key: "night-who",
     name: "NIGHT WHO",
     description: "Chat notturna",
     is_official: true,
@@ -58,6 +60,7 @@ const defaultOfficialRooms = [
   },
   {
     id: "gaming",
+    room_key: "gaming",
     name: "GAMING",
     description: "Gaming community",
     is_official: true,
@@ -66,6 +69,7 @@ const defaultOfficialRooms = [
   },
   {
     id: "music",
+    room_key: "music",
     name: "MUSIC",
     description: "Musica e nuove scoperte",
     is_official: true,
@@ -74,6 +78,7 @@ const defaultOfficialRooms = [
   },
   {
     id: "meet-people",
+    room_key: "meet-people",
     name: "MEET PEOPLE",
     description: "Conosci nuove persone",
     is_official: true,
@@ -83,14 +88,13 @@ const defaultOfficialRooms = [
 ];
 
 /* =========================================================
-   WHO SHOP
+   WHO — SHOP
    ========================================================= */
 
 const fallbackShopItems = [
   {
     id: "royal-crown",
     name: "ROYAL CROWN",
-    category: "COSMETIC",
     rarity: "LEGENDARY",
     points_price: 1200,
     image_url: "/shop/royal/crown.png",
@@ -98,7 +102,6 @@ const fallbackShopItems = [
   {
     id: "void-mask",
     name: "VOID MASK",
-    category: "COSMETIC",
     rarity: "LEGENDARY",
     points_price: 1000,
     image_url: "/shop/void-mask.png",
@@ -106,7 +109,6 @@ const fallbackShopItems = [
   {
     id: "glitch-eyes",
     name: "GLITCH EYES",
-    category: "COSMETIC",
     rarity: "EPIC",
     points_price: 750,
     image_url: "/shop/glitch-eyes.png",
@@ -114,7 +116,6 @@ const fallbackShopItems = [
   {
     id: "dual-aura",
     name: "DUAL AURA",
-    category: "COSMETIC",
     rarity: "EPIC",
     points_price: 850,
     image_url: "/shop/dual-aura.png",
@@ -122,7 +123,6 @@ const fallbackShopItems = [
   {
     id: "neon-visor",
     name: "NEON VISOR",
-    category: "COSMETIC",
     rarity: "EPIC",
     points_price: 650,
     image_url: "/shop/neon-visor.png",
@@ -130,7 +130,6 @@ const fallbackShopItems = [
   {
     id: "nexus-frame",
     name: "NEXUS FRAME",
-    category: "COSMETIC",
     rarity: "LIMITED",
     points_price: 1500,
     image_url: "/shop/nexus-frame.png",
@@ -162,7 +161,6 @@ const translations = {
     rooms: "Stanze",
     shop: "Shop",
     profile: "Profilo",
-    general: "Generale",
     publicChat: "CHAT PUBBLICA",
     write: "Scrivi un messaggio...",
     points: "WHO POINTS",
@@ -189,11 +187,13 @@ const translations = {
     reporting: "Segnalazione inviata alla moderazione.",
     alreadyReported: "Hai già segnalato questo messaggio.",
     identityHint: "Il nickname è il tuo unico nome pubblico.",
-    shopHint:
-      "Sblocca oggetti esclusivi e costruisci il tuo stile WHO.",
+    shopHint: "Sblocca oggetti esclusivi e costruisci il tuo stile WHO.",
     ownedItems: "Oggetti posseduti",
-    online: "ONLINE",
     report: "SEGNALA",
+    reported: "SEGNALATO",
+    enter: "ENTRA",
+    founder: "WHO FOUNDER",
+    member: "WHO MEMBER",
   },
 
   en: {
@@ -216,7 +216,6 @@ const translations = {
     rooms: "Rooms",
     shop: "Shop",
     profile: "Profile",
-    general: "General",
     publicChat: "PUBLIC CHAT",
     write: "Write a message...",
     points: "WHO POINTS",
@@ -243,26 +242,19 @@ const translations = {
     reporting: "Report sent to moderation.",
     alreadyReported: "You already reported this message.",
     identityHint: "Your nickname is your only public name.",
-    shopHint:
-      "Unlock exclusive items and build your WHO style.",
+    shopHint: "Unlock exclusive items and build your WHO style.",
     ownedItems: "Owned items",
-    online: "ONLINE",
     report: "REPORT",
+    reported: "REPORTED",
+    enter: "ENTER",
+    founder: "WHO FOUNDER",
+    member: "WHO MEMBER",
   },
 };
 
 /* =========================================================
-   FUNZIONI BASE
+   HELPERS
    ========================================================= */
-
-function getAvatar(name) {
-  if (name === "UNKNOWN") return ownerAvatar.image;
-
-  return (
-    avatars.find((item) => item.name === name)?.image ||
-    "/shadow.png"
-  );
-}
 
 function cleanNickname(value = "") {
   return value
@@ -275,8 +267,29 @@ function internalEmail(nickname) {
   return `${cleanNickname(nickname)}@account.who.local`;
 }
 
+function getAvatar(name) {
+  if (name === "UNKNOWN") return ownerAvatar.image;
+
+  return (
+    avatars.find((item) => item.name === name)?.image ||
+    "/shadow.png"
+  );
+}
+
 function getShopImage(item) {
   return item.image_url || `/shop/${item.id}.png`;
+}
+
+function makeRoomKey(room) {
+  if (room.room_key) return room.room_key;
+
+  if (room.id === "who-general") return "generale";
+
+  return String(room.id || room.name || "generale")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9_-]/g, "-")
+    .replace(/-+/g, "-");
 }
 
 /* =========================================================
@@ -285,6 +298,7 @@ function getShopImage(item) {
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
+
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
 
@@ -299,6 +313,11 @@ export default function Home() {
   const [nickname, setNickname] = useState("");
   const [avatar, setAvatar] = useState("Shadow");
 
+  const [language, setLanguage] = useState("it");
+
+  const [points, setPoints] = useState(500);
+  const [reputation, setReputation] = useState(100);
+
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -307,26 +326,31 @@ export default function Home() {
   const [myVotes, setMyVotes] = useState({});
   const [reportedMessages, setReportedMessages] = useState([]);
 
-  const [language, setLanguage] = useState("it");
+  const [rooms, setRooms] = useState(defaultOfficialRooms);
+  const [activeRoom, setActiveRoom] = useState(defaultOfficialRooms[0]);
 
-  const [points, setPoints] = useState(500);
-  const [reputation, setReputation] = useState(100);
-
-  const [shopItems, setShopItems] =
-    useState(fallbackShopItems);
-
-  const [owned, setOwned] = useState([]);
-
-  const [rooms, setRooms] = useState([]);
   const [creatingRoom, setCreatingRoom] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [roomTheme, setRoomTheme] = useState("");
   const [roomPrivate, setRoomPrivate] = useState(false);
 
+  const [shopItems] = useState(fallbackShopItems);
+  const [owned, setOwned] = useState([]);
+  const [buying, setBuying] = useState(null);
+
   const t = translations[language];
 
   const isFounder =
-    profile?.role?.toUpperCase() === "FOUNDER";
+    String(profile?.role || "").toUpperCase() === "FOUNDER";
+
+  const currentRoomKey = makeRoomKey(activeRoom);
+
+  const level = Math.max(1, Math.floor(points / 250) + 1);
+
+  const ownedProducts = useMemo(
+    () => shopItems.filter((item) => owned.includes(item.id)),
+    [shopItems, owned]
+  );
 
   /* =========================================================
      STILI
@@ -336,17 +360,17 @@ export default function Home() {
     minHeight: "100vh",
     color: "#fff",
     background:
-      "radial-gradient(circle at 50% -10%,#3c1064 0,#170921 35%,#08050d 72%,#050308 100%)",
+      "radial-gradient(circle at 50% -10%,#42106b 0,#180921 36%,#08050d 72%,#050308 100%)",
     paddingBottom: session && started ? 105 : 25,
   };
 
   const card = {
     background:
-      "linear-gradient(145deg,rgba(37,18,56,.97),rgba(12,8,20,.98))",
+      "linear-gradient(145deg,rgba(38,18,57,.97),rgba(12,8,20,.98))",
     border: "1px solid rgba(137,66,177,.45)",
     borderRadius: 22,
     color: "#fff",
-    boxShadow: "0 12px 35px rgba(0,0,0,.32)",
+    boxShadow: "0 12px 35px rgba(0,0,0,.30)",
   };
 
   const inputStyle = {
@@ -364,8 +388,7 @@ export default function Home() {
   const primaryButton = {
     borderRadius: 16,
     border: "1px solid #b954e5",
-    background:
-      "linear-gradient(135deg,#7825a4,#4d1d75)",
+    background: "linear-gradient(135deg,#862ab4,#501b77)",
     color: "#fff",
     fontWeight: 900,
     boxShadow: "0 8px 24px rgba(109,36,151,.25)",
@@ -376,22 +399,15 @@ export default function Home() {
      ========================================================= */
 
   useEffect(() => {
-    const savedLanguage =
-      localStorage.getItem("who-language");
+    const savedLanguage = localStorage.getItem("who-language");
 
-    if (
-      savedLanguage === "it" ||
-      savedLanguage === "en"
-    ) {
+    if (savedLanguage === "it" || savedLanguage === "en") {
       setLanguage(savedLanguage);
     }
 
     async function initialize() {
-      const { data } =
-        await supabase.auth.getSession();
-
-      const currentSession =
-        data?.session || null;
+      const { data } = await supabase.auth.getSession();
+      const currentSession = data?.session || null;
 
       setSession(currentSession);
 
@@ -404,55 +420,55 @@ export default function Home() {
 
     initialize();
 
-    const { data } =
-      supabase.auth.onAuthStateChange(
-        async (_event, newSession) => {
-          setSession(newSession);
+    const { data } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        setSession(newSession);
 
-          if (newSession) {
-            await loadUserData(
-              newSession.user
-            );
-          }
-
-          setLoading(false);
+        if (newSession) {
+          await loadUserData(newSession.user);
         }
-      );
 
-    return () => {
-      data.subscription.unsubscribe();
-    };
+        setLoading(false);
+      }
+    );
+
+    return () => data.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
-    if (!session || !started) return;
+    if (!session || !started || started === "identity") return;
 
-    loadMessages();
     loadRooms();
-    loadShop();
     loadInventory();
     loadVotes();
     loadReports();
+  }, [session, started]);
+
+  useEffect(() => {
+    if (!session || !started || started === "identity") return;
+
+    loadMessages();
+
+    const channelName = `who-room-${currentRoomKey}`;
 
     const channel = supabase
-      .channel("who-messages-live")
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "messages",
+          filter: `room=eq.${currentRoomKey}`,
         },
-        () => {
-          loadMessages();
-        }
+        () => loadMessages()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [session, started]);
+  }, [session, started, currentRoomKey]);
 
   /* =========================================================
      PROFILO
@@ -474,24 +490,10 @@ export default function Home() {
 
     if (data) {
       setProfile(data);
-      setNickname(
-        data.nickname ||
-          data.username ||
-          ""
-      );
-      setAvatar(
-        data.avatar || "Shadow"
-      );
-      setPoints(
-        Number(
-          data.who_points ?? 500
-        )
-      );
-      setReputation(
-        Number(
-          data.reputation ?? 100
-        )
-      );
+      setNickname(data.nickname || data.username || "");
+      setAvatar(data.avatar || "Shadow");
+      setPoints(Number(data.who_points ?? 500));
+      setReputation(Number(data.reputation ?? 100));
       setStarted(true);
       return;
     }
@@ -501,54 +503,32 @@ export default function Home() {
       user.email?.split("@")[0] ||
       "who_user";
 
-    const newProfile = {
-      id: user.id,
-      nickname: username,
-      avatar: "Shadow",
-    };
-
-    const {
-      data: created,
-      error: createError,
-    } = await supabase
+    const { data: created, error: createError } = await supabase
       .from("profiles")
-      .insert(newProfile)
+      .insert({
+        id: user.id,
+        nickname: username,
+        avatar: "Shadow",
+      })
       .select()
       .single();
 
     if (createError) {
-      console.error(
-        "CREATE PROFILE:",
-        createError
-      );
+      console.error("CREATE PROFILE:", createError);
       return;
     }
 
     setProfile(created);
-    setNickname(created.nickname);
-    setAvatar(
-      created.avatar || "Shadow"
-    );
-    setPoints(
-      Number(
-        created.who_points ?? 500
-      )
-    );
-    setReputation(
-      Number(
-        created.reputation ?? 100
-      )
-    );
-
+    setNickname(created.nickname || username);
+    setAvatar(created.avatar || "Shadow");
+    setPoints(Number(created.who_points ?? 500));
+    setReputation(Number(created.reputation ?? 100));
     setStarted("identity");
   }
 
   function changeLanguage(lang) {
     setLanguage(lang);
-    localStorage.setItem(
-      "who-language",
-      lang
-    );
+    localStorage.setItem("who-language", lang);
   }
 
   /* =========================================================
@@ -558,14 +538,9 @@ export default function Home() {
   async function registerAccount() {
     setAuthError("");
 
-    const username =
-      cleanNickname(nickname);
+    const username = cleanNickname(nickname);
 
-    if (
-      !/^[a-z0-9_]{3,20}$/.test(
-        username
-      )
-    ) {
+    if (!/^[a-z0-9_]{3,20}$/.test(username)) {
       setAuthError(
         language === "it"
           ? "Nickname: da 3 a 20 caratteri. Usa lettere, numeri o _"
@@ -586,15 +561,13 @@ export default function Home() {
     setAuthBusy(true);
 
     try {
-      const { data, error } =
-        await supabase.auth.signUp({
-          email:
-            internalEmail(username),
-          password,
-          options: {
-            data: { username },
-          },
-        });
+      const { data, error } = await supabase.auth.signUp({
+        email: internalEmail(username),
+        password,
+        options: {
+          data: { username },
+        },
+      });
 
       if (error) {
         setAuthError(error.message);
@@ -606,12 +579,9 @@ export default function Home() {
 
       if (data?.session) {
         setSession(data.session);
-        await loadUserData(
-          data.user
-        );
+        await loadUserData(data.user);
       } else {
         setAuthMode("login");
-
         setAuthError(
           language === "it"
             ? "Account creato. Ora accedi."
@@ -626,8 +596,7 @@ export default function Home() {
   async function loginAccount() {
     setAuthError("");
 
-    const username =
-      cleanNickname(nickname);
+    const username = cleanNickname(nickname);
 
     if (!username || !password) {
       setAuthError(
@@ -641,14 +610,10 @@ export default function Home() {
     setAuthBusy(true);
 
     try {
-      const { data, error } =
-        await supabase.auth.signInWithPassword(
-          {
-            email:
-              internalEmail(username),
-            password,
-          }
-        );
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: internalEmail(username),
+        password,
+      });
 
       if (error) {
         setAuthError(
@@ -662,10 +627,9 @@ export default function Home() {
       setSession(data.session);
       setPassword("");
 
-      await loadUserData(
-        data.user
-      );
+      await loadUserData(data.user);
 
+      setActiveRoom(defaultOfficialRooms[0]);
       setPage("chat");
     } finally {
       setAuthBusy(false);
@@ -684,6 +648,8 @@ export default function Home() {
     setMessages([]);
     setOwned([]);
     setMyVotes({});
+    setReportedMessages([]);
+    setActiveRoom(defaultOfficialRooms[0]);
   }
 
   /* =========================================================
@@ -691,29 +657,22 @@ export default function Home() {
      ========================================================= */
 
   async function selectAvatar(name) {
-    if (!session?.user?.id)
-      return;
+    if (!session?.user?.id) return;
 
-    if (
-      name === "UNKNOWN" &&
-      !isFounder
-    )
+    if (name === "UNKNOWN" && !isFounder) {
+      alert("Founder avatar.");
       return;
+    }
 
-    const { data, error } =
-      await supabase
-        .from("profiles")
-        .update({
-          avatar: name,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          session.user.id
-        )
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        avatar: name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
@@ -731,17 +690,11 @@ export default function Home() {
   async function loadMessages() {
     setMessagesLoading(true);
 
-    const { data, error } =
-      await supabase
-        .from("messages")
-        .select("*")
-        .eq(
-          "room",
-          "generale"
-        )
-        .order("id", {
-          ascending: true,
-        });
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("room", currentRoomKey)
+      .order("id", { ascending: true });
 
     if (!error) {
       setMessages(data || []);
@@ -751,51 +704,25 @@ export default function Home() {
   }
 
   async function sendMessage() {
-    const cleanMessage =
-      message.trim();
+    const cleanMessage = message.trim();
 
-    if (
-      !cleanMessage ||
-      sending ||
-      !session?.user?.id
-    )
-      return;
+    if (!cleanMessage || sending || !session?.user?.id) return;
 
     setSending(true);
 
-    /*
-      IMPORTANTE:
-      nickname e avatar sono due cose separate.
-
-      Il nickname viene dal profilo.
-      Shadow/Pixie/King ecc. sono SOLO avatar.
-    */
-
     const publicNickname =
-      profile?.nickname ||
-      profile?.username ||
-      nickname ||
-      "anonimo";
+      profile?.nickname || profile?.username || nickname || "anonimo";
 
-    const publicAvatar =
-      profile?.avatar ||
-      avatar ||
-      "Shadow";
+    const publicAvatar = profile?.avatar || avatar || "Shadow";
 
-    const { error } =
-      await supabase
-        .from("messages")
-        .insert({
-          room: "generale",
-          nickname:
-            publicNickname,
-          avatar:
-            publicAvatar,
-          content:
-            cleanMessage,
-          likes: 0,
-          dislikes: 0,
-        });
+    const { error } = await supabase.from("messages").insert({
+      room: currentRoomKey,
+      nickname: publicNickname,
+      avatar: publicAvatar,
+      content: cleanMessage.slice(0, 500),
+      likes: 0,
+      dislikes: 0,
+    });
 
     if (error) {
       alert(error.message);
@@ -804,9 +731,7 @@ export default function Home() {
     }
 
     setMessage("");
-
     await loadMessages();
-
     setSending(false);
   }
 
@@ -815,63 +740,35 @@ export default function Home() {
      ========================================================= */
 
   async function loadVotes() {
-    if (!session?.user?.id)
-      return;
+    if (!session?.user?.id) return;
 
-    const { data, error } =
-      await supabase
-        .from("message_votes")
-        .select(
-          "message_id,vote"
-        )
-        .eq(
-          "user_id",
-          session.user.id
-        );
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("message_id,vote")
+      .eq("user_id", session.user.id);
 
     if (error) return;
 
     const map = {};
 
-    (data || []).forEach(
-      (vote) => {
-        map[vote.message_id] =
-          Number(vote.vote);
-      }
-    );
+    (data || []).forEach((item) => {
+      map[item.message_id] = Number(item.vote);
+    });
 
     setMyVotes(map);
   }
 
-  async function vote(
-    messageId,
-    newVote
-  ) {
-    if (!session?.user?.id)
-      return;
+  async function vote(messageId, newVote) {
+    if (!session?.user?.id) return;
 
-    const previousVote =
-      Number(
-        myVotes[messageId] || 0
-      );
+    const previousVote = Number(myVotes[messageId] || 0);
 
-    if (
-      previousVote === newVote
-    ) {
-      const { error } =
-        await supabase
-          .from(
-            "message_votes"
-          )
-          .delete()
-          .eq(
-            "message_id",
-            messageId
-          )
-          .eq(
-            "user_id",
-            session.user.id
-          );
+    if (previousVote === newVote) {
+      const { error } = await supabase
+        .from("message_votes")
+        .delete()
+        .eq("message_id", messageId)
+        .eq("user_id", session.user.id);
 
       if (error) {
         alert(error.message);
@@ -879,40 +776,25 @@ export default function Home() {
       }
 
       setMyVotes((old) => {
-        const copy = {
-          ...old,
-        };
-
-        delete copy[
-          messageId
-        ];
-
+        const copy = { ...old };
+        delete copy[messageId];
         return copy;
       });
 
-      await syncMessageVoteCounts(
-        messageId
-      );
-
+      await syncMessageVoteCounts(messageId);
       return;
     }
 
-    const { error } =
-      await supabase
-        .from("message_votes")
-        .upsert(
-          {
-            message_id:
-              messageId,
-            user_id:
-              session.user.id,
-            vote: newVote,
-          },
-          {
-            onConflict:
-              "message_id,user_id",
-          }
-        );
+    const { error } = await supabase.from("message_votes").upsert(
+      {
+        message_id: messageId,
+        user_id: session.user.id,
+        vote: newVote,
+      },
+      {
+        onConflict: "message_id,user_id",
+      }
+    );
 
     if (error) {
       alert(error.message);
@@ -924,58 +806,34 @@ export default function Home() {
       [messageId]: newVote,
     }));
 
-    await syncMessageVoteCounts(
-      messageId
-    );
+    await syncMessageVoteCounts(messageId);
   }
 
-  async function syncMessageVoteCounts(
-    messageId
-  ) {
-    const { data, error } =
-      await supabase
-        .from("message_votes")
-        .select("vote")
-        .eq(
-          "message_id",
-          messageId
-        );
+  async function syncMessageVoteCounts(messageId) {
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("vote")
+      .eq("message_id", messageId);
 
     if (error) return;
 
-    const likes = (
-      data || []
-    ).filter(
-      (item) =>
-        Number(item.vote) === 1
+    const likes = (data || []).filter(
+      (item) => Number(item.vote) === 1
     ).length;
 
-    const dislikes = (
-      data || []
-    ).filter(
-      (item) =>
-        Number(item.vote) === -1
+    const dislikes = (data || []).filter(
+      (item) => Number(item.vote) === -1
     ).length;
 
     await supabase
       .from("messages")
-      .update({
-        likes,
-        dislikes,
-      })
-      .eq(
-        "id",
-        messageId
-      );
+      .update({ likes, dislikes })
+      .eq("id", messageId);
 
     setMessages((old) =>
       old.map((item) =>
         item.id === messageId
-          ? {
-              ...item,
-              likes,
-              dislikes,
-            }
+          ? { ...item, likes, dislikes }
           : item
       )
     );
@@ -986,73 +844,39 @@ export default function Home() {
      ========================================================= */
 
   async function loadReports() {
-    if (!session?.user?.id)
-      return;
+    if (!session?.user?.id) return;
 
-    const { data, error } =
-      await supabase
-        .from(
-          "message_reports"
-        )
-        .select("message_id")
-        .eq(
-          "reporter_id",
-          session.user.id
-        );
+    const { data, error } = await supabase
+      .from("message_reports")
+      .select("message_id")
+      .eq("reporter_id", session.user.id);
 
     if (error) return;
 
-    setReportedMessages(
-      (data || []).map(
-        (item) =>
-          item.message_id
-      )
-    );
+    setReportedMessages((data || []).map((item) => item.message_id));
   }
 
-  async function reportMessage(
-    messageId
-  ) {
-    if (!session?.user?.id)
-      return;
+  async function reportMessage(messageId) {
+    if (!session?.user?.id) return;
 
-    if (
-      reportedMessages.includes(
-        messageId
-      )
-    ) {
-      alert(
-        t.alreadyReported
-      );
+    if (reportedMessages.includes(messageId)) {
+      alert(t.alreadyReported);
       return;
     }
 
-    const { error } =
-      await supabase
-        .from(
-          "message_reports"
-        )
-        .insert({
-          message_id:
-            messageId,
-          reporter_id:
-            session.user.id,
-          reason: "other",
-          status: "pending",
-        });
+    const { error } = await supabase.from("message_reports").insert({
+      message_id: messageId,
+      reporter_id: session.user.id,
+      reason: "other",
+      status: "pending",
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setReportedMessages(
-      (old) => [
-        ...old,
-        messageId,
-      ]
-    );
-
+    setReportedMessages((old) => [...old, messageId]);
     alert(t.reporting);
   }
 
@@ -1061,83 +885,54 @@ export default function Home() {
      ========================================================= */
 
   async function loadRooms() {
-    const { data, error } =
-      await supabase
-        .from("rooms")
-        .select("*")
-        .eq(
-          "is_active",
-          true
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
 
-    const databaseRooms =
-      error ? [] : data || [];
+    const databaseRooms = error ? [] : data || [];
 
-    const communityRooms =
-      databaseRooms.filter(
-        (room) =>
-          !room.is_official
-      );
+    const communityRooms = databaseRooms.filter(
+      (room) => !room.is_official
+    );
 
-    const databaseOfficial =
-      databaseRooms.filter(
-        (room) =>
-          room.is_official
-      );
-
-    /*
-      Se Supabase contiene stanze
-      ufficiali, usiamo quelle.
-
-      Se non ce ne sono, WHO mostra
-      automaticamente le stanze base.
-    */
+    const databaseOfficial = databaseRooms.filter(
+      (room) => room.is_official
+    );
 
     setRooms([
-      ...(databaseOfficial.length >
-      0
+      ...(databaseOfficial.length
         ? databaseOfficial
         : defaultOfficialRooms),
       ...communityRooms,
     ]);
   }
 
+  function enterRoom(room) {
+    setActiveRoom(room);
+    setMessages([]);
+    setMessage("");
+    setPage("chat");
+  }
+
   async function createRoom() {
-    const cleanName =
-      roomName.trim();
+    const cleanName = roomName.trim();
 
-    if (
-      !cleanName ||
-      !session?.user?.id
-    )
-      return;
+    if (!cleanName || !session?.user?.id) return;
 
-    const { error } =
-      await supabase
-        .from("rooms")
-        .insert({
-          name:
-            cleanName.slice(
-              0,
-              30
-            ),
-          description:
-            roomTheme
-              .trim()
-              .slice(0, 100),
-          owner_id:
-            session.user.id,
-          is_private:
-            roomPrivate,
-          is_official: false,
-          is_active: true,
-        });
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({
+        name: cleanName.slice(0, 30),
+        description: roomTheme.trim().slice(0, 100),
+        owner_id: session.user.id,
+        is_private: roomPrivate,
+        is_official: false,
+        is_active: true,
+      })
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
@@ -1150,129 +945,98 @@ export default function Home() {
     setCreatingRoom(false);
 
     await loadRooms();
+
+    if (data) {
+      enterRoom(data);
+    }
   }
 
   /* =========================================================
-     SHOP
+     SHOP / INVENTARIO
      ========================================================= */
 
-  async function loadShop() {
-    setShopItems(
-      fallbackShopItems
-    );
-  }
-
   async function loadInventory() {
-    if (!session?.user?.id)
-      return;
+    if (!session?.user?.id) return;
 
-    const { data, error } =
-      await supabase
-        .from(
-          "user_inventory"
-        )
-        .select("item_id")
-        .eq(
-          "user_id",
-          session.user.id
-        );
+    const { data, error } = await supabase
+      .from("user_inventory")
+      .select("item_id")
+      .eq("user_id", session.user.id);
 
     if (error) return;
 
-    setOwned(
-      (data || []).map(
-        (item) => item.item_id
-      )
-    );
+    setOwned((data || []).map((item) => item.item_id));
   }
 
   async function buy(item) {
-    if (!session?.user?.id)
-      return;
+    if (!session?.user?.id || buying) return;
 
-    if (
-      owned.includes(item.id)
-    )
-      return;
+    if (owned.includes(item.id)) return;
 
-    const price =
-      Number(
-        item.points_price ??
-          item.price ??
-          0
-      );
+    const price = Number(item.points_price || 0);
 
     if (points < price) {
       alert(t.insufficient);
       return;
     }
 
-    const {
-      error:
-        inventoryError,
-    } = await supabase
-      .from("user_inventory")
-      .insert({
-        user_id:
-          session.user.id,
-        item_id: item.id,
-      });
+    setBuying(item.id);
 
-    if (inventoryError) {
-      alert(
-        inventoryError.message
-      );
-      return;
-    }
+    try {
+      const inventoryCheck = await supabase
+        .from("user_inventory")
+        .select("item_id")
+        .eq("user_id", session.user.id)
+        .eq("item_id", item.id)
+        .maybeSingle();
 
-    const newPoints =
-      points - price;
+      if (inventoryCheck.data) {
+        setOwned((old) =>
+          old.includes(item.id) ? old : [...old, item.id]
+        );
+        return;
+      }
 
-    const { data, error } =
-      await supabase
+      const newPoints = points - price;
+
+      const { data: updatedProfile, error: pointsError } = await supabase
         .from("profiles")
         .update({
-          who_points:
-            newPoints,
-          updated_at:
-            new Date().toISOString(),
+          who_points: newPoints,
+          updated_at: new Date().toISOString(),
         })
-        .eq(
-          "id",
-          session.user.id
-        )
+        .eq("id", session.user.id)
         .select()
         .single();
 
-    if (error) {
-      await supabase
-        .from(
-          "user_inventory"
-        )
-        .delete()
-        .eq(
-          "user_id",
-          session.user.id
-        )
-        .eq(
-          "item_id",
-          item.id
-        );
+      if (pointsError) {
+        alert(pointsError.message);
+        return;
+      }
 
-      alert(error.message);
-      return;
+      const { error: inventoryError } = await supabase
+        .from("user_inventory")
+        .insert({
+          user_id: session.user.id,
+          item_id: item.id,
+        });
+
+      if (inventoryError) {
+        await supabase
+          .from("profiles")
+          .update({ who_points: points })
+          .eq("id", session.user.id);
+
+        alert(inventoryError.message);
+        return;
+      }
+
+      setProfile(updatedProfile);
+      setPoints(Number(updatedProfile.who_points));
+      setOwned((old) => [...old, item.id]);
+    } finally {
+      setBuying(null);
     }
-
-    setPoints(
-      Number(data.who_points)
-    );
-
-    setProfile(data);
-
-    setOwned((old) => [
-      ...old,
-      item.id,
-    ]);
   }
 
   /* =========================================================
@@ -1284,53 +1048,34 @@ export default function Home() {
       <div
         style={{
           display: "flex",
-          justifyContent:
-            "flex-end",
+          justifyContent: "flex-end",
           gap: 6,
           padding: "13px 17px",
         }}
       >
-        {["it", "en"].map(
-          (lang) => (
-            <button
-              key={lang}
-              onClick={() =>
-                changeLanguage(
-                  lang
-                )
-              }
-              style={{
-                background:
-                  language ===
-                  lang
-                    ? "#66258c"
-                    : "#15101c",
-                border:
-                  "1px solid #663a7b",
-                borderRadius: 20,
-                padding:
-                  "7px 11px",
-                color: "#fff",
-                fontWeight: 700,
-              }}
-            >
-              {lang === "it"
-                ? "🇮🇹 IT"
-                : "🇬🇧 EN"}
-            </button>
-          )
-        )}
+        {["it", "en"].map((lang) => (
+          <button
+            key={lang}
+            onClick={() => changeLanguage(lang)}
+            style={{
+              background: language === lang ? "#66258c" : "#15101c",
+              border: "1px solid #663a7b",
+              borderRadius: 20,
+              padding: "7px 11px",
+              color: "#fff",
+              fontWeight: 800,
+            }}
+          >
+            {lang === "it" ? "🇮🇹 IT" : "🇬🇧 EN"}
+          </button>
+        ))}
       </div>
     );
   }
 
   function Logo() {
     return (
-      <div
-        style={{
-          textAlign: "center",
-        }}
-      >
+      <div style={{ textAlign: "center" }}>
         <div
           style={{
             fontSize: 74,
@@ -1339,11 +1084,9 @@ export default function Home() {
             letterSpacing: -6,
             background:
               "linear-gradient(90deg,#fff,#e993ff,#8c59ff,#5ee8ff)",
-            WebkitBackgroundClip:
-              "text",
+            WebkitBackgroundClip: "text",
             color: "transparent",
-            filter:
-              "drop-shadow(0 0 20px #922eff)",
+            filter: "drop-shadow(0 0 20px #922eff)",
           }}
         >
           WHO
@@ -1363,21 +1106,14 @@ export default function Home() {
     );
   }
 
-  function SafeAvatar({
-    name,
-    size = 50,
-    border = false,
-  }) {
+  function SafeAvatar({ name, size = 50, border = false }) {
     return (
       <img
         src={getAvatar(name)}
         alt=""
         onError={(event) => {
-          event.currentTarget.onerror =
-            null;
-
-          event.currentTarget.src =
-            "/shadow.png";
+          event.currentTarget.onerror = null;
+          event.currentTarget.src = "/shadow.png";
         }}
         style={{
           width: size,
@@ -1389,7 +1125,7 @@ export default function Home() {
             ? "3px solid #c75af1"
             : "1px solid #5b3470",
           boxShadow: border
-            ? "0 0 24px rgba(178,69,221,.4)"
+            ? "0 0 28px rgba(178,69,221,.45)"
             : "none",
         }}
       />
@@ -1401,11 +1137,7 @@ export default function Home() {
       ["chat", "◌", t.chat],
       ["rooms", "◎", t.rooms],
       ["shop", "◇", t.shop],
-      [
-        "profile",
-        "◉",
-        t.profile,
-      ],
+      ["profile", "◉", t.profile],
     ];
 
     return (
@@ -1417,69 +1149,47 @@ export default function Home() {
           left: 0,
           right: 0,
           display: "grid",
-          gridTemplateColumns:
-            "repeat(4,1fr)",
-          background:
-            "rgba(7,4,12,.96)",
-          borderTop:
-            "1px solid rgba(116,53,151,.55)",
-          padding:
-            "9px 4px 13px",
-          backdropFilter:
-            "blur(18px)",
+          gridTemplateColumns: "repeat(4,1fr)",
+          background: "rgba(7,4,12,.97)",
+          borderTop: "1px solid rgba(116,53,151,.55)",
+          padding: "8px 4px 12px",
+          backdropFilter: "blur(18px)",
         }}
       >
-        {nav.map(
-          ([
-            id,
-            icon,
-            label,
-          ]) => {
-            const active =
-              page === id;
+        {nav.map(([id, icon, label]) => {
+          const active = page === id;
 
-            return (
-              <button
-                key={id}
-                onClick={() =>
-                  setPage(id)
-                }
+          return (
+            <button
+              key={id}
+              onClick={() => setPage(id)}
+              style={{
+                background: active
+                  ? "linear-gradient(180deg,rgba(115,38,155,.30),transparent)"
+                  : "transparent",
+                border: 0,
+                borderRadius: 14,
+                color: active ? "#e69cff" : "#817589",
+                fontSize: 11,
+                fontWeight: 800,
+                padding: "5px 2px",
+              }}
+            >
+              <span
                 style={{
-                  background:
-                    active
-                      ? "linear-gradient(180deg,rgba(115,38,155,.25),transparent)"
-                      : "transparent",
-                  border: 0,
-                  borderRadius: 14,
-                  color: active
-                    ? "#e69cff"
-                    : "#817589",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  padding:
-                    "5px 2px",
+                  display: "block",
+                  fontSize: 22,
+                  marginBottom: 3,
+                  textShadow: active ? "0 0 12px #b34ee1" : "none",
                 }}
               >
-                <span
-                  style={{
-                    display:
-                      "block",
-                    fontSize: 23,
-                    marginBottom: 3,
-                    textShadow:
-                      active
-                        ? "0 0 12px #b34ee1"
-                        : "none",
-                  }}
-                >
-                  {icon}
-                </span>
+                {icon}
+              </span>
 
-                {label}
-              </button>
-            );
-          }
-        )}
+              {label}
+            </button>
+          );
+        })}
       </nav>
     );
   }
@@ -1515,10 +1225,8 @@ export default function Home() {
           style={{
             minHeight: "82vh",
             display: "flex",
-            flexDirection:
-              "column",
-            justifyContent:
-              "center",
+            flexDirection: "column",
+            justifyContent: "center",
             padding: 22,
             maxWidth: 430,
             margin: "0 auto",
@@ -1529,50 +1237,28 @@ export default function Home() {
           <p
             style={{
               opacity: 0.72,
-              textAlign:
-                "center",
+              textAlign: "center",
               marginTop: 25,
             }}
           >
             {t.slogan}
           </p>
 
-          <div
-            style={{
-              ...card,
-              padding: 20,
-              marginTop: 15,
-            }}
-          >
-            <small
-              style={{
-                color:
-                  "#d285f6",
-                letterSpacing: 2,
-              }}
-            >
+          <div style={{ ...card, padding: 20, marginTop: 15 }}>
+            <small style={{ color: "#d285f6", letterSpacing: 2 }}>
               WHO ACCOUNT
             </small>
 
             <h2>
-              {authMode ===
-              "login"
-                ? t.loginTitle
-                : t.registerTitle}
+              {authMode === "login" ? t.loginTitle : t.registerTitle}
             </h2>
 
             <input
               value={nickname}
               onChange={(e) =>
-                setNickname(
-                  cleanNickname(
-                    e.target.value
-                  )
-                )
+                setNickname(cleanNickname(e.target.value))
               }
-              placeholder={
-                t.nickname
-              }
+              placeholder={t.nickname}
               autoCapitalize="none"
               autoCorrect="off"
               maxLength={20}
@@ -1582,27 +1268,16 @@ export default function Home() {
             <input
               type="password"
               value={password}
-              onChange={(e) =>
-                setPassword(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setPassword(e.target.value)}
               placeholder={`${t.password} · min. 8`}
               onKeyDown={(e) => {
-                if (
-                  e.key ===
-                  "Enter"
-                ) {
-                  authMode ===
-                  "login"
+                if (e.key === "Enter") {
+                  authMode === "login"
                     ? loginAccount()
                     : registerAccount();
                 }
               }}
-              style={{
-                ...inputStyle,
-                marginTop: 10,
-              }}
+              style={{ ...inputStyle, marginTop: 10 }}
             />
 
             {authError && (
@@ -1611,10 +1286,8 @@ export default function Home() {
                   marginTop: 12,
                   padding: 11,
                   borderRadius: 12,
-                  background:
-                    "rgba(150,35,70,.18)",
-                  border:
-                    "1px solid #7d3150",
+                  background: "rgba(150,35,70,.18)",
+                  border: "1px solid #7d3150",
                   fontSize: 13,
                 }}
               >
@@ -1623,59 +1296,42 @@ export default function Home() {
             )}
 
             <button
-              disabled={
-                authBusy
-              }
+              disabled={authBusy}
               onClick={
-                authMode ===
-                "login"
-                  ? loginAccount
-                  : registerAccount
+                authMode === "login" ? loginAccount : registerAccount
               }
               style={{
                 ...primaryButton,
                 width: "100%",
                 padding: 16,
                 marginTop: 16,
-                opacity:
-                  authBusy
-                    ? 0.6
-                    : 1,
+                opacity: authBusy ? 0.6 : 1,
               }}
             >
               {authBusy
                 ? "..."
-                : authMode ===
-                  "login"
+                : authMode === "login"
                 ? t.login
                 : t.register}
             </button>
 
             <button
               onClick={() => {
-                setAuthError(
-                  ""
-                );
+                setAuthError("");
                 setPassword("");
                 setAuthMode(
-                  authMode ===
-                    "login"
-                    ? "register"
-                    : "login"
+                  authMode === "login" ? "register" : "login"
                 );
               }}
               style={{
                 width: "100%",
                 marginTop: 14,
-                background:
-                  "transparent",
+                background: "transparent",
                 border: 0,
-                color:
-                  "#d58cf5",
+                color: "#d58cf5",
               }}
             >
-              {authMode ===
-              "login"
+              {authMode === "login"
                 ? `${t.noAccount} ${t.register}`
                 : `${t.haveAccount} ${t.login}`}
             </button>
@@ -1689,16 +1345,10 @@ export default function Home() {
      IDENTITÀ
      ========================================================= */
 
-  if (
-    started === "identity"
-  ) {
-    const availableAvatars =
-      isFounder
-        ? [
-            ownerAvatar,
-            ...avatars,
-          ]
-        : avatars;
+  if (started === "identity") {
+    const availableAvatars = isFounder
+      ? [ownerAvatar, ...avatars]
+      : avatars;
 
     return (
       <main style={background}>
@@ -1706,37 +1356,18 @@ export default function Home() {
 
         <section
           style={{
-            padding:
-              "5px 18px 20px",
+            padding: "5px 18px 20px",
             maxWidth: 600,
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color:
-                "#d285f6",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d285f6", letterSpacing: 3 }}>
             {t.identity}
           </small>
 
-          <h1
-            style={{
-              fontSize: 34,
-            }}
-          >
-            {t.who}
-          </h1>
+          <h1 style={{ fontSize: 34 }}>{t.who}</h1>
 
-          <p
-            style={{
-              opacity: 0.6,
-            }}
-          >
-            {t.identityHint}
-          </p>
+          <p style={{ opacity: 0.6 }}>{t.identityHint}</p>
 
           <h3>{t.avatar}</h3>
         </section>
@@ -1744,92 +1375,73 @@ export default function Home() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(2,minmax(0,1fr))",
+            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
             gap: 12,
-            padding:
-              "0 18px",
+            padding: "0 18px",
             maxWidth: 600,
             margin: "0 auto",
           }}
         >
-          {availableAvatars.map(
-            (item) => {
-              const selected =
-                avatar ===
-                item.name;
+          {availableAvatars.map((item) => {
+            const selected = avatar === item.name;
 
-              return (
-                <button
-                  key={
-                    item.name
-                  }
-                  onClick={() =>
-                    selectAvatar(
-                      item.name
-                    )
-                  }
-                  style={{
-                    ...card,
-                    padding:
-                      "16px 7px",
-                    border:
-                      selected
-                        ? "2px solid #d168ff"
-                        : card.border,
+            return (
+              <button
+                key={item.name}
+                onClick={() => selectAvatar(item.name)}
+                style={{
+                  ...card,
+                  padding: "16px 7px",
+                  border: selected
+                    ? "2px solid #d168ff"
+                    : card.border,
+                }}
+              >
+                <img
+                  src={item.image}
+                  alt=""
+                  onError={(event) => {
+                    event.currentTarget.onerror = null;
+                    event.currentTarget.src = "/shadow.png";
                   }}
-                >
-                  <img
-                    src={
-                      item.image
-                    }
-                    alt=""
-                    onError={(
-                      event
-                    ) => {
-                      event.currentTarget.onerror =
-                        null;
+                  style={{
+                    width: 105,
+                    height: 105,
+                    maxWidth: "100%",
+                    borderRadius: "50%",
+                    objectFit: "cover",
+                    border: selected
+                      ? "3px solid #d86cff"
+                      : "2px solid #5b3470",
+                  }}
+                />
 
-                      event.currentTarget.src =
-                        "/shadow.png";
-                    }}
+                {item.name === "UNKNOWN" && (
+                  <div
                     style={{
-                      width: 105,
-                      height: 105,
-                      maxWidth:
-                        "100%",
-                      borderRadius:
-                        "50%",
-                      objectFit:
-                        "cover",
-                      border:
-                        selected
-                          ? "3px solid #d86cff"
-                          : "2px solid #5b3470",
-                    }}
-                  />
-
-                  <small
-                    style={{
-                      display:
-                        "block",
-                      marginTop: 10,
-                      color:
-                        selected
-                          ? "#e39aff"
-                          : "#887c91",
-                      fontWeight:
-                        800,
+                      color: "#f0b3ff",
+                      fontSize: 10,
+                      fontWeight: 900,
+                      marginTop: 8,
                     }}
                   >
-                    {selected
-                      ? `✓ ${t.selected}`
-                      : t.choose}
-                  </small>
-                </button>
-              );
-            }
-          )}
+                    ♛ FOUNDER EXCLUSIVE
+                  </div>
+                )}
+
+                <small
+                  style={{
+                    display: "block",
+                    marginTop: 8,
+                    color: selected ? "#e39aff" : "#887c91",
+                    fontWeight: 800,
+                  }}
+                >
+                  {selected ? `✓ ${t.selected}` : t.choose}
+                </small>
+              </button>
+            );
+          })}
         </section>
 
         <div
@@ -1862,17 +1474,73 @@ export default function Home() {
      ========================================================= */
 
   if (page === "rooms") {
-    const officialRooms =
-      rooms.filter(
-        (room) =>
-          room.is_official
-      );
+    const officialRooms = rooms.filter((room) => room.is_official);
+    const communityRooms = rooms.filter((room) => !room.is_official);
 
-    const communityRooms =
-      rooms.filter(
-        (room) =>
-          !room.is_official
+    function RoomCard({ room }) {
+      return (
+        <button
+          onClick={() => enterRoom(room)}
+          style={{
+            ...card,
+            width: "100%",
+            padding: 17,
+            marginBottom: 11,
+            display: "flex",
+            alignItems: "center",
+            gap: 14,
+            textAlign: "left",
+          }}
+        >
+          <div
+            style={{
+              width: 50,
+              height: 50,
+              flexShrink: 0,
+              borderRadius: 16,
+              display: "grid",
+              placeItems: "center",
+              fontSize: 24,
+              background:
+                "linear-gradient(145deg,#40175a,#1a0c26)",
+            }}
+          >
+            {room.is_private ? "◈" : "◎"}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <strong style={{ fontSize: 16 }}>
+              {room.is_private ? "🔒 " : ""}
+              {room.name}
+            </strong>
+
+            {room.description && (
+              <small
+                style={{
+                  display: "block",
+                  opacity: 0.58,
+                  marginTop: 5,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {room.description}
+              </small>
+            )}
+          </div>
+
+          <span
+            style={{
+              color: "#cf7aff",
+              fontSize: 26,
+              fontWeight: 900,
+            }}
+          >
+            ›
+          </span>
+        </button>
       );
+    }
 
     return (
       <main style={background}>
@@ -1880,36 +1548,19 @@ export default function Home() {
 
         <section
           style={{
-            padding:
-              "0 18px",
+            padding: "0 18px",
             maxWidth: 650,
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color:
-                "#d486fa",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d486fa", letterSpacing: 3 }}>
             {t.official}
           </small>
 
-          <h1
-            style={{
-              fontSize: 36,
-            }}
-          >
-            {t.rooms}
-          </h1>
+          <h1 style={{ fontSize: 36, marginTop: 8 }}>{t.rooms}</h1>
 
           <button
-            onClick={() =>
-              setCreatingRoom(
-                !creatingRoom
-              )
-            }
+            onClick={() => setCreatingRoom(!creatingRoom)}
             style={{
               ...primaryButton,
               width: "100%",
@@ -1929,38 +1580,19 @@ export default function Home() {
               }}
             >
               <input
-                value={
-                  roomName
-                }
-                onChange={(e) =>
-                  setRoomName(
-                    e.target.value
-                  )
-                }
-                placeholder={
-                  t.roomName
-                }
-                style={
-                  inputStyle
-                }
+                value={roomName}
+                maxLength={30}
+                onChange={(e) => setRoomName(e.target.value)}
+                placeholder={t.roomName}
+                style={inputStyle}
               />
 
               <input
-                value={
-                  roomTheme
-                }
-                onChange={(e) =>
-                  setRoomTheme(
-                    e.target.value
-                  )
-                }
-                placeholder={
-                  t.roomTheme
-                }
-                style={{
-                  ...inputStyle,
-                  marginTop: 9,
-                }}
+                value={roomTheme}
+                maxLength={100}
+                onChange={(e) => setRoomTheme(e.target.value)}
+                placeholder={t.roomTheme}
+                style={{ ...inputStyle, marginTop: 9 }}
               />
 
               <div
@@ -1971,30 +1603,22 @@ export default function Home() {
                 }}
               >
                 <button
-                  onClick={() =>
-                    setRoomPrivate(
-                      !roomPrivate
-                    )
-                  }
+                  onClick={() => setRoomPrivate(!roomPrivate)}
                   style={{
                     flex: 1,
-                    background:
-                      "#21142c",
-                    border:
-                      "1px solid #583370",
+                    padding: 12,
+                    background: "#21142c",
+                    border: "1px solid #583370",
                     color: "#fff",
                     borderRadius: 13,
+                    fontWeight: 800,
                   }}
                 >
-                  {roomPrivate
-                    ? `🔒 ${t.private}`
-                    : `◎ ${t.public}`}
+                  {roomPrivate ? `🔒 ${t.private}` : `◎ ${t.public}`}
                 </button>
 
                 <button
-                  onClick={
-                    createRoom
-                  }
+                  onClick={createRoom}
                   style={{
                     ...primaryButton,
                     flex: 1,
@@ -2007,140 +1631,20 @@ export default function Home() {
             </div>
           )}
 
-          {officialRooms.map(
-            (room) => (
-              <div
-                key={room.id}
-                style={{
-                  ...card,
-                  padding: 17,
-                  marginBottom: 11,
-                  display:
-                    "flex",
-                  alignItems:
-                    "center",
-                  gap: 14,
-                }}
-              >
-                <div
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius:
-                      16,
-                    display:
-                      "grid",
-                    placeItems:
-                      "center",
-                    fontSize: 25,
-                    background:
-                      "linear-gradient(145deg,#35164c,#1a0c26)",
-                  }}
-                >
-                  ◎
-                </div>
+          {officialRooms.map((room) => (
+            <RoomCard key={room.id} room={room} />
+          ))}
 
-                <div
-                  style={{
-                    flex: 1,
-                  }}
-                >
-                  <strong>
-                    {room.name}
-                  </strong>
+          <h3 style={{ marginTop: 28 }}>{t.community}</h3>
 
-                  <small
-                    style={{
-                      display:
-                        "block",
-                      color:
-                        "#50e99c",
-                      marginTop: 4,
-                    }}
-                  >
-                    ● LIVE
-                  </small>
-
-                  {room.description && (
-                    <small
-                      style={{
-                        display:
-                          "block",
-                        opacity:
-                          0.55,
-                        marginTop:
-                          3,
-                      }}
-                    >
-                      {
-                        room.description
-                      }
-                    </small>
-                  )}
-                </div>
-
-                <span
-                  style={{
-                    color:
-                      "#cf7aff",
-                    fontSize: 25,
-                  }}
-                >
-                  ›
-                </span>
-              </div>
-            )
-          )}
-
-          <h3
-            style={{
-              marginTop: 28,
-            }}
-          >
-            {t.community}
-          </h3>
-
-          {communityRooms.length ===
-            0 && (
-            <div
-              style={{
-                ...card,
-                padding: 18,
-                opacity: 0.7,
-              }}
-            >
+          {communityRooms.length === 0 ? (
+            <div style={{ ...card, padding: 18, opacity: 0.7 }}>
               {t.noRooms}
             </div>
-          )}
-
-          {communityRooms.map(
-            (room) => (
-              <div
-                key={room.id}
-                style={{
-                  ...card,
-                  padding: 17,
-                  marginBottom: 11,
-                }}
-              >
-                <strong>
-                  {room.is_private
-                    ? "🔒 "
-                    : "◎ "}
-                  {room.name}
-                </strong>
-
-                <p
-                  style={{
-                    opacity: 0.65,
-                    fontSize: 13,
-                  }}
-                >
-                  {room.description ||
-                    "WHO Community"}
-                </p>
-              </div>
-            )
+          ) : (
+            communityRooms.map((room) => (
+              <RoomCard key={room.id} room={room} />
+            ))
           )}
         </section>
 
@@ -2160,54 +1664,23 @@ export default function Home() {
 
         <section
           style={{
-            padding:
-              "0 18px 15px",
+            padding: "0 18px 15px",
             maxWidth: 650,
             margin: "0 auto",
           }}
         >
-          <small
-            style={{
-              color:
-                "#d687ff",
-              letterSpacing: 3,
-            }}
-          >
+          <small style={{ color: "#d687ff", letterSpacing: 3 }}>
             {t.shopTitle}
           </small>
 
-          <h1
-            style={{
-              fontSize: 38,
-            }}
-          >
-            {t.shop}
-          </h1>
+          <h1 style={{ fontSize: 38, marginBottom: 8 }}>{t.shop}</h1>
 
-          <p
-            style={{
-              opacity: 0.65,
-            }}
-          >
-            {t.shopHint}
-          </p>
+          <p style={{ opacity: 0.65 }}>{t.shopHint}</p>
 
-          <div
-            style={{
-              ...card,
-              padding: 17,
-            }}
-          >
-            <small>
-              {t.points}
-            </small>
+          <div style={{ ...card, padding: 17 }}>
+            <small>{t.points}</small>
 
-            <div
-              style={{
-                fontSize: 31,
-                fontWeight: 950,
-              }}
-            >
+            <div style={{ fontSize: 31, fontWeight: 950 }}>
               ✦ {points}
             </div>
           </div>
@@ -2216,176 +1689,144 @@ export default function Home() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(2,minmax(0,1fr))",
+            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
             gap: 12,
-            padding:
-              "0 18px",
+            padding: "0 18px",
             maxWidth: 650,
             margin: "0 auto",
           }}
         >
-          {shopItems.map(
-            (item) => {
-              const isOwned =
-                owned.includes(
-                  item.id
-                );
+          {shopItems.map((item) => {
+            const isOwned = owned.includes(item.id);
+            const price = Number(item.points_price || 0);
+            const isBuying = buying === item.id;
 
-              const price =
-                Number(
-                  item.points_price ??
-                    item.price ??
-                    0
-                );
-
-              return (
+            return (
+              <div
+                key={item.id}
+                style={{
+                  ...card,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
                 <div
-                  key={
-                    item.id
-                  }
                   style={{
-                    ...card,
-                    overflow:
-                      "hidden",
-                    display:
-                      "flex",
-                    flexDirection:
-                      "column",
+                    height: 165,
+                    position: "relative",
+                    display: "grid",
+                    placeItems: "center",
+                    background:
+                      "radial-gradient(circle,#55206f,#100817)",
+                    overflow: "hidden",
                   }}
                 >
-                  <div
+                  <img
+                    src={getShopImage(item)}
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.onerror = null;
+                      event.currentTarget.style.opacity = "0";
+                    }}
                     style={{
-                      height: 165,
-                      position:
-                        "relative",
-                      display:
-                        "grid",
-                      placeItems:
-                        "center",
-                      background:
-                        "radial-gradient(circle,#55206f,#100817)",
-                      overflow:
-                        "hidden",
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                    }}
+                  />
+
+                  <small
+                    style={{
+                      position: "absolute",
+                      zIndex: 3,
+                      top: 8,
+                      left: 8,
+                      background: "rgba(8,5,12,.94)",
+                      border: "1px solid rgba(173,91,211,.25)",
+                      padding: "5px 7px",
+                      borderRadius: 8,
+                      fontSize: 10,
+                      fontWeight: 900,
                     }}
                   >
-                    <img
-                      src={getShopImage(
-                        item
-                      )}
-                      alt={
-                        item.name
-                      }
-                      onError={(
-                        event
-                      ) => {
-                        event.currentTarget.style.display =
-                          "none";
-                      }}
-                      style={{
-                        width:
-                          "100%",
-                        height:
-                          "100%",
-                        objectFit:
-                          "contain",
-                        display:
-                          "block",
-                      }}
-                    />
+                    {item.rarity}
+                  </small>
 
-                    <small
-                      style={{
-                        position:
-                          "absolute",
-                        zIndex: 3,
-                        top: 8,
-                        left: 8,
-                        background:
-                          "rgba(8,5,12,.92)",
-                        border:
-                          "1px solid rgba(173,91,211,.22)",
-                        padding:
-                          "5px 7px",
-                        borderRadius:
-                          8,
-                        fontSize: 10,
-                        fontWeight:
-                          900,
-                      }}
-                    >
-                      {item.rarity}
-                    </small>
-                  </div>
-
-                  <div
-                    style={{
-                      padding: 12,
-                      display:
-                        "flex",
-                      flexDirection:
-                        "column",
-                      flex: 1,
-                    }}
-                  >
-                    <strong
-                      style={{
-                        fontSize: 14,
-                        minHeight: 34,
-                      }}
-                    >
-                      {item.name}
-                    </strong>
-
+                  {isOwned && (
                     <div
                       style={{
-                        color:
-                          "#df94ff",
-                        fontWeight:
-                          900,
-                        margin:
-                          "8px 0 11px",
+                        position: "absolute",
+                        right: 8,
+                        top: 8,
+                        borderRadius: 20,
+                        background: "#1e7b55",
+                        padding: "5px 8px",
+                        fontSize: 9,
+                        fontWeight: 900,
                       }}
                     >
-                      ✦ {price}
+                      ✓ {t.owned}
                     </div>
-
-                    <button
-                      disabled={
-                        isOwned
-                      }
-                      onClick={() =>
-                        buy(item)
-                      }
-                      style={{
-                        width:
-                          "100%",
-                        padding: 11,
-                        marginTop:
-                          "auto",
-                        borderRadius:
-                          12,
-                        border:
-                          "1px solid #784093",
-                        background:
-                          isOwned
-                            ? "#242027"
-                            : "linear-gradient(135deg,#702394,#51176f)",
-                        color:
-                          "#fff",
-                        fontWeight:
-                          900,
-                      }}
-                    >
-                      {isOwned
-                        ? `✓ ${t.owned}`
-                        : t.unlock}
-                    </button>
-                  </div>
+                  )}
                 </div>
-              );
-            }
-          )}
+
+                <div
+                  style={{
+                    padding: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: 14,
+                      minHeight: 34,
+                    }}
+                  >
+                    {item.name}
+                  </strong>
+
+                  <div
+                    style={{
+                      color: "#df94ff",
+                      fontWeight: 900,
+                      margin: "8px 0 11px",
+                    }}
+                  >
+                    ✦ {price}
+                  </div>
+
+                  <button
+                    disabled={isOwned || Boolean(buying)}
+                    onClick={() => buy(item)}
+                    style={{
+                      width: "100%",
+                      padding: 11,
+                      marginTop: "auto",
+                      borderRadius: 12,
+                      border: "1px solid #784093",
+                      background: isOwned
+                        ? "#242027"
+                        : "linear-gradient(135deg,#79259f,#51176f)",
+                      color: "#fff",
+                      fontWeight: 900,
+                      opacity:
+                        Boolean(buying) && !isBuying ? 0.5 : 1,
+                    }}
+                  >
+                    {isOwned
+                      ? `✓ ${t.owned}`
+                      : isBuying
+                      ? "..."
+                      : t.unlock}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </section>
 
         <Nav />
@@ -2398,59 +1839,28 @@ export default function Home() {
      ========================================================= */
 
   if (page === "profile") {
-    const level =
-      Math.max(
-        1,
-        Math.floor(
-          points / 250
-        ) + 1
-      );
-
-    const ownedProducts =
-      shopItems.filter(
-        (item) =>
-          owned.includes(
-            item.id
-          )
-      );
-
     return (
       <main style={background}>
         <Language />
 
-        <section
-          style={{
-            textAlign:
-              "center",
-            padding: 20,
-          }}
-        >
-          <SafeAvatar
-            name={avatar}
-            size={135}
-            border
-          />
+        <section style={{ textAlign: "center", padding: 20 }}>
+          <SafeAvatar name={avatar} size={135} border />
 
-          <h1>@{nickname}</h1>
+          <h1 style={{ marginBottom: 8 }}>@{nickname}</h1>
 
           <span
             style={{
-              color: isFounder
-                ? "#e7a3ff"
-                : "#6de0ad",
+              color: isFounder ? "#e7a3ff" : "#6de0ad",
               fontWeight: 900,
             }}
           >
-            {isFounder
-              ? "♛ WHO FOUNDER"
-              : "● WHO MEMBER"}
+            {isFounder ? `♛ ${t.founder}` : `● ${t.member}`}
           </span>
         </section>
 
         <section
           style={{
-            padding:
-              "0 18px",
+            padding: "0 18px",
             maxWidth: 650,
             margin: "0 auto",
           }}
@@ -2458,154 +1868,99 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "1fr 1fr",
+              gridTemplateColumns: "1fr 1fr",
               gap: 11,
             }}
           >
-            <div
-              style={{
-                ...card,
-                padding: 17,
-              }}
-            >
-              <small>
-                {t.points}
-              </small>
+            <div style={{ ...card, padding: 17 }}>
+              <small>{t.points}</small>
 
-              <div
-                style={{
-                  fontSize: 27,
-                  fontWeight:
-                    900,
-                }}
-              >
+              <div style={{ fontSize: 27, fontWeight: 900 }}>
                 ✦ {points}
               </div>
             </div>
 
-            <div
-              style={{
-                ...card,
-                padding: 17,
-              }}
-            >
-              <small>
-                {t.level}
-              </small>
+            <div style={{ ...card, padding: 17 }}>
+              <small>{t.level}</small>
 
-              <div
-                style={{
-                  fontSize: 27,
-                  fontWeight:
-                    900,
-                }}
-              >
+              <div style={{ fontSize: 27, fontWeight: 900 }}>
                 {level}
               </div>
             </div>
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 17,
-              marginTop: 11,
-            }}
-          >
-            <small>
-              {t.reputation}
-            </small>
+          <div style={{ ...card, padding: 17, marginTop: 11 }}>
+            <small>{t.reputation}</small>
 
-            <h3
-              style={{
-                color:
-                  "#5ce5a1",
-              }}
-            >
+            <h3 style={{ color: "#5ce5a1", marginBottom: 6 }}>
               ✓ {t.good}
             </h3>
 
-            <div
-              style={{
-                fontSize: 13,
-                opacity: 0.7,
-              }}
-            >
-              WHO Reputation:{" "}
-              {reputation}
+            <div style={{ fontSize: 13, opacity: 0.7 }}>
+              WHO Reputation: {reputation}
             </div>
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 17,
-              marginTop: 11,
-            }}
-          >
-            <small>
-              {t.inventory}
-            </small>
+          <div style={{ ...card, padding: 17, marginTop: 11 }}>
+            <small>{t.inventory}</small>
 
-            <h2>
-              {owned.length}
-            </h2>
+            <h2 style={{ margin: "6px 0" }}>{owned.length}</h2>
 
-            <span
-              style={{
-                opacity: 0.6,
-                fontSize: 13,
-              }}
-            >
+            <span style={{ opacity: 0.6, fontSize: 13 }}>
               {t.ownedItems}
             </span>
 
-            {ownedProducts.length >
-              0 && (
+            {ownedProducts.length > 0 && (
               <div
                 style={{
-                  display:
-                    "flex",
-                  flexWrap:
-                    "wrap",
-                  gap: 7,
-                  marginTop: 13,
+                  display: "grid",
+                  gridTemplateColumns: "repeat(3,1fr)",
+                  gap: 8,
+                  marginTop: 15,
                 }}
               >
-                {ownedProducts.map(
-                  (item) => (
-                    <span
-                      key={
-                        item.id
-                      }
+                {ownedProducts.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      background: "#130a1b",
+                      border: "1px solid #58306e",
+                      borderRadius: 14,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <img
+                      src={getShopImage(item)}
+                      alt=""
                       style={{
-                        padding:
-                          "7px 10px",
-                        borderRadius:
-                          20,
-                        background:
-                          "#281335",
-                        border:
-                          "1px solid #603476",
-                        fontSize:
-                          10,
+                        width: "100%",
+                        aspectRatio: "1/1",
+                        objectFit: "contain",
+                        display: "block",
+                      }}
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        padding: 6,
+                        fontSize: 8,
+                        fontWeight: 900,
+                        textAlign: "center",
                       }}
                     >
                       {item.name}
-                    </span>
-                  )
-                )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
           <button
-            onClick={() =>
-              setStarted(
-                "identity"
-              )
-            }
+            onClick={() => setStarted("identity")}
             style={{
               ...card,
               width: "100%",
@@ -2624,12 +1979,9 @@ export default function Home() {
               padding: 17,
               marginTop: 11,
               borderRadius: 20,
-              border:
-                "1px solid #74354e",
-              background:
-                "#29121c",
-              color:
-                "#ff9db6",
+              border: "1px solid #74354e",
+              background: "#29121c",
+              color: "#ff9db6",
               fontWeight: 900,
             }}
           >
@@ -2650,130 +2002,97 @@ export default function Home() {
     <main style={background}>
       <Language />
 
-      <div
-        style={{
-          maxWidth: 650,
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ maxWidth: 650, margin: "0 auto" }}>
         <header
           style={{
-            padding:
-              "0 18px 15px",
+            padding: "0 18px 12px",
             display: "flex",
-            justifyContent:
-              "space-between",
-            alignItems:
-              "center",
+            justifyContent: "space-between",
+            alignItems: "center",
           }}
         >
           <div>
             <strong
               style={{
-                display:
-                  "block",
-                fontSize: 28,
-                color:
-                  "#dc8dff",
+                display: "block",
+                fontSize: 27,
+                color: "#dc8dff",
               }}
             >
               WHO
             </strong>
 
-            <small
-              style={{
-                opacity: 0.55,
-              }}
-            >
-              GENERAL ROOM
+            <small style={{ opacity: 0.55 }}>
+              {activeRoom?.name || "WHO GENERAL"}
             </small>
           </div>
 
-          <small
+          <button
+            onClick={() => setPage("rooms")}
             style={{
-              color:
-                "#52e69c",
-              border:
-                "1px solid rgba(82,230,156,.22)",
+              border: "1px solid #58316d",
               borderRadius: 20,
-              padding:
-                "7px 10px",
+              padding: "7px 11px",
+              background: "#160b20",
+              color: "#d99aff",
+              fontSize: 11,
+              fontWeight: 900,
             }}
           >
-            ● {t.online}
-          </small>
+            ◎ {t.rooms}
+          </button>
         </header>
 
-        <section
-          style={{
-            padding:
-              "0 18px 14px",
-          }}
-        >
+        <section style={{ padding: "0 18px 12px" }}>
           <small
             style={{
-              color:
-                "#cd7af3",
+              color: "#cd7af3",
               letterSpacing: 2,
             }}
           >
-            {t.publicChat}
+            {activeRoom?.is_private ? "PRIVATE CHAT" : t.publicChat}
           </small>
 
           <h1
             style={{
-              fontSize: 35,
-              margin:
-                "5px 0 15px",
+              fontSize: 32,
+              margin: "5px 0 13px",
             }}
           >
-            {t.general}
+            {activeRoom?.name || "WHO GENERAL"}
           </h1>
 
           <div
             style={{
               ...card,
-              padding: 12,
+              padding: 11,
               display: "flex",
-              gap: 11,
-              alignItems:
-                "center",
+              gap: 10,
+              alignItems: "center",
             }}
           >
-            <SafeAvatar
-              name={avatar}
-              size={52}
-            />
+            <SafeAvatar name={avatar} size={48} />
 
-            <div
-              style={{
-                flex: 1,
-              }}
-            >
-              <strong>
-                @{nickname}
-              </strong>
+            <div style={{ flex: 1 }}>
+              <strong>@{nickname}</strong>
 
               <small
                 style={{
-                  display:
-                    "block",
-                  color:
-                    "#bd82d4",
+                  display: "block",
+                  color: "#bd82d4",
+                  marginTop: 2,
                 }}
               >
-                ✦ {points} WHO
-                Points
+                ✦ {points} WHO Points
               </small>
             </div>
 
             {isFounder && (
               <small
                 style={{
-                  color:
-                    "#e59cff",
-                  fontWeight:
-                    900,
+                  color: "#e59cff",
+                  fontWeight: 900,
+                  fontSize: 10,
                 }}
               >
                 ♛ FOUNDER
@@ -2782,296 +2101,207 @@ export default function Home() {
           </div>
         </section>
 
-        <section
-          style={{
-            padding:
-              "0 18px",
-          }}
-        >
-          {!messagesLoading &&
-            messages.length ===
-              0 && (
+        <section style={{ padding: "0 18px" }}>
+          {messagesLoading && messages.length === 0 && (
+            <div
+              style={{
+                textAlign: "center",
+                opacity: 0.5,
+                padding: 20,
+              }}
+            >
+              •••
+            </div>
+          )}
+
+          {!messagesLoading && messages.length === 0 && (
+            <div
+              style={{
+                ...card,
+                padding: 18,
+                textAlign: "center",
+                opacity: 0.65,
+              }}
+            >
+              {t.emptyChat}
+            </div>
+          )}
+
+          {messages.map((msg) => {
+            const userVote = Number(myVotes[msg.id] || 0);
+
+            const reported = reportedMessages.includes(msg.id);
+
+            return (
               <div
+                key={msg.id}
                 style={{
                   ...card,
-                  padding: 20,
-                  textAlign:
-                    "center",
-                  opacity: 0.6,
+                  padding: 12,
+                  marginBottom: 8,
+                  borderRadius: 18,
                 }}
               >
-                {t.emptyChat}
-              </div>
-            )}
-
-          {messages.map(
-            (msg) => {
-              const userVote =
-                Number(
-                  myVotes[
-                    msg.id
-                  ] || 0
-                );
-
-              const reported =
-                reportedMessages.includes(
-                  msg.id
-                );
-
-              return (
                 <div
-                  key={msg.id}
                   style={{
-                    ...card,
-                    padding: 15,
-                    marginBottom:
-                      11,
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "flex-start",
                   }}
                 >
-                  <div
-                    style={{
-                      display:
-                        "flex",
-                      gap: 11,
-                    }}
-                  >
-                    <SafeAvatar
-                      name={
-                        msg.avatar ||
-                        "Shadow"
-                      }
-                      size={48}
-                    />
+                  <SafeAvatar
+                    name={msg.avatar || "Shadow"}
+                    size={42}
+                  />
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <strong style={{ fontSize: 14 }}>
+                      @{msg.nickname || "anonimo"}
+                    </strong>
+
+                    <p
+                      style={{
+                        overflowWrap: "anywhere",
+                        lineHeight: 1.4,
+                        margin: "5px 0 10px",
+                        fontSize: 14,
+                      }}
+                    >
+                      {msg.content}
+                    </p>
 
                     <div
                       style={{
-                        flex: 1,
-                        minWidth: 0,
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
                       }}
                     >
-                      <strong>
-                        @
-                        {msg.nickname ||
-                          "anonimo"}
-                      </strong>
-
-                      <p
+                      <button
+                        aria-label="Like"
+                        onClick={() => vote(msg.id, 1)}
                         style={{
-                          overflowWrap:
-                            "anywhere",
-                          lineHeight:
-                            1.45,
-                          margin:
-                            "8px 0 12px",
+                          border:
+                            userVote === 1
+                              ? "1px solid #cf73f4"
+                              : "1px solid #4b3955",
+                          background:
+                            userVote === 1
+                              ? "#48205a"
+                              : "#130e17",
+                          color:
+                            userVote === 1
+                              ? "#efb2ff"
+                              : "#bfb2c5",
+                          borderRadius: 20,
+                          minWidth: 52,
+                          padding: "6px 9px",
+                          fontWeight: 900,
                         }}
                       >
-                        {
-                          msg.content
-                        }
-                      </p>
+                        ↑ {Number(msg.likes || 0)}
+                      </button>
 
-                      <div
+                      <button
+                        aria-label="Dislike"
+                        onClick={() => vote(msg.id, -1)}
                         style={{
-                          display:
-                            "flex",
-                          gap: 7,
-                          alignItems:
-                            "center",
+                          border:
+                            userVote === -1
+                              ? "1px solid #d45d83"
+                              : "1px solid #4b3955",
+                          background:
+                            userVote === -1
+                              ? "#491d2c"
+                              : "#130e17",
+                          color:
+                            userVote === -1
+                              ? "#ff9cb9"
+                              : "#bfb2c5",
+                          borderRadius: 20,
+                          minWidth: 52,
+                          padding: "6px 9px",
+                          fontWeight: 900,
                         }}
                       >
-                        <button
-                          onClick={() =>
-                            vote(
-                              msg.id,
-                              1
-                            )
-                          }
-                          style={{
-                            border:
-                              userVote ===
-                              1
-                                ? "1px solid #ce72f4"
-                                : "1px solid #4d3a5b",
-                            background:
-                              userVote ===
-                              1
-                                ? "#48205a"
-                                : "#151019",
-                            color:
-                              userVote ===
-                              1
-                                ? "#efb2ff"
-                                : "#c9bdcf",
-                            borderRadius:
-                              20,
-                            padding:
-                              "7px 11px",
-                            fontWeight:
-                              900,
-                          }}
-                        >
-                          ♡{" "}
-                          {Number(
-                            msg.likes ||
-                              0
-                          )}
-                        </button>
+                        ↓ {Number(msg.dislikes || 0)}
+                      </button>
 
-                        <button
-                          onClick={() =>
-                            vote(
-                              msg.id,
-                              -1
-                            )
-                          }
-                          style={{
-                            border:
-                              userVote ===
-                              -1
-                                ? "1px solid #d45d83"
-                                : "1px solid #4d3a5b",
-                            background:
-                              userVote ===
-                              -1
-                                ? "#491d2c"
-                                : "#151019",
-                            color:
-                              userVote ===
-                              -1
-                                ? "#ff9cb9"
-                                : "#c9bdcf",
-                            borderRadius:
-                              20,
-                            padding:
-                              "7px 11px",
-                            fontWeight:
-                              900,
-                          }}
-                        >
-                          ⌄{" "}
-                          {Number(
-                            msg.dislikes ||
-                              0
-                          )}
-                        </button>
-
-                        <button
-                          disabled={
-                            reported
-                          }
-                          onClick={() =>
-                            reportMessage(
-                              msg.id
-                            )
-                          }
-                          style={{
-                            marginLeft:
-                              "auto",
-                            border:
-                              reported
-                                ? "1px solid #563946"
-                                : "1px solid #49374f",
-                            background:
-                              reported
-                                ? "#25161c"
-                                : "#110d14",
-                            color:
-                              reported
-                                ? "#8d6673"
-                                : "#b5a3bb",
-                            borderRadius:
-                              20,
-                            padding:
-                              "7px 10px",
-                            fontSize:
-                              11,
-                          }}
-                        >
-                          ⚑{" "}
-                          {reported
-                            ? language ===
-                              "it"
-                              ? "SEGNALATO"
-                              : "REPORTED"
-                            : t.report}
-                        </button>
-                      </div>
+                      <button
+                        disabled={reported}
+                        onClick={() => reportMessage(msg.id)}
+                        style={{
+                          marginLeft: "auto",
+                          border: reported
+                            ? "1px solid #563946"
+                            : "1px solid #49374f",
+                          background: reported
+                            ? "#25161c"
+                            : "#110d14",
+                          color: reported
+                            ? "#8d6673"
+                            : "#aa9caf",
+                          borderRadius: 20,
+                          padding: "6px 9px",
+                          fontSize: 9,
+                          fontWeight: 800,
+                        }}
+                      >
+                        ⚑ {reported ? t.reported : t.report}
+                      </button>
                     </div>
                   </div>
                 </div>
-              );
-            }
-          )}
+              </div>
+            );
+          })}
 
           <div
             style={{
               ...card,
-              padding: 10,
+              padding: 9,
               display: "flex",
-              gap: 8,
-              position:
-                "sticky",
-              bottom: 83,
+              gap: 7,
+              position: "sticky",
+              bottom: 80,
               zIndex: 20,
+              marginTop: 10,
             }}
           >
             <input
               value={message}
               maxLength={500}
-              onChange={(e) =>
-                setMessage(
-                  e.target.value
-                )
-              }
+              onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
-                if (
-                  e.key ===
-                    "Enter" &&
-                  !e.shiftKey
-                ) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
                 }
               }}
-              placeholder={
-                t.write
-              }
+              placeholder={t.write}
               style={{
                 flex: 1,
                 minWidth: 0,
-                background:
-                  "#0d0913",
-                border:
-                  "1px solid #533069",
+                background: "#0d0913",
+                border: "1px solid #533069",
                 borderRadius: 14,
                 color: "#fff",
-                padding: 13,
+                padding: 12,
                 outline: 0,
               }}
             />
 
             <button
-              disabled={
-                sending ||
-                !message.trim()
-              }
-              onClick={
-                sendMessage
-              }
+              disabled={sending || !message.trim()}
+              onClick={sendMessage}
               style={{
                 ...primaryButton,
-                padding:
-                  "0 17px",
-                opacity:
-                  sending ||
-                  !message.trim()
-                    ? 0.45
-                    : 1,
+                width: 48,
+                fontSize: 18,
+                opacity: sending || !message.trim() ? 0.45 : 1,
               }}
             >
-              {sending
-                ? "…"
-                : "➤"}
+              {sending ? "…" : "➤"}
             </button>
           </div>
         </section>
