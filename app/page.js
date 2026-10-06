@@ -36,79 +36,74 @@ const ownerAvatar = {
 };
 
 /* =========================================================
-   SHOP FALLBACK
-   Se shop_items è vuota, questi restano visibili.
+   WHO SHOP — VERSIONE CORRETTA
    ========================================================= */
 
 const fallbackShopItems = [
   {
-    id: "void-crown",
-    name: "VOID CROWN",
+    id: "royal-crown",
+    name: "ROYAL CROWN",
     category: "COSMETIC",
     rarity: "LEGENDARY",
     points_price: 1200,
-    image_url: "/shop/void-crown.png",
+    image_url: "/shop/royal-crown.png",
     symbol: "♛",
   },
   {
-    id: "phantom-mask",
-    name: "PHANTOM MASK",
+    id: "void-mask",
+    name: "VOID MASK",
     category: "COSMETIC",
     rarity: "LEGENDARY",
     points_price: 1000,
-    image_url: "/shop/phantom-mask.png",
+    image_url: "/shop/void-mask.png",
     symbol: "◈",
   },
   {
-    id: "neon-halo",
-    name: "NEON HALO",
+    id: "glitch-eyes",
+    name: "GLITCH EYES",
     category: "COSMETIC",
     rarity: "EPIC",
-    points_price: 650,
-    image_url: "/shop/neon-halo.png",
+    points_price: 750,
+    image_url: "/shop/glitch-eyes.png",
+    symbol: "◉",
+  },
+  {
+    id: "dual-aura",
+    name: "DUAL AURA",
+    category: "COSMETIC",
+    rarity: "EPIC",
+    points_price: 850,
+    image_url: "/shop/dual-aura.png",
     symbol: "◯",
   },
   {
-    id: "cyber-visor",
-    name: "CYBER VISOR",
+    id: "neon-visor",
+    name: "NEON VISOR",
     category: "COSMETIC",
     rarity: "EPIC",
-    points_price: 550,
-    image_url: "/shop/cyber-visor.png",
+    points_price: 650,
+    image_url: "/shop/neon-visor.png",
     symbol: "⌁",
   },
   {
-    id: "dark-wings",
-    name: "DARK WINGS",
+    id: "nexus-frame",
+    name: "NEXUS FRAME",
     category: "COSMETIC",
     rarity: "LIMITED",
     points_price: 1500,
-    image_url: "/shop/dark-wings.png",
-    symbol: "◆",
-  },
-  {
-    id: "plasma-frame",
-    name: "PLASMA FRAME",
-    category: "COSMETIC",
-    rarity: "RARE",
-    points_price: 350,
-    image_url: "/shop/plasma-frame.png",
+    image_url: "/shop/nexus-frame.png",
     symbol: "◇",
   },
 ];
 
 const shopSymbols = {
-  "void-crown": "♛",
-  "phantom-mask": "◈",
-  "neon-halo": "◯",
-  "cyber-visor": "⌁",
-  "dark-wings": "◆",
-  "plasma-frame": "◇",
+  "royal-crown": "♛",
+  "void-mask": "◈",
+  "glitch-eyes": "◉",
+  "dual-aura": "◯",
+  "neon-visor": "⌁",
+  "nexus-frame": "◇",
 };
-
-/* =========================================================
-   TRANSLATIONS
-   ========================================================= */
 
 const translations = {
   it: {
@@ -164,6 +159,7 @@ const translations = {
     ownedItems: "Oggetti posseduti",
     founder: "FOUNDER",
     online: "ONLINE",
+    report: "SEGNALA",
   },
 
   en: {
@@ -219,12 +215,9 @@ const translations = {
     ownedItems: "Owned items",
     founder: "FOUNDER",
     online: "ONLINE",
+    report: "REPORT",
   },
 };
-
-/* =========================================================
-   UTILS
-   ========================================================= */
 
 function getAvatar(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
@@ -251,12 +244,8 @@ function getShopImage(item) {
 }
 
 function getShopSymbol(item) {
-  return shopSymbols[item.id] || "◇";
+  return item.symbol || shopSymbols[item.id] || "◇";
 }
-
-/* =========================================================
-   APP
-   ========================================================= */
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
@@ -301,10 +290,6 @@ export default function Home() {
   const isFounder =
     profile?.role?.toUpperCase() === "FOUNDER";
 
-  /* =========================================================
-     STYLES
-     ========================================================= */
-
   const background = {
     minHeight: "100vh",
     color: "#fff",
@@ -344,13 +329,8 @@ export default function Home() {
     boxShadow: "0 8px 24px rgba(109,36,151,.25)",
   };
 
-  /* =========================================================
-     INITIAL SESSION
-     ========================================================= */
-
   useEffect(() => {
-    const savedLanguage =
-      localStorage.getItem("who-language");
+    const savedLanguage = localStorage.getItem("who-language");
 
     if (savedLanguage === "it" || savedLanguage === "en") {
       setLanguage(savedLanguage);
@@ -358,7 +338,6 @@ export default function Home() {
 
     async function initialize() {
       const { data } = await supabase.auth.getSession();
-
       const currentSession = data?.session || null;
 
       setSession(currentSession);
@@ -418,10 +397,6 @@ export default function Home() {
       supabase.removeChannel(channel);
     };
   }, [session, started]);
-
-  /* =========================================================
-     PROFILE
-     ========================================================= */
 
   async function loadUserData(user) {
     if (!user) return;
@@ -496,18 +471,10 @@ export default function Home() {
     }
   }
 
-  /* =========================================================
-     LANGUAGE
-     ========================================================= */
-
   function changeLanguage(lang) {
     setLanguage(lang);
     localStorage.setItem("who-language", lang);
   }
-
-  /* =========================================================
-     AUTH
-     ========================================================= */
 
   async function registerAccount() {
     setAuthError("");
@@ -538,11 +505,7 @@ export default function Home() {
       const { data, error } = await supabase.auth.signUp({
         email: internalEmail(username),
         password,
-        options: {
-          data: {
-            username,
-          },
-        },
+        options: { data: { username } },
       });
 
       if (error) {
@@ -603,9 +566,7 @@ export default function Home() {
 
       setSession(data.session);
       setPassword("");
-
       await loadUserData(data.user);
-
       setPage("chat");
     } finally {
       setAuthBusy(false);
@@ -626,16 +587,9 @@ export default function Home() {
     setMyVotes({});
   }
 
-  /* =========================================================
-     AVATAR
-     ========================================================= */
-
   async function selectAvatar(name) {
     if (!session?.user?.id) return;
-
-    if (name === "UNKNOWN" && !isFounder) {
-      return;
-    }
+    if (name === "UNKNOWN" && !isFounder) return;
 
     const { data, error } = await supabase
       .from("profiles")
@@ -656,10 +610,6 @@ export default function Home() {
     setAvatar(data.avatar);
   }
 
-  /* =========================================================
-     MESSAGES
-     ========================================================= */
-
   async function loadMessages() {
     setMessagesLoading(true);
 
@@ -669,9 +619,7 @@ export default function Home() {
       .eq("room", "generale")
       .order("id", { ascending: true });
 
-    if (!error) {
-      setMessages(data || []);
-    }
+    if (!error) setMessages(data || []);
 
     setMessagesLoading(false);
   }
@@ -679,13 +627,7 @@ export default function Home() {
   async function sendMessage() {
     const cleanMessage = message.trim();
 
-    if (
-      !cleanMessage ||
-      sending ||
-      !session?.user?.id
-    ) {
-      return;
-    }
+    if (!cleanMessage || sending || !session?.user?.id) return;
 
     setSending(true);
 
@@ -711,13 +653,6 @@ export default function Home() {
     setSending(false);
   }
 
-  /* =========================================================
-     VOTES
-     1 voto per utente / messaggio
-     vote = 1 like
-     vote = -1 dislike
-     ========================================================= */
-
   async function loadVotes() {
     if (!session?.user?.id) return;
 
@@ -726,10 +661,7 @@ export default function Home() {
       .select("message_id,vote")
       .eq("user_id", session.user.id);
 
-    if (error) {
-      console.error("VOTES:", error);
-      return;
-    }
+    if (error) return;
 
     const map = {};
 
@@ -743,10 +675,7 @@ export default function Home() {
   async function vote(messageId, newVote) {
     if (!session?.user?.id) return;
 
-    const previousVote =
-      Number(myVotes[messageId] || 0);
-
-    /* Clic sullo stesso voto = rimuovi voto */
+    const previousVote = Number(myVotes[messageId] || 0);
 
     if (previousVote === newVote) {
       const { error } = await supabase
@@ -778,9 +707,7 @@ export default function Home() {
           user_id: session.user.id,
           vote: newVote,
         },
-        {
-          onConflict: "message_id,user_id",
-        }
+        { onConflict: "message_id,user_id" }
       );
 
     if (error) {
@@ -802,49 +729,29 @@ export default function Home() {
       .select("vote")
       .eq("message_id", messageId);
 
-    if (error) {
-      console.error(error);
-      return;
-    }
+    if (error) return;
 
-    const likes =
-      (data || []).filter(
-        (item) => Number(item.vote) === 1
-      ).length;
+    const likes = (data || []).filter(
+      (item) => Number(item.vote) === 1
+    ).length;
 
-    const dislikes =
-      (data || []).filter(
-        (item) => Number(item.vote) === -1
-      ).length;
+    const dislikes = (data || []).filter(
+      (item) => Number(item.vote) === -1
+    ).length;
 
-    const { error: updateError } = await supabase
+    await supabase
       .from("messages")
-      .update({
-        likes,
-        dislikes,
-      })
+      .update({ likes, dislikes })
       .eq("id", messageId);
-
-    if (updateError) {
-      console.error(updateError);
-    }
 
     setMessages((old) =>
       old.map((item) =>
         item.id === messageId
-          ? {
-              ...item,
-              likes,
-              dislikes,
-            }
+          ? { ...item, likes, dislikes }
           : item
       )
     );
   }
-
-  /* =========================================================
-     REPORTS
-     ========================================================= */
 
   async function loadReports() {
     if (!session?.user?.id) return;
@@ -854,10 +761,7 @@ export default function Home() {
       .select("message_id")
       .eq("reporter_id", session.user.id);
 
-    if (error) {
-      console.error("REPORTS:", error);
-      return;
-    }
+    if (error) return;
 
     setReportedMessages(
       (data || []).map((item) => item.message_id)
@@ -886,30 +790,18 @@ export default function Home() {
       return;
     }
 
-    setReportedMessages((old) => [
-      ...old,
-      messageId,
-    ]);
-
+    setReportedMessages((old) => [...old, messageId]);
     alert(t.reporting);
   }
-
-  /* =========================================================
-     ROOMS
-     ========================================================= */
 
   async function loadRooms() {
     const { data, error } = await supabase
       .from("rooms")
       .select("*")
       .eq("is_active", true)
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
 
-    if (!error) {
-      setRooms(data || []);
-    }
+    if (!error) setRooms(data || []);
   }
 
   async function createRoom() {
@@ -921,9 +813,7 @@ export default function Home() {
       .from("rooms")
       .insert({
         name: cleanName.slice(0, 30),
-        description: roomTheme
-          .trim()
-          .slice(0, 100),
+        description: roomTheme.trim().slice(0, 100),
         owner_id: session.user.id,
         is_private: roomPrivate,
         is_official: false,
@@ -939,30 +829,17 @@ export default function Home() {
     setRoomTheme("");
     setRoomPrivate(false);
     setCreatingRoom(false);
-
     await loadRooms();
   }
 
-  /* =========================================================
-     SHOP
-     ========================================================= */
+  /* SHOP CORRETTO:
+     per ora utilizziamo i 6 prodotti definiti sopra,
+     evitando che vecchi dati di shop_items rimettano
+     prezzi a zero o nomi precedenti.
+  */
 
   async function loadShop() {
-    const { data, error } = await supabase
-      .from("shop_items")
-      .select("*")
-      .eq("active", true);
-
-    if (!error && data?.length) {
-      setShopItems(
-        data.map((item) => ({
-          ...item,
-          symbol: getShopSymbol(item),
-        }))
-      );
-    } else {
-      setShopItems(fallbackShopItems);
-    }
+    setShopItems(fallbackShopItems);
   }
 
   async function loadInventory() {
@@ -973,43 +850,28 @@ export default function Home() {
       .select("item_id")
       .eq("user_id", session.user.id);
 
-    if (error) {
-      console.error("INVENTORY:", error);
-      return;
-    }
+    if (error) return;
 
-    setOwned(
-      (data || []).map((item) => item.item_id)
-    );
+    setOwned((data || []).map((item) => item.item_id));
   }
 
   async function buy(item) {
     if (!session?.user?.id) return;
-
     if (owned.includes(item.id)) return;
 
-    const price = Number(
-      item.points_price ?? item.price ?? 0
-    );
+    const price = Number(item.points_price ?? item.price ?? 0);
 
     if (points < price) {
       alert(t.insufficient);
       return;
     }
 
-    /*
-      Prima registriamo l'oggetto.
-      Se RLS blocca l'operazione vedrai
-      l'errore invece di perdere punti.
-    */
-
-    const { error: inventoryError } =
-      await supabase
-        .from("user_inventory")
-        .insert({
-          user_id: session.user.id,
-          item_id: item.id,
-        });
+    const { error: inventoryError } = await supabase
+      .from("user_inventory")
+      .insert({
+        user_id: session.user.id,
+        item_id: item.id,
+      });
 
     if (inventoryError) {
       alert(inventoryError.message);
@@ -1029,12 +891,6 @@ export default function Home() {
       .single();
 
     if (error) {
-      /*
-        rollback semplice:
-        se non possiamo togliere i punti,
-        rimuoviamo l'oggetto appena inserito.
-      */
-
       await supabase
         .from("user_inventory")
         .delete()
@@ -1049,8 +905,7 @@ export default function Home() {
     setProfile(data);
     setOwned((old) => [...old, item.id]);
   }
-
-  /* =========================================================
+    /* =========================================================
      COMPONENTS
      ========================================================= */
 
@@ -1069,10 +924,7 @@ export default function Home() {
             key={lang}
             onClick={() => changeLanguage(lang)}
             style={{
-              background:
-                language === lang
-                  ? "#66258c"
-                  : "#15101c",
+              background: language === lang ? "#66258c" : "#15101c",
               border: "1px solid #663a7b",
               borderRadius: 20,
               padding: "7px 11px",
@@ -1120,11 +972,7 @@ export default function Home() {
     );
   }
 
-  function SafeAvatar({
-    name,
-    size = 50,
-    border = false,
-  }) {
+  function SafeAvatar({ name, size = 50, border = false }) {
     return (
       <img
         src={getAvatar(name)}
@@ -1169,8 +1017,7 @@ export default function Home() {
           display: "grid",
           gridTemplateColumns: "repeat(4,1fr)",
           background: "rgba(7,4,12,.96)",
-          borderTop:
-            "1px solid rgba(116,53,151,.55)",
+          borderTop: "1px solid rgba(116,53,151,.55)",
           padding: "9px 4px 13px",
           backdropFilter: "blur(18px)",
         }}
@@ -1188,9 +1035,7 @@ export default function Home() {
                   : "transparent",
                 border: 0,
                 borderRadius: 14,
-                color: active
-                  ? "#e69cff"
-                  : "#817589",
+                color: active ? "#e69cff" : "#817589",
                 fontSize: 11,
                 fontWeight: 800,
                 padding: "5px 2px",
@@ -1201,14 +1046,11 @@ export default function Home() {
                   display: "block",
                   fontSize: 23,
                   marginBottom: 3,
-                  textShadow: active
-                    ? "0 0 12px #b34ee1"
-                    : "none",
+                  textShadow: active ? "0 0 12px #b34ee1" : "none",
                 }}
               >
                 {icon}
               </span>
-
               {label}
             </button>
           );
@@ -1292,9 +1134,7 @@ export default function Home() {
             <input
               value={nickname}
               onChange={(e) =>
-                setNickname(
-                  cleanNickname(e.target.value)
-                )
+                setNickname(cleanNickname(e.target.value))
               }
               placeholder={t.nickname}
               autoCapitalize="none"
@@ -1306,9 +1146,7 @@ export default function Home() {
             <input
               type="password"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
               placeholder={`${t.password} · min. 8`}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -1329,8 +1167,7 @@ export default function Home() {
                   marginTop: 12,
                   padding: 11,
                   borderRadius: 12,
-                  background:
-                    "rgba(150,35,70,.18)",
+                  background: "rgba(150,35,70,.18)",
                   border: "1px solid #7d3150",
                   fontSize: 13,
                 }}
@@ -1365,11 +1202,8 @@ export default function Home() {
               onClick={() => {
                 setAuthError("");
                 setPassword("");
-
                 setAuthMode(
-                  authMode === "login"
-                    ? "register"
-                    : "login"
+                  authMode === "login" ? "register" : "login"
                 );
               }}
               style={{
@@ -1419,9 +1253,7 @@ export default function Home() {
             {t.identity}
           </small>
 
-          <h1 style={{ fontSize: 34 }}>
-            {t.who}
-          </h1>
+          <h1 style={{ fontSize: 34 }}>{t.who}</h1>
 
           <p style={{ opacity: 0.6 }}>
             {t.identityHint}
@@ -1433,8 +1265,7 @@ export default function Home() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(2,minmax(0,1fr))",
+            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
             gap: 12,
             padding: "0 18px",
             maxWidth: 600,
@@ -1442,15 +1273,12 @@ export default function Home() {
           }}
         >
           {availableAvatars.map((item) => {
-            const selected =
-              avatar === item.name;
+            const selected = avatar === item.name;
 
             return (
               <button
                 key={item.name}
-                onClick={() =>
-                  selectAvatar(item.name)
-                }
+                onClick={() => selectAvatar(item.name)}
                 style={{
                   ...card,
                   padding: "16px 7px",
@@ -1464,8 +1292,7 @@ export default function Home() {
                   alt=""
                   onError={(event) => {
                     event.currentTarget.onerror = null;
-                    event.currentTarget.src =
-                      "/shadow.png";
+                    event.currentTarget.src = "/shadow.png";
                   }}
                   style={{
                     width: 105,
@@ -1483,15 +1310,11 @@ export default function Home() {
                   style={{
                     display: "block",
                     marginTop: 10,
-                    color: selected
-                      ? "#e39aff"
-                      : "#887c91",
+                    color: selected ? "#e39aff" : "#887c91",
                     fontWeight: 800,
                   }}
                 >
-                  {selected
-                    ? `✓ ${t.selected}`
-                    : t.choose}
+                  {selected ? `✓ ${t.selected}` : t.choose}
                 </small>
               </button>
             );
@@ -1528,11 +1351,13 @@ export default function Home() {
      ========================================================= */
 
   if (page === "rooms") {
-    const officialRooms =
-      rooms.filter((room) => room.is_official);
+    const officialRooms = rooms.filter(
+      (room) => room.is_official
+    );
 
-    const communityRooms =
-      rooms.filter((room) => !room.is_official);
+    const communityRooms = rooms.filter(
+      (room) => !room.is_official
+    );
 
     return (
       <main style={background}>
@@ -1554,14 +1379,10 @@ export default function Home() {
             {t.official}
           </small>
 
-          <h1 style={{ fontSize: 36 }}>
-            {t.rooms}
-          </h1>
+          <h1 style={{ fontSize: 36 }}>{t.rooms}</h1>
 
           <button
-            onClick={() =>
-              setCreatingRoom(!creatingRoom)
-            }
+            onClick={() => setCreatingRoom(!creatingRoom)}
             style={{
               ...primaryButton,
               width: "100%",
@@ -1582,18 +1403,14 @@ export default function Home() {
             >
               <input
                 value={roomName}
-                onChange={(e) =>
-                  setRoomName(e.target.value)
-                }
+                onChange={(e) => setRoomName(e.target.value)}
                 placeholder={t.roomName}
                 style={inputStyle}
               />
 
               <input
                 value={roomTheme}
-                onChange={(e) =>
-                  setRoomTheme(e.target.value)
-                }
+                onChange={(e) => setRoomTheme(e.target.value)}
                 placeholder={t.roomTheme}
                 style={{
                   ...inputStyle,
@@ -1609,14 +1426,11 @@ export default function Home() {
                 }}
               >
                 <button
-                  onClick={() =>
-                    setRoomPrivate(!roomPrivate)
-                  }
+                  onClick={() => setRoomPrivate(!roomPrivate)}
                   style={{
                     flex: 1,
                     background: "#21142c",
-                    border:
-                      "1px solid #583370",
+                    border: "1px solid #583370",
                     color: "#fff",
                     borderRadius: 13,
                   }}
@@ -1681,15 +1495,11 @@ export default function Home() {
                 </small>
               </div>
 
-              <span style={{ color: "#cf7aff" }}>
-                ›
-              </span>
+              <span style={{ color: "#cf7aff" }}>›</span>
             </div>
           ))}
 
-          <h3 style={{ marginTop: 28 }}>
-            {t.community}
-          </h3>
+          <h3 style={{ marginTop: 28 }}>{t.community}</h3>
 
           {communityRooms.length === 0 && (
             <div
@@ -1723,8 +1533,7 @@ export default function Home() {
                   fontSize: 13,
                 }}
               >
-                {room.description ||
-                  "WHO Community"}
+                {room.description || "WHO Community"}
               </p>
             </div>
           ))}
@@ -1760,9 +1569,7 @@ export default function Home() {
             {t.shopTitle}
           </small>
 
-          <h1 style={{ fontSize: 38 }}>
-            {t.shop}
-          </h1>
+          <h1 style={{ fontSize: 38 }}>{t.shop}</h1>
 
           <p style={{ opacity: 0.65 }}>
             {t.shopHint}
@@ -1772,21 +1579,17 @@ export default function Home() {
             style={{
               ...card,
               padding: 17,
-              display: "flex",
-              justifyContent: "space-between",
             }}
           >
-            <div>
-              <small>{t.points}</small>
+            <small>{t.points}</small>
 
-              <div
-                style={{
-                  fontSize: 31,
-                  fontWeight: 950,
-                }}
-              >
-                ✦ {points}
-              </div>
+            <div
+              style={{
+                fontSize: 31,
+                fontWeight: 950,
+              }}
+            >
+              ✦ {points}
             </div>
           </div>
         </section>
@@ -1794,8 +1597,7 @@ export default function Home() {
         <section
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(2,minmax(0,1fr))",
+            gridTemplateColumns: "repeat(2,minmax(0,1fr))",
             gap: 12,
             padding: "0 18px",
             maxWidth: 650,
@@ -1803,13 +1605,10 @@ export default function Home() {
           }}
         >
           {shopItems.map((item) => {
-            const isOwned =
-              owned.includes(item.id);
+            const isOwned = owned.includes(item.id);
 
             const price = Number(
-              item.points_price ??
-                item.price ??
-                0
+              item.points_price ?? item.price ?? 0
             );
 
             return (
@@ -1818,6 +1617,8 @@ export default function Home() {
                 style={{
                   ...card,
                   overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
                 <div
@@ -1828,6 +1629,7 @@ export default function Home() {
                     placeItems: "center",
                     background:
                       "radial-gradient(circle,#55206f,#100817)",
+                    overflow: "hidden",
                   }}
                 >
                   <div
@@ -1835,6 +1637,7 @@ export default function Home() {
                       position: "absolute",
                       fontSize: 64,
                       color: "#d996f5",
+                      opacity: 0.85,
                     }}
                   >
                     {getShopSymbol(item)}
@@ -1844,8 +1647,7 @@ export default function Home() {
                     src={getShopImage(item)}
                     alt={item.name}
                     onError={(event) => {
-                      event.currentTarget.style.display =
-                        "none";
+                      event.currentTarget.style.display = "none";
                     }}
                     style={{
                       position: "relative",
@@ -1864,17 +1666,32 @@ export default function Home() {
                       zIndex: 3,
                       top: 8,
                       left: 8,
-                      background: "#0c0710",
-                      padding: 6,
+                      background: "rgba(8,5,12,.92)",
+                      border: "1px solid rgba(173,91,211,.22)",
+                      padding: "5px 7px",
                       borderRadius: 8,
+                      fontSize: 10,
+                      fontWeight: 900,
                     }}
                   >
                     {item.rarity}
                   </small>
                 </div>
 
-                <div style={{ padding: 12 }}>
-                  <strong>
+                <div
+                  style={{
+                    padding: 12,
+                    display: "flex",
+                    flexDirection: "column",
+                    flex: 1,
+                  }}
+                >
+                  <strong
+                    style={{
+                      fontSize: 14,
+                      minHeight: 34,
+                    }}
+                  >
                     {item.name}
                   </strong>
 
@@ -1882,7 +1699,7 @@ export default function Home() {
                     style={{
                       color: "#df94ff",
                       fontWeight: 900,
-                      margin: "8px 0",
+                      margin: "8px 0 11px",
                     }}
                   >
                     ✦ {price}
@@ -1894,12 +1711,12 @@ export default function Home() {
                     style={{
                       width: "100%",
                       padding: 11,
+                      marginTop: "auto",
                       borderRadius: 12,
-                      border:
-                        "1px solid #784093",
+                      border: "1px solid #784093",
                       background: isOwned
                         ? "#242027"
-                        : "#571b76",
+                        : "linear-gradient(135deg,#702394,#51176f)",
                       color: "#fff",
                       fontWeight: 900,
                     }}
@@ -1929,10 +1746,9 @@ export default function Home() {
       Math.floor(points / 250) + 1
     );
 
-    const ownedProducts =
-      shopItems.filter((item) =>
-        owned.includes(item.id)
-      );
+    const ownedProducts = shopItems.filter((item) =>
+      owned.includes(item.id)
+    );
 
     return (
       <main style={background}>
@@ -1954,9 +1770,7 @@ export default function Home() {
 
           <span
             style={{
-              color: isFounder
-                ? "#e7a3ff"
-                : "#6de0ad",
+              color: isFounder ? "#e7a3ff" : "#6de0ad",
               fontWeight: 900,
             }}
           >
@@ -1982,7 +1796,6 @@ export default function Home() {
           >
             <div style={{ ...card, padding: 17 }}>
               <small>{t.points}</small>
-
               <div
                 style={{
                   fontSize: 27,
@@ -1995,7 +1808,6 @@ export default function Home() {
 
             <div style={{ ...card, padding: 17 }}>
               <small>{t.level}</small>
-
               <div
                 style={{
                   fontSize: 27,
@@ -2066,13 +1878,11 @@ export default function Home() {
                       padding: "7px 10px",
                       borderRadius: 20,
                       background: "#281335",
-                      border:
-                        "1px solid #603476",
+                      border: "1px solid #603476",
                       fontSize: 10,
                     }}
                   >
-                    {getShopSymbol(item)}{" "}
-                    {item.name}
+                    {getShopSymbol(item)} {item.name}
                   </span>
                 ))}
               </div>
@@ -2080,9 +1890,7 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() =>
-              setStarted("identity")
-            }
+            onClick={() => setStarted("identity")}
             style={{
               ...card,
               width: "100%",
@@ -2157,8 +1965,7 @@ export default function Home() {
           <small
             style={{
               color: "#52e69c",
-              border:
-                "1px solid rgba(82,230,156,.22)",
+              border: "1px solid rgba(82,230,156,.22)",
               borderRadius: 20,
               padding: "7px 10px",
             }}
@@ -2199,15 +2006,10 @@ export default function Home() {
               alignItems: "center",
             }}
           >
-            <SafeAvatar
-              name={avatar}
-              size={52}
-            />
+            <SafeAvatar name={avatar} size={52} />
 
             <div style={{ flex: 1 }}>
-              <strong>
-                @{nickname}
-              </strong>
+              <strong>@{nickname}</strong>
 
               <small
                 style={{
@@ -2233,26 +2035,22 @@ export default function Home() {
         </section>
 
         <section style={{ padding: "0 18px" }}>
-          {!messagesLoading &&
-            messages.length === 0 && (
-              <div
-                style={{
-                  ...card,
-                  padding: 20,
-                  textAlign: "center",
-                  opacity: 0.6,
-                }}
-              >
-                {t.emptyChat}
-              </div>
-            )}
+          {!messagesLoading && messages.length === 0 && (
+            <div
+              style={{
+                ...card,
+                padding: 20,
+                textAlign: "center",
+                opacity: 0.6,
+              }}
+            >
+              {t.emptyChat}
+            </div>
+          )}
 
           {messages.map((msg) => {
-            const userVote =
-              Number(myVotes[msg.id] || 0);
-
-            const reported =
-              reportedMessages.includes(msg.id);
+            const userVote = Number(myVotes[msg.id] || 0);
+            const reported = reportedMessages.includes(msg.id);
 
             return (
               <div
@@ -2302,9 +2100,7 @@ export default function Home() {
                       }}
                     >
                       <button
-                        onClick={() =>
-                          vote(msg.id, 1)
-                        }
+                        onClick={() => vote(msg.id, 1)}
                         style={{
                           border:
                             userVote === 1
@@ -2327,9 +2123,7 @@ export default function Home() {
                       </button>
 
                       <button
-                        onClick={() =>
-                          vote(msg.id, -1)
-                        }
+                        onClick={() => vote(msg.id, -1)}
                         style={{
                           border:
                             userVote === -1
@@ -2348,40 +2142,29 @@ export default function Home() {
                           fontWeight: 900,
                         }}
                       >
-                        ⌄{" "}
-                        {Number(
-                          msg.dislikes || 0
-                        )}
+                        ⌄ {Number(msg.dislikes || 0)}
                       </button>
 
                       <button
                         disabled={reported}
-                        onClick={() =>
-                          reportMessage(msg.id)
-                        }
+                        onClick={() => reportMessage(msg.id)}
                         style={{
                           marginLeft: "auto",
-                          border:
-                            reported
-                              ? "1px solid #563946"
-                              : "1px solid #49374f",
-                          background:
-                            reported
-                              ? "#25161c"
-                              : "#110d14",
-                          color:
-                            reported
-                              ? "#8d6673"
-                              : "#b5a3bb",
+                          border: reported
+                            ? "1px solid #563946"
+                            : "1px solid #49374f",
+                          background: reported
+                            ? "#25161c"
+                            : "#110d14",
+                          color: reported
+                            ? "#8d6673"
+                            : "#b5a3bb",
                           borderRadius: 20,
                           padding: "7px 10px",
                           fontSize: 11,
                         }}
                       >
-                        ⚑{" "}
-                        {reported
-                          ? "SEGNALATO"
-                          : t.report}
+                        ⚑ {reported ? "SEGNALATO" : t.report}
                       </button>
                     </div>
                   </div>
@@ -2404,14 +2187,9 @@ export default function Home() {
             <input
               value={message}
               maxLength={500}
-              onChange={(e) =>
-                setMessage(e.target.value)
-              }
+              onChange={(e) => setMessage(e.target.value)}
               onKeyDown={(e) => {
-                if (
-                  e.key === "Enter" &&
-                  !e.shiftKey
-                ) {
+                if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
                   sendMessage();
                 }
@@ -2421,8 +2199,7 @@ export default function Home() {
                 flex: 1,
                 minWidth: 0,
                 background: "#0d0913",
-                border:
-                  "1px solid #533069",
+                border: "1px solid #533069",
                 borderRadius: 14,
                 color: "#fff",
                 padding: 13,
@@ -2431,17 +2208,13 @@ export default function Home() {
             />
 
             <button
-              disabled={
-                sending ||
-                !message.trim()
-              }
+              disabled={sending || !message.trim()}
               onClick={sendMessage}
               style={{
                 ...primaryButton,
                 padding: "0 17px",
                 opacity:
-                  sending ||
-                  !message.trim()
+                  sending || !message.trim()
                     ? 0.45
                     : 1,
               }}
@@ -2455,4 +2228,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-         }
+                }
