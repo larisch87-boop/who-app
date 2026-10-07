@@ -158,7 +158,6 @@ function internalEmail(nickname) {
 
 function avatarImage(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
-
   return avatars.find((a) => a.name === name)?.image || "/shadow.png";
 }
 
@@ -244,12 +243,7 @@ export default function Home() {
 
   const [myVotes, setMyVotes] = useState({});
   const [reportedMessages, setReportedMessages] = useState([]);
-
   const [owned, setOwned] = useState([]);
-
-  // =====================================================
-  // WHO EQUIPMENT
-  // =====================================================
 
   const [equipped, setEquipped] = useState({
     head: null,
@@ -426,7 +420,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!session?.user) return;
-
     loadProfile(session.user);
   }, [session?.user?.id]);
 
@@ -546,10 +539,6 @@ export default function Home() {
     if (!error && data) applyProfile(data);
   }
 
-  // =====================================================
-  // INVENTARIO + EQUIPAGGIAMENTO
-  // =====================================================
-
   async function loadInventory() {
     if (!session) return;
 
@@ -569,9 +558,7 @@ export default function Home() {
     ]);
 
     if (!inventoryResult.error) {
-      setOwned(
-        (inventoryResult.data || []).map((x) => x.item_id)
-      );
+      setOwned((inventoryResult.data || []).map((x) => x.item_id));
     }
 
     if (!profileResult.error && profileResult.data) {
@@ -586,7 +573,6 @@ export default function Home() {
 
   async function buyItem(item) {
     if (!session) return;
-
     if (owned.includes(item.id)) return;
 
     if (points < item.price) {
@@ -651,7 +637,6 @@ export default function Home() {
     }));
 
     await loadProfile(session.user);
-
     alert(`${item.name} equipaggiato.`);
   }
 
@@ -683,28 +668,13 @@ export default function Home() {
     return equipped[item.slot] === item.id;
   }
 
-  function Avatar({
-    name,
-    size = 46,
-    equipment = null,
-  }) {
+  function Avatar({ name, size = 46, equipment = null }) {
     const eq = equipment || {};
 
-    const head = shopItems.find(
-      (x) => x.id === eq.head
-    );
-
-    const face = shopItems.find(
-      (x) => x.id === eq.face
-    );
-
-    const aura = shopItems.find(
-      (x) => x.id === eq.aura
-    );
-
-    const frame = shopItems.find(
-      (x) => x.id === eq.frame
-    );
+    const head = shopItems.find((x) => x.id === eq.head);
+    const face = shopItems.find((x) => x.id === eq.face);
+    const aura = shopItems.find((x) => x.id === eq.aura);
+    const frame = shopItems.find((x) => x.id === eq.frame);
 
     const outerSize = size * 1.55;
 
@@ -941,9 +911,7 @@ export default function Home() {
       .select("message_id")
       .eq("user_id", session.user.id);
 
-    setReportedMessages(
-      (data || []).map((x) => x.message_id)
-    );
+    setReportedMessages((data || []).map((x) => x.message_id));
   }
 
   async function reportMessage(msg) {
@@ -1154,9 +1122,7 @@ export default function Home() {
                 <Avatar
                   name={a.name}
                   size={105}
-                  equipment={
-                    avatar === a.name ? equipped : null
-                  }
+                  equipment={avatar === a.name ? equipped : null}
                 />
 
                 <div
@@ -1191,7 +1157,7 @@ export default function Home() {
         </section>
       </main>
     );
-}
+              }
   if (page === "rooms") {
     return (
       <main style={background}>
@@ -1252,10 +1218,6 @@ export default function Home() {
       </main>
     );
   }
-
-  // =====================================================
-  // SHOP
-  // =====================================================
 
   if (page === "shop") {
     return (
@@ -1395,12 +1357,8 @@ export default function Home() {
                       </button>
                     ) : (
                       <button
-                        disabled={
-                          equipmentBusy === item.id
-                        }
-                        onClick={() =>
-                          equipItem(item)
-                        }
+                        disabled={equipmentBusy === item.id}
+                        onClick={() => equipItem(item)}
                         style={{
                           ...purpleButton,
                           width: "100%",
@@ -1423,10 +1381,6 @@ export default function Home() {
       </main>
     );
   }
-
-  // =====================================================
-  // PROFILO + COLLEZIONE
-  // =====================================================
 
   if (page === "profile") {
     const ownedItems = shopItems.filter((item) =>
@@ -1550,8 +1504,7 @@ export default function Home() {
                 }}
               >
                 {ownedItems.map((item) => {
-                  const active =
-                    isItemEquipped(item);
+                  const active = isItemEquipped(item);
 
                   return (
                     <div
@@ -1873,10 +1826,6 @@ export default function Home() {
     );
   }
 
-  // =====================================================
-  // CHAT PUBBLICA
-  // =====================================================
-
   return (
     <main
       style={{
@@ -2008,9 +1957,7 @@ export default function Home() {
                   <Avatar
                     name={msg.avatar}
                     size={32}
-                    equipment={
-                      mine ? equipped : null
-                    }
+                    equipment={mine ? equipped : null}
                   />
 
                   <div
@@ -2089,10 +2036,7 @@ export default function Home() {
 
                       <button
                         onClick={() =>
-                          voteMessage(
-                            msg,
-                            "dislike"
-                          )
+                          voteMessage(msg, "dislike")
                         }
                         style={{
                           ...tinyButton,
@@ -2102,9 +2046,7 @@ export default function Home() {
                         }}
                       >
                         ♢−{" "}
-                        {Number(
-                          msg.dislikes || 0
-                        )}
+                        {Number(msg.dislikes || 0)}
                       </button>
 
                       {!mine && (
@@ -2168,9 +2110,7 @@ export default function Home() {
             </div>
 
             <button
-              onClick={() =>
-                setReplyingTo(null)
-              }
+              onClick={() => setReplyingTo(null)}
               style={{
                 border: 0,
                 background: "transparent",
@@ -2212,14 +2152,9 @@ export default function Home() {
                 minWidth: 0,
                 background: "transparent",
                 border: 0,
-                color:
-                  getMessageColor(
-                    messageColor
-                  ),
+                color: getMessageColor(messageColor),
                 fontFamily:
-                  getMessageFont(
-                    messageFont
-                  ),
+                  getMessageFont(messageFont),
                 outline: 0,
                 padding: "10px 9px",
               }}
@@ -2246,4 +2181,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                      }
+                  }
