@@ -240,9 +240,9 @@ export default function Home() {
   const [rooms, setRooms] = useState(roomsDefault);
   const [activeRoom, setActiveRoom] = useState(roomsDefault[0]);
 
-  /* ================================
+  /* ======================================================
      GRUPPI / MODERAZIONE
-     ================================ */
+     ====================================================== */
 
   const [roomPanel, setRoomPanel] = useState(null);
   const [roomName, setRoomName] = useState("");
@@ -257,13 +257,12 @@ export default function Home() {
   const [moderationMessage, setModerationMessage] = useState(null);
   const [roomCanModerate, setRoomCanModerate] = useState(false);
   const [myRoomRole, setMyRoomRole] = useState(null);
+
   const [myRoomStatus, setMyRoomStatus] = useState({
     banned: false,
     muted: false,
     mute_until: null,
   });
-
-  /* ================================ */
 
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
@@ -374,14 +373,86 @@ export default function Home() {
     gap: 3,
   };
 
+  function resetAccountState() {
+    setPage("chat");
+    setChatMode("public");
+
+    setActiveRoom(roomsDefault[0]);
+    setRooms(roomsDefault);
+
+    setRoomPanel(null);
+    setRoomName("");
+    setRoomDescription("");
+    setRoomPrivate(false);
+    setRoomBusy(false);
+
+    setRoomModerators([]);
+    setModeratorNickname("");
+    setRoomSanctions([]);
+
+    setModerationMessage(null);
+    setRoomCanModerate(false);
+    setMyRoomRole(null);
+
+    setMyRoomStatus({
+      banned: false,
+      muted: false,
+      mute_until: null,
+    });
+
+    setMessages([]);
+    setMessage("");
+    setReplyingTo(null);
+    setSending(false);
+
+    setMyVotes({});
+    setReportedMessages([]);
+
+    setRequests([]);
+    setConversations([]);
+    setConversationDetails({});
+
+    setPrivateConversation(null);
+    setPrivatePeer(null);
+    setPrivateMessages([]);
+    setPrivateMessage("");
+    setPrivateReply(null);
+
+    setBlocked([]);
+    setOwned([]);
+    setShowNewMessages(false);
+
+    publicAtBottomRef.current = true;
+    firstPublicLoadRef.current = true;
+  }
+
   useEffect(() => {
     initialize();
 
     const { data } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
-        setSession(newSession);
+        /*
+          IMPORTANTE:
+          se cambia account, chiudiamo tutti i pannelli appartenenti
+          all'utente precedente prima di caricare il nuovo profilo.
+        */
+        setSession((oldSession) => {
+          if (
+            oldSession?.user?.id &&
+            newSession?.user?.id &&
+            oldSession.user.id !== newSession.user.id
+          ) {
+            resetAccountState();
+          }
 
-        if (newSession) {
+          return newSession;
+        });
+
+        if (!newSession) {
+          setProfile(null);
+          setStarted(false);
+          resetAccountState();
+        } else {
           await loadProfile(newSession.user);
         }
 
@@ -398,6 +469,20 @@ export default function Home() {
     firstPublicLoadRef.current = true;
     publicAtBottomRef.current = true;
     setShowNewMessages(false);
+
+    /*
+      Ogni volta che cambia stanza chiudiamo i controlli
+      temporanei della stanza precedente.
+    */
+    setModerationMessage(null);
+    setRoomCanModerate(false);
+    setMyRoomRole(null);
+
+    setMyRoomStatus({
+      banned: false,
+      muted: false,
+      mute_until: null,
+    });
 
     loadMessages(true);
     loadRooms();
@@ -423,7 +508,7 @@ export default function Home() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [session, started, currentRoom, activeRoom?.id]);
+  }, [session?.user?.id, started, currentRoom, activeRoom?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -457,7 +542,7 @@ export default function Home() {
       .subscribe();
 
     return () => supabase.removeChannel(channel);
-  }, [session, privateConversation?.id]);
+  }, [session?.user?.id, privateConversation?.id]);
 
   useEffect(() => {
     if (
@@ -600,6 +685,7 @@ export default function Home() {
     }
 
     if (data.session && data.user) {
+      resetAccountState();
       setSession(data.session);
 
       const existing = await supabase
@@ -637,6 +723,8 @@ export default function Home() {
   async function login() {
     const username = cleanNickname(nickname);
 
+    setAuthError("");
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email: internalEmail(username),
       password,
@@ -647,18 +735,48 @@ export default function Home() {
       return;
     }
 
+    /*
+      Reset PRIMA di caricare l'account appena entrato.
+      In questo modo Nick non eredita pannelli/permessi del Founder.
+    */
+    resetAccountState();
+
     setSession(data.session);
     await loadProfile(data.user, username);
   }
 
   async function logout() {
-    await supabase.auth.signOut();
-    setSession(null);
+    /*
+      Chiudiamo subito qualsiasi pannello sensibile.
+    */
+    resetAccountState();
+
     setProfile(null);
     setStarted(false);
-    setMessages([]);
-    setPrivateMessages([]);
-    setConversationDetails({});
+
+    await supabase.auth.signOut();
+
+    setSession(null);
+
+    /*
+      Pulizia dei dati visibili nel form di accesso.
+    */
+    setNickname("");
+    setPassword("");
+    setAuthError("");
+    setAuthMode("login");
+
+    /*
+      Valori profilo di sicurezza/default.
+    */
+    setAvatar("Shadow");
+    setPoints(500);
+    setVibe(100);
+    setReputation(100);
+    setDmPrivacy("vibe");
+    setDmMinVibe(100);
+    setMessageColor("purple");
+    setMessageFont("standard");
   }
 
   async function selectAvatar(name) {
@@ -808,6 +926,15 @@ export default function Home() {
   }
 
   async function openRoomManagement(room) {
+    /*
+      Protezione UI:
+      un account normale non può aprire la gestione.
+    */
+    if (!canManageRoom(room)) {
+      setRoomPanel(null);
+      return;
+    }
+
     setActiveRoom(room);
     setRoomName(room.name || "");
     setRoomDescription(room.description || "");
@@ -852,6 +979,8 @@ export default function Home() {
   }
 
   async function addRoomModerator() {
+    if (!canManageRoom(activeRoom)) return;
+
     const nick = cleanNickname(
       moderatorNickname.replace(/^@/, "")
     );
@@ -874,6 +1003,7 @@ export default function Home() {
   }
 
   async function removeRoomModerator(userId) {
+    if (!canManageRoom(activeRoom)) return;
     if (!confirm("Rimuovere questo moderatore?")) return;
 
     const { error } = await supabase.rpc(
@@ -924,14 +1054,22 @@ export default function Home() {
   async function loadCurrentRoomPermissions() {
     if (!session || !activeRoom) return;
 
+    /*
+      Reset immediato prima di calcolare i permessi della stanza.
+      Evita che per qualche istante rimangano quelli della stanza/account
+      precedente.
+    */
+    setRoomCanModerate(false);
+    setMyRoomRole(null);
+    setMyRoomStatus({
+      banned: false,
+      muted: false,
+      mute_until: null,
+    });
+
     if (!activeRoom.id || String(activeRoom.id).startsWith("who-")) {
       setRoomCanModerate(isFounder);
       setMyRoomRole(isFounder ? "FOUNDER" : null);
-      setMyRoomStatus({
-        banned: false,
-        muted: false,
-        mute_until: null,
-      });
       return;
     }
 
@@ -969,12 +1107,17 @@ export default function Home() {
     }
 
     if (statusResult.data) {
-      setMyRoomStatus(statusResult.data);
+      setMyRoomStatus({
+        banned: Boolean(statusResult.data.banned),
+        muted: Boolean(statusResult.data.muted),
+        mute_until: statusResult.data.mute_until || null,
+      });
     }
   }
 
   async function banFromRoom(msg) {
     if (!msg?.user_id || !activeRoom?.id) return;
+    if (!roomCanModerate) return;
 
     if (!confirm(`Bannare @${msg.nickname} da questa stanza?`)) {
       return;
@@ -997,6 +1140,7 @@ export default function Home() {
 
   async function muteFromRoom(msg, minutes) {
     if (!msg?.user_id || !activeRoom?.id) return;
+    if (!roomCanModerate) return;
 
     const { error } = await supabase.rpc("mute_room_user", {
       p_room_id: activeRoom.id,
@@ -1023,6 +1167,8 @@ export default function Home() {
   }
 
   async function removeRoomSanction(item) {
+    if (!roomCanModerate && !canManageRoom(activeRoom)) return;
+
     const { error } = await supabase.rpc(
       "remove_room_sanction",
       {
@@ -1111,9 +1257,15 @@ export default function Home() {
       return next;
     });
 
-    if (forceBottom || wasAtBottom || firstPublicLoadRef.current) {
+    if (
+      forceBottom ||
+      wasAtBottom ||
+      firstPublicLoadRef.current
+    ) {
       firstPublicLoadRef.current = false;
-      scrollPublicToBottom(forceBottom ? "auto" : "smooth");
+      scrollPublicToBottom(
+        forceBottom ? "auto" : "smooth"
+      );
     }
   }
 
@@ -1128,13 +1280,17 @@ export default function Home() {
     }
 
     if (myRoomStatus?.muted) {
-      alert("Sei temporaneamente silenziato in questa stanza.");
+      alert(
+        "Sei temporaneamente silenziato in questa stanza."
+      );
       return;
     }
 
     setSending(true);
 
-    const mentionMatch = text.match(/@([a-z0-9_]{3,20})/i);
+    const mentionMatch = text.match(
+      /@([a-z0-9_]{3,20})/i
+    );
 
     let mentionedUserId = null;
     let mentionedNickname = null;
@@ -1152,22 +1308,25 @@ export default function Home() {
       }
     }
 
-    const { error } = await supabase.from("messages").insert({
-      room: currentRoom,
-      user_id: session.user.id,
-      nickname: profile?.nickname || nickname,
-      avatar,
-      content: text.slice(0, 500),
-      likes: 0,
-      dislikes: 0,
-      reply_to_id: replyingTo?.id || null,
-      reply_to_nickname: replyingTo?.nickname || null,
-      reply_preview: replyingTo?.content?.slice(0, 100) || null,
-      mentioned_user_id: mentionedUserId,
-      mentioned_nickname: mentionedNickname,
-      message_color: messageColor,
-      message_font: messageFont,
-    });
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        room: currentRoom,
+        user_id: session.user.id,
+        nickname: profile?.nickname || nickname,
+        avatar,
+        content: text.slice(0, 500),
+        likes: 0,
+        dislikes: 0,
+        reply_to_id: replyingTo?.id || null,
+        reply_to_nickname: replyingTo?.nickname || null,
+        reply_preview:
+          replyingTo?.content?.slice(0, 100) || null,
+        mentioned_user_id: mentionedUserId,
+        mentioned_nickname: mentionedNickname,
+        message_color: messageColor,
+        message_font: messageFont,
+      });
 
     if (error) {
       alert(error.message);
@@ -1193,13 +1352,18 @@ export default function Home() {
   }
 
   function renderMessageText(text = "") {
-    const parts = String(text).split(/(@[a-zA-Z0-9_]+)/g);
+    const parts = String(text).split(
+      /(@[a-zA-Z0-9_]+)/g
+    );
 
     return parts.map((part, index) =>
       /^@[a-zA-Z0-9_]+$/.test(part) ? (
         <span
           key={index}
-          style={{ color: C.cyan, fontWeight: 900 }}
+          style={{
+            color: C.cyan,
+            fontWeight: 900,
+          }}
         >
           {part}
         </span>
@@ -1218,6 +1382,7 @@ export default function Home() {
       .eq("user_id", session.user.id);
 
     const map = {};
+
     (data || []).forEach((v) => {
       map[v.message_id] = v.vote;
     });
@@ -1249,11 +1414,13 @@ export default function Home() {
 
       error = r.error;
     } else {
-      const r = await supabase.from("message_votes").insert({
-        user_id: session.user.id,
-        message_id: msg.id,
-        vote,
-      });
+      const r = await supabase
+        .from("message_votes")
+        .insert({
+          user_id: session.user.id,
+          message_id: msg.id,
+          vote,
+        });
 
       error = r.error;
     }
@@ -1263,9 +1430,13 @@ export default function Home() {
     let likes = Number(msg.likes || 0);
     let dislikes = Number(msg.dislikes || 0);
 
-    if (oldVote === "like") likes = Math.max(0, likes - 1);
-    if (oldVote === "dislike")
+    if (oldVote === "like") {
+      likes = Math.max(0, likes - 1);
+    }
+
+    if (oldVote === "dislike") {
       dislikes = Math.max(0, dislikes - 1);
+    }
 
     if (vote === "like") likes += 1;
     if (vote === "dislike") dislikes += 1;
@@ -1275,7 +1446,11 @@ export default function Home() {
       .update({ likes, dislikes })
       .eq("id", msg.id);
 
-    setMyVotes((old) => ({ ...old, [msg.id]: vote }));
+    setMyVotes((old) => ({
+      ...old,
+      [msg.id]: vote,
+    }));
+
     await loadMessages(false);
   }
 
@@ -1287,7 +1462,9 @@ export default function Home() {
       .select("message_id")
       .eq("user_id", session.user.id);
 
-    setReportedMessages((data || []).map((x) => x.message_id));
+    setReportedMessages(
+      (data || []).map((x) => x.message_id)
+    );
   }
 
   async function reportMessage(msg) {
@@ -1296,7 +1473,11 @@ export default function Home() {
       return;
     }
 
-    if (!confirm(`Segnalare @${msg.nickname || "anonimo"}?`)) {
+    if (
+      !confirm(
+        `Segnalare @${msg.nickname || "anonimo"}?`
+      )
+    ) {
       return;
     }
 
@@ -1310,7 +1491,11 @@ export default function Home() {
 
     if (error) return alert(error.message);
 
-    setReportedMessages((old) => [...old, msg.id]);
+    setReportedMessages((old) => [
+      ...old,
+      msg.id,
+    ]);
+
     alert("Segnalazione inviata.");
   }
 
@@ -1319,7 +1504,9 @@ export default function Home() {
      ====================================================== */
 
   async function requestPrivate(msg) {
-    if (!session || msg.user_id === session.user.id) return;
+    if (!session || msg.user_id === session.user.id) {
+      return;
+    }
 
     let targetId = msg.user_id;
 
@@ -1334,13 +1521,18 @@ export default function Home() {
     }
 
     if (!targetId) {
-      alert("Questo messaggio non è collegato a un account.");
+      alert(
+        "Questo messaggio non è collegato a un account."
+      );
       return;
     }
 
-    const check = await supabase.rpc("can_private_message", {
-      target_user: targetId,
-    });
+    const check = await supabase.rpc(
+      "can_private_message",
+      {
+        target_user: targetId,
+      }
+    );
 
     const result = check.data;
 
@@ -1349,8 +1541,12 @@ export default function Home() {
         alert(
           `Questo utente richiede almeno ${result.required_vibe} VIBE.`
         );
-      } else if (result?.reason === "private_disabled") {
-        alert("Questo utente non accetta messaggi privati.");
+      } else if (
+        result?.reason === "private_disabled"
+      ) {
+        alert(
+          "Questo utente non accetta messaggi privati."
+        );
       } else {
         alert("Non puoi contattare questo utente.");
       }
@@ -1358,9 +1554,12 @@ export default function Home() {
       return;
     }
 
-    const existingConversation = conversations.find(
-      (c) => c.user_one === targetId || c.user_two === targetId
-    );
+    const existingConversation =
+      conversations.find(
+        (c) =>
+          c.user_one === targetId ||
+          c.user_two === targetId
+      );
 
     if (existingConversation) {
       openConversation(
@@ -1403,18 +1602,29 @@ export default function Home() {
 
     const uid = session.user.id;
 
-    const [requestResult, conversationResult] = await Promise.all([
+    const [
+      requestResult,
+      conversationResult,
+    ] = await Promise.all([
       supabase
         .from("private_requests")
         .select("*")
-        .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-        .order("created_at", { ascending: false }),
+        .or(
+          `sender_id.eq.${uid},receiver_id.eq.${uid}`
+        )
+        .order("created_at", {
+          ascending: false,
+        }),
 
       supabase
         .from("private_conversations")
         .select("*")
-        .or(`user_one.eq.${uid},user_two.eq.${uid}`)
-        .order("updated_at", { ascending: false }),
+        .or(
+          `user_one.eq.${uid},user_two.eq.${uid}`
+        )
+        .order("updated_at", {
+          ascending: false,
+        }),
     ]);
 
     const reqs = requestResult.data || [];
@@ -1428,42 +1638,58 @@ export default function Home() {
     await Promise.all(
       convs.map(async (conv) => {
         const peerId =
-          conv.user_one === uid ? conv.user_two : conv.user_one;
+          conv.user_one === uid
+            ? conv.user_two
+            : conv.user_one;
 
-        const [peerResult, lastResult, unreadResult] =
-          await Promise.all([
-            supabase
-              .from("profiles")
-              .select("id,nickname,avatar")
-              .eq("id", peerId)
-              .maybeSingle(),
+        const [
+          peerResult,
+          lastResult,
+          unreadResult,
+        ] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id,nickname,avatar")
+            .eq("id", peerId)
+            .maybeSingle(),
 
-            supabase
-              .from("private_messages")
-              .select("id,content,sender_id,created_at,is_read")
-              .eq("conversation_id", conv.id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
+          supabase
+            .from("private_messages")
+            .select(
+              "id,content,sender_id,created_at,is_read"
+            )
+            .eq("conversation_id", conv.id)
+            .order("created_at", {
+              ascending: false,
+            })
+            .limit(1)
+            .maybeSingle(),
 
-            supabase
-              .from("private_messages")
-              .select("id", { count: "exact", head: true })
-              .eq("conversation_id", conv.id)
-              .neq("sender_id", uid)
-              .eq("is_read", false),
-          ]);
+          supabase
+            .from("private_messages")
+            .select("id", {
+              count: "exact",
+              head: true,
+            })
+            .eq("conversation_id", conv.id)
+            .neq("sender_id", uid)
+            .eq("is_read", false),
+        ]);
 
         details[conv.id] = {
           peerId,
-          nickname: peerResult.data?.nickname || "WHO",
-          avatar: peerResult.data?.avatar || "Shadow",
-          lastMessage: lastResult.data?.content || "",
+          nickname:
+            peerResult.data?.nickname || "WHO",
+          avatar:
+            peerResult.data?.avatar || "Shadow",
+          lastMessage:
+            lastResult.data?.content || "",
           lastMessageAt:
             lastResult.data?.created_at ||
             conv.updated_at ||
             conv.created_at,
-          lastSenderId: lastResult.data?.sender_id || null,
+          lastSenderId:
+            lastResult.data?.sender_id || null,
           unread: unreadResult.count || 0,
         };
       })
@@ -1475,7 +1701,9 @@ export default function Home() {
   async function acceptRequest(req) {
     const { data, error } = await supabase.rpc(
       "accept_private_request",
-      { request_id: req.id }
+      {
+        request_id: req.id,
+      }
     );
 
     if (error) return alert(error.message);
@@ -1531,12 +1759,17 @@ export default function Home() {
     });
 
     setChatMode("private");
-    await loadPrivateMessages(conversation.id);
+
+    await loadPrivateMessages(
+      conversation.id
+    );
+
     await loadPrivateData();
   }
 
   async function openConversationFromList(conv) {
-    const info = conversationDetails[conv.id];
+    const info =
+      conversationDetails[conv.id];
 
     if (info) {
       await openConversation(
@@ -1548,69 +1781,118 @@ export default function Home() {
     }
   }
 
-  async function loadPrivateMessages(conversationId) {
+  async function loadPrivateMessages(
+    conversationId
+  ) {
     if (!conversationId || !session) return;
 
     const { data } = await supabase
       .from("private_messages")
       .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
+      .eq(
+        "conversation_id",
+        conversationId
+      )
+      .order("created_at", {
+        ascending: true,
+      });
 
     setPrivateMessages(data || []);
 
     await supabase
       .from("private_messages")
-      .update({ is_read: true })
-      .eq("conversation_id", conversationId)
-      .neq("sender_id", session.user.id)
+      .update({
+        is_read: true,
+      })
+      .eq(
+        "conversation_id",
+        conversationId
+      )
+      .neq(
+        "sender_id",
+        session.user.id
+      )
       .eq("is_read", false);
   }
 
   async function sendPrivateMessage() {
-    const text = privateMessage.trim();
+    const text =
+      privateMessage.trim();
 
-    if (!text || !privateConversation || !session) return;
+    if (
+      !text ||
+      !privateConversation ||
+      !session
+    ) {
+      return;
+    }
 
     const { error } = await supabase
       .from("private_messages")
       .insert({
-        conversation_id: privateConversation.id,
+        conversation_id:
+          privateConversation.id,
         sender_id: session.user.id,
         content: text.slice(0, 1000),
-        reply_to_id: privateReply?.id || null,
-        reply_to_nickname: privateReply?.nickname || null,
-        reply_preview: privateReply?.content?.slice(0, 100) || null,
+        reply_to_id:
+          privateReply?.id || null,
+        reply_to_nickname:
+          privateReply?.nickname || null,
+        reply_preview:
+          privateReply?.content?.slice(
+            0,
+            100
+          ) || null,
       });
 
-    if (error) return alert(error.message);
+    if (error) {
+      return alert(error.message);
+    }
 
     setPrivateMessage("");
     setPrivateReply(null);
 
-    await loadPrivateMessages(privateConversation.id);
+    await loadPrivateMessages(
+      privateConversation.id
+    );
+
     await loadPrivateData();
   }
 
   async function blockUser(userId) {
     if (!session || !userId) return;
-    if (!confirm("Vuoi bloccare questo utente?")) return;
 
-    const { error } = await supabase.from("user_blocks").upsert(
-      {
-        blocker_id: session.user.id,
-        blocked_id: userId,
-      },
-      { onConflict: "blocker_id,blocked_id" }
-    );
+    if (
+      !confirm(
+        "Vuoi bloccare questo utente?"
+      )
+    ) {
+      return;
+    }
 
-    if (error) return alert(error.message);
+    const { error } = await supabase
+      .from("user_blocks")
+      .upsert(
+        {
+          blocker_id: session.user.id,
+          blocked_id: userId,
+        },
+        {
+          onConflict:
+            "blocker_id,blocked_id",
+        }
+      );
+
+    if (error) {
+      return alert(error.message);
+    }
 
     setPrivateConversation(null);
     setPrivatePeer(null);
     setPrivateMessages([]);
 
     await loadBlocks();
+
     alert("Utente bloccato.");
   }
 
@@ -1620,9 +1902,16 @@ export default function Home() {
     const { data } = await supabase
       .from("user_blocks")
       .select("blocked_id")
-      .eq("blocker_id", session.user.id);
+      .eq(
+        "blocker_id",
+        session.user.id
+      );
 
-    setBlocked((data || []).map((x) => x.blocked_id));
+    setBlocked(
+      (data || []).map(
+        (x) => x.blocked_id
+      )
+    );
   }
 
   async function loadRooms() {
@@ -1630,14 +1919,24 @@ export default function Home() {
       .from("rooms")
       .select("*")
       .eq("is_active", true)
-      .order("created_at", { ascending: false });
+      .order("created_at", {
+        ascending: false,
+      });
 
     const db = data || [];
-    const official = db.filter((r) => r.is_official);
-    const community = db.filter((r) => !r.is_official);
+
+    const official = db.filter(
+      (r) => r.is_official
+    );
+
+    const community = db.filter(
+      (r) => !r.is_official
+    );
 
     setRooms([
-      ...(official.length ? official : roomsDefault),
+      ...(official.length
+        ? official
+        : roomsDefault),
       ...community,
     ]);
   }
@@ -1648,28 +1947,52 @@ export default function Home() {
     const { data } = await supabase
       .from("user_inventory")
       .select("item_id")
-      .eq("user_id", session.user.id);
+      .eq(
+        "user_id",
+        session.user.id
+      );
 
-    setOwned((data || []).map((x) => x.item_id));
+    setOwned(
+      (data || []).map(
+        (x) => x.item_id
+      )
+    );
   }
 
   async function buyItem(item) {
-    if (owned.includes(item.id) || points < item.price) {
-      if (points < item.price)
-        alert("WHO Points insufficienti.");
+    if (
+      owned.includes(item.id) ||
+      points < item.price
+    ) {
+      if (points < item.price) {
+        alert(
+          "WHO Points insufficienti."
+        );
+      }
+
       return;
     }
 
-    const newPoints = points - item.price;
+    const newPoints =
+      points - item.price;
 
     const update = await supabase
       .from("profiles")
-      .update({ who_points: newPoints })
-      .eq("id", session.user.id)
+      .update({
+        who_points: newPoints,
+      })
+      .eq(
+        "id",
+        session.user.id
+      )
       .select()
       .single();
 
-    if (update.error) return alert(update.error.message);
+    if (update.error) {
+      return alert(
+        update.error.message
+      );
+    }
 
     const inventory = await supabase
       .from("user_inventory")
@@ -1678,19 +2001,31 @@ export default function Home() {
         item_id: item.id,
       });
 
-    if (inventory.error) return alert(inventory.error.message);
+    if (inventory.error) {
+      return alert(
+        inventory.error.message
+      );
+    }
 
     setPoints(newPoints);
-    setOwned((old) => [...old, item.id]);
+
+    setOwned((old) => [
+      ...old,
+      item.id,
+    ]);
   }
 
-  function Avatar({ name, size = 46 }) {
+  function Avatar({
+    name,
+    size = 46,
+  }) {
     return (
       <img
         src={avatarImage(name)}
         alt=""
         onError={(e) => {
-          e.currentTarget.src = "/shadow.png";
+          e.currentTarget.src =
+            "/shadow.png";
         }}
         style={{
           width: size,
@@ -1698,7 +2033,8 @@ export default function Home() {
           objectFit: "cover",
           borderRadius: "50%",
           flexShrink: 0,
-          border: "1px solid rgba(200,100,255,.35)",
+          border:
+            "1px solid rgba(200,100,255,.35)",
         }}
       />
     );
@@ -1713,13 +2049,16 @@ export default function Home() {
           fontWeight: 900,
           lineHeight: 1.12,
           letterSpacing: "-1.5px",
-          padding: "5px 6px 6px 2px",
+          padding:
+            "5px 6px 6px 2px",
           display: "inline-block",
           overflow: "visible",
           background:
             "linear-gradient(90deg,#ffffff 0%,#f0b4ff 35%,#9b63ff 68%,#6eeeff 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
+          WebkitBackgroundClip:
+            "text",
+          WebkitTextFillColor:
+            "transparent",
         }}
       >
         WHO
@@ -1737,10 +2076,14 @@ export default function Home() {
           right: 0,
           zIndex: 100,
           display: "grid",
-          gridTemplateColumns: "repeat(4,1fr)",
-          background: "rgba(7,5,10,.98)",
-          borderTop: `1px solid ${C.border}`,
-          padding: "8px 4px 12px",
+          gridTemplateColumns:
+            "repeat(4,1fr)",
+          background:
+            "rgba(7,5,10,.98)",
+          borderTop:
+            `1px solid ${C.border}`,
+          padding:
+            "8px 4px 12px",
         }}
       >
         {[
@@ -1748,34 +2091,62 @@ export default function Home() {
           ["rooms", "◉", "Stanze"],
           ["shop", "◇", "Shop"],
           ["profile", "●", "Profilo"],
-        ].map(([id, icon, label]) => (
-          <button
-            key={id}
-            onClick={() => setPage(id)}
-            style={{
-              border: 0,
-              background: "transparent",
-              color: page === id ? "#edaaff" : "#776d7b",
-              fontWeight: 900,
-              fontSize: 10,
-            }}
-          >
-            <div style={{ fontSize: 19 }}>{icon}</div>
-            {label}
-          </button>
-        ))}
+        ].map(
+          ([id, icon, label]) => (
+            <button
+              key={id}
+              onClick={() => {
+                /*
+                  Se usciamo da Stanze chiudiamo
+                  il pannello di gestione.
+                */
+                if (id !== "rooms") {
+                  setRoomPanel(null);
+                }
+
+                setPage(id);
+              }}
+              style={{
+                border: 0,
+                background:
+                  "transparent",
+                color:
+                  page === id
+                    ? "#edaaff"
+                    : "#776d7b",
+                fontWeight: 900,
+                fontSize: 10,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 19,
+                }}
+              >
+                {icon}
+              </div>
+
+              {label}
+            </button>
+          )
+        )}
       </nav>
     );
   }
 
-  function ReplyBox({ data, cancel }) {
+  function ReplyBox({
+    data,
+    cancel,
+  }) {
     if (!data) return null;
 
     return (
       <div
         style={{
-          background: "rgba(181,76,255,.08)",
-          borderLeft: "2px solid #c75cff",
+          background:
+            "rgba(181,76,255,.08)",
+          borderLeft:
+            "2px solid #c75cff",
           borderRadius: 10,
           padding: "7px 9px",
           marginBottom: 6,
@@ -1783,10 +2154,21 @@ export default function Home() {
         }}
       >
         <div style={{ flex: 1 }}>
-          <strong style={{ color: "#df9cff", fontSize: 10 }}>
+          <strong
+            style={{
+              color: "#df9cff",
+              fontSize: 10,
+            }}
+          >
             ↩ @{data.nickname}
           </strong>
-          <div style={{ color: C.muted, fontSize: 10 }}>
+
+          <div
+            style={{
+              color: C.muted,
+              fontSize: 10,
+            }}
+          >
             {data.content}
           </div>
         </div>
@@ -1795,7 +2177,8 @@ export default function Home() {
           onClick={cancel}
           style={{
             border: 0,
-            background: "transparent",
+            background:
+              "transparent",
             color: "#aaa",
           }}
         >
@@ -1833,14 +2216,30 @@ export default function Home() {
             padding: "80px 20px",
           }}
         >
-          <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: 30,
+            }}
+          >
             <Logo />
-            <div style={{ color: C.muted }}>
-              Nessun nome. Nessun giudizio. Solo WHO.
+
+            <div
+              style={{
+                color: C.muted,
+              }}
+            >
+              Nessun nome. Nessun
+              giudizio. Solo WHO.
             </div>
           </div>
 
-          <div style={{ ...card, padding: 20 }}>
+          <div
+            style={{
+              ...card,
+              padding: 20,
+            }}
+          >
             <h2>
               {authMode === "login"
                 ? "Bentornato in WHO"
@@ -1850,7 +2249,11 @@ export default function Home() {
             <input
               value={nickname}
               onChange={(e) =>
-                setNickname(cleanNickname(e.target.value))
+                setNickname(
+                  cleanNickname(
+                    e.target.value
+                  )
+                )
               }
               placeholder="Nickname"
               style={input}
@@ -1859,19 +2262,35 @@ export default function Home() {
             <input
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) =>
+                setPassword(
+                  e.target.value
+                )
+              }
               placeholder="Password"
-              style={{ ...input, marginTop: 9 }}
+              style={{
+                ...input,
+                marginTop: 9,
+              }}
             />
 
             {authError && (
-              <div style={{ color: "#ff9ab6", marginTop: 10 }}>
+              <div
+                style={{
+                  color: "#ff9ab6",
+                  marginTop: 10,
+                }}
+              >
                 {authError}
               </div>
             )}
 
             <button
-              onClick={authMode === "login" ? login : register}
+              onClick={
+                authMode === "login"
+                  ? login
+                  : register
+              }
               style={{
                 ...purpleButton,
                 width: "100%",
@@ -1879,18 +2298,23 @@ export default function Home() {
                 marginTop: 14,
               }}
             >
-              {authMode === "login" ? "ACCEDI" : "CREA ACCOUNT"}
+              {authMode === "login"
+                ? "ACCEDI"
+                : "CREA ACCOUNT"}
             </button>
 
             <button
               onClick={() =>
                 setAuthMode(
-                  authMode === "login" ? "register" : "login"
+                  authMode === "login"
+                    ? "register"
+                    : "login"
                 )
               }
               style={{
                 width: "100%",
-                background: "transparent",
+                background:
+                  "transparent",
                 border: 0,
                 color: "#d996f1",
                 marginTop: 14,
@@ -1924,20 +2348,28 @@ export default function Home() {
             padding: 20,
           }}
         >
-          <h1>Scegli la tua identità</h1>
+          <h1>
+            Scegli la tua identità
+          </h1>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2,1fr)",
+              gridTemplateColumns:
+                "repeat(2,1fr)",
               gap: 10,
             }}
           >
             {available.map((a) => (
               <button
                 key={a.name}
-                onClick={() => selectAvatar(a.name)}
-                style={{ ...card, padding: 13 }}
+                onClick={() =>
+                  selectAvatar(a.name)
+                }
+                style={{
+                  ...card,
+                  padding: 13,
+                }}
               >
                 <img
                   src={a.image}
@@ -1945,27 +2377,36 @@ export default function Home() {
                   style={{
                     width: 105,
                     height: 105,
-                    borderRadius: "50%",
-                    objectFit: "cover",
+                    borderRadius:
+                      "50%",
+                    objectFit:
+                      "cover",
                   }}
                 />
 
                 <div
                   style={{
                     color:
-                      avatar === a.name ? "#efaaff" : C.muted,
+                      avatar ===
+                      a.name
+                        ? "#efaaff"
+                        : C.muted,
                     marginTop: 8,
                     fontWeight: 900,
                   }}
                 >
-                  {avatar === a.name ? "✓ SELEZIONATO" : "SCEGLI"}
+                  {avatar === a.name
+                    ? "✓ SELEZIONATO"
+                    : "SCEGLI"}
                 </div>
               </button>
             ))}
           </div>
 
           <button
-            onClick={() => setStarted(true)}
+            onClick={() =>
+              setStarted(true)
+            }
             style={{
               ...purpleButton,
               width: "100%",
@@ -1985,6 +2426,16 @@ export default function Home() {
      ====================================================== */
 
   if (page === "rooms") {
+    /*
+      Protezione aggiuntiva:
+      se per qualsiasi motivo il pannello manage fosse rimasto aperto,
+      viene mostrato SOLO se l'account attuale può davvero gestire
+      la stanza.
+    */
+    const showManagement =
+      roomPanel === "manage" &&
+      canManageRoom(activeRoom);
+
     return (
       <main style={background}>
         <section
@@ -1997,11 +2448,18 @@ export default function Home() {
           <div
             style={{
               display: "flex",
-              justifyContent: "space-between",
+              justifyContent:
+                "space-between",
               alignItems: "center",
             }}
           >
-            <h1 style={{ fontFamily: displayFont, fontSize: 35 }}>
+            <h1
+              style={{
+                fontFamily:
+                  displayFont,
+                fontSize: 35,
+              }}
+            >
               Stanze
             </h1>
 
@@ -2010,29 +2468,55 @@ export default function Home() {
                 setRoomName("");
                 setRoomDescription("");
                 setRoomPrivate(false);
-                setRoomPanel("create");
+                setRoomPanel(
+                  "create"
+                );
               }}
-              style={{ ...purpleButton, padding: "11px 14px" }}
+              style={{
+                ...purpleButton,
+                padding:
+                  "11px 14px",
+              }}
             >
               ＋ CREA
             </button>
           </div>
 
-          {roomPanel === "create" && (
-            <div style={{ ...card, padding: 16, marginBottom: 15 }}>
-              <strong>CREA GRUPPO</strong>
+          {roomPanel ===
+            "create" && (
+            <div
+              style={{
+                ...card,
+                padding: 16,
+                marginBottom: 15,
+              }}
+            >
+              <strong>
+                CREA GRUPPO
+              </strong>
 
               <input
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
+                onChange={(e) =>
+                  setRoomName(
+                    e.target.value
+                  )
+                }
                 placeholder="Nome gruppo"
-                style={{ ...input, marginTop: 12 }}
+                style={{
+                  ...input,
+                  marginTop: 12,
+                }}
               />
 
               <textarea
-                value={roomDescription}
+                value={
+                  roomDescription
+                }
                 onChange={(e) =>
-                  setRoomDescription(e.target.value)
+                  setRoomDescription(
+                    e.target.value
+                  )
                 }
                 placeholder="Descrizione"
                 style={{
@@ -2043,7 +2527,11 @@ export default function Home() {
               />
 
               <button
-                onClick={() => setRoomPrivate(!roomPrivate)}
+                onClick={() =>
+                  setRoomPrivate(
+                    !roomPrivate
+                  )
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2066,11 +2554,15 @@ export default function Home() {
                   marginTop: 9,
                 }}
               >
-                {roomBusy ? "CREAZIONE…" : "CREA GRUPPO"}
+                {roomBusy
+                  ? "CREAZIONE…"
+                  : "CREA GRUPPO"}
               </button>
 
               <button
-                onClick={() => setRoomPanel(null)}
+                onClick={() =>
+                  setRoomPanel(null)
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2083,20 +2575,39 @@ export default function Home() {
             </div>
           )}
 
-          {roomPanel === "manage" && (
-            <div style={{ ...card, padding: 16, marginBottom: 15 }}>
-              <strong>⚙ GESTIONE GRUPPO</strong>
+          {showManagement && (
+            <div
+              style={{
+                ...card,
+                padding: 16,
+                marginBottom: 15,
+              }}
+            >
+              <strong>
+                ⚙ GESTIONE GRUPPO
+              </strong>
 
               <input
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                style={{ ...input, marginTop: 12 }}
+                onChange={(e) =>
+                  setRoomName(
+                    e.target.value
+                  )
+                }
+                style={{
+                  ...input,
+                  marginTop: 12,
+                }}
               />
 
               <textarea
-                value={roomDescription}
+                value={
+                  roomDescription
+                }
                 onChange={(e) =>
-                  setRoomDescription(e.target.value)
+                  setRoomDescription(
+                    e.target.value
+                  )
                 }
                 style={{
                   ...input,
@@ -2106,7 +2617,11 @@ export default function Home() {
               />
 
               <button
-                onClick={() => setRoomPrivate(!roomPrivate)}
+                onClick={() =>
+                  setRoomPrivate(
+                    !roomPrivate
+                  )
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2114,7 +2629,9 @@ export default function Home() {
                   marginTop: 8,
                 }}
               >
-                {roomPrivate ? "🔒 PRIVATO" : "🌐 PUBBLICO"}
+                {roomPrivate
+                  ? "🔒 PRIVATO"
+                  : "🌐 PUBBLICO"}
               </button>
 
               <button
@@ -2129,112 +2646,173 @@ export default function Home() {
                 SALVA MODIFICHE
               </button>
 
-              <h3>◆ MODERATORI</h3>
+              <h3>
+                ◆ MODERATORI
+              </h3>
 
-              <div style={{ display: "flex", gap: 6 }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                }}
+              >
                 <input
-                  value={moderatorNickname}
+                  value={
+                    moderatorNickname
+                  }
                   onChange={(e) =>
-                    setModeratorNickname(e.target.value)
+                    setModeratorNickname(
+                      e.target.value
+                    )
                   }
                   placeholder="@nickname"
                   style={input}
                 />
 
                 <button
-                  onClick={addRoomModerator}
-                  style={{ ...purpleButton, padding: "0 15px" }}
+                  onClick={
+                    addRoomModerator
+                  }
+                  style={{
+                    ...purpleButton,
+                    padding:
+                      "0 15px",
+                  }}
                 >
                   ＋
                 </button>
               </div>
 
-              {roomModerators.map((mod) => (
-                <div
-                  key={mod.user_id}
-                  style={{
-                    ...card,
-                    padding: 9,
-                    marginTop: 7,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Avatar
-                    name={mod.profile?.avatar || "Shadow"}
-                    size={32}
-                  />
-
-                  <strong style={{ flex: 1 }}>
-                    @{mod.profile?.nickname || "WHO"} · ◆ MOD
-                  </strong>
-
-                  <button
-                    onClick={() =>
-                      removeRoomModerator(mod.user_id)
+              {roomModerators.map(
+                (mod) => (
+                  <div
+                    key={
+                      mod.user_id
                     }
-                    style={{ ...tinyButton, color: C.red }}
+                    style={{
+                      ...card,
+                      padding: 9,
+                      marginTop: 7,
+                      display: "flex",
+                      alignItems:
+                        "center",
+                      gap: 8,
+                    }}
                   >
-                    RIMUOVI
-                  </button>
-                </div>
-              ))}
+                    <Avatar
+                      name={
+                        mod.profile
+                          ?.avatar ||
+                        "Shadow"
+                      }
+                      size={32}
+                    />
+
+                    <strong
+                      style={{
+                        flex: 1,
+                      }}
+                    >
+                      @
+                      {mod.profile
+                        ?.nickname ||
+                        "WHO"}{" "}
+                      · ◆ MOD
+                    </strong>
+
+                    <button
+                      onClick={() =>
+                        removeRoomModerator(
+                          mod.user_id
+                        )
+                      }
+                      style={{
+                        ...tinyButton,
+                        color: C.red,
+                      }}
+                    >
+                      RIMUOVI
+                    </button>
+                  </div>
+                )
+              )}
 
               <h3>⛔ SANZIONI</h3>
 
-              {roomSanctions.length === 0 && (
-                <div style={{ color: C.muted, fontSize: 11 }}>
-                  Nessuna sanzione attiva.
+              {roomSanctions.length ===
+                0 && (
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 11,
+                  }}
+                >
+                  Nessuna sanzione
+                  attiva.
                 </div>
               )}
 
-              {roomSanctions.map((item) => (
-                <div
-                  key={`${item.user_id}-${item.sanction_type}`}
-                  style={{
-                    ...card,
-                    padding: 10,
-                    marginTop: 7,
-                  }}
-                >
-                  <strong>
-                    @{item.profile?.nickname || "WHO"}
-                  </strong>
-
+              {roomSanctions.map(
+                (item) => (
                   <div
+                    key={`${item.user_id}-${item.sanction_type}`}
                     style={{
-                      color:
-                        item.sanction_type === "BAN"
-                          ? C.red
-                          : C.pink,
-                      marginTop: 4,
-                    }}
-                  >
-                    {item.sanction_type === "BAN"
-                      ? "⛔ BANNATO"
-                      : "🔇 SILENZIATO"}
-                  </div>
-
-                  <button
-                    onClick={() => removeRoomSanction(item)}
-                    style={{
-                      ...tinyButton,
-                      color: C.green,
+                      ...card,
+                      padding: 10,
                       marginTop: 7,
                     }}
                   >
-                    {item.sanction_type === "BAN"
-                      ? "✓ SBANNA"
-                      : "✓ RIMUOVI MUTE"}
-                  </button>
-                </div>
-              ))}
+                    <strong>
+                      @
+                      {item.profile
+                        ?.nickname ||
+                        "WHO"}
+                    </strong>
+
+                    <div
+                      style={{
+                        color:
+                          item.sanction_type ===
+                          "BAN"
+                            ? C.red
+                            : C.pink,
+                        marginTop: 4,
+                      }}
+                    >
+                      {item.sanction_type ===
+                      "BAN"
+                        ? "⛔ BANNATO"
+                        : "🔇 SILENZIATO"}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        removeRoomSanction(
+                          item
+                        )
+                      }
+                      style={{
+                        ...tinyButton,
+                        color:
+                          C.green,
+                        marginTop: 7,
+                      }}
+                    >
+                      {item.sanction_type ===
+                      "BAN"
+                        ? "✓ SBANNA"
+                        : "✓ RIMUOVI MUTE"}
+                    </button>
+                  </div>
+                )
+              )}
 
               {!activeRoom?.is_official && (
                 <button
                   onClick={() =>
-                    deleteCommunityRoom(activeRoom)
+                    deleteCommunityRoom(
+                      activeRoom
+                    )
                   }
                   style={{
                     width: "100%",
@@ -2243,7 +2821,8 @@ export default function Home() {
                     borderRadius: 12,
                     border:
                       "1px solid rgba(255,114,149,.3)",
-                    background: "rgba(255,50,90,.07)",
+                    background:
+                      "rgba(255,50,90,.07)",
                     color: C.red,
                   }}
                 >
@@ -2252,7 +2831,9 @@ export default function Home() {
               )}
 
               <button
-                onClick={() => setRoomPanel(null)}
+                onClick={() =>
+                  setRoomPanel(null)
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2276,21 +2857,31 @@ export default function Home() {
             >
               <button
                 onClick={() => {
+                  setRoomPanel(null);
+                  setModerationMessage(
+                    null
+                  );
                   setActiveRoom(r);
                   setPage("chat");
-                  setChatMode("public");
-                  firstPublicLoadRef.current = true;
+                  setChatMode(
+                    "public"
+                  );
+                  firstPublicLoadRef.current =
+                    true;
                 }}
                 style={{
                   width: "100%",
                   border: 0,
-                  background: "transparent",
+                  background:
+                    "transparent",
                   color: "#fff",
                   textAlign: "left",
                 }}
               >
                 <strong>
-                  {r.is_private ? "🔒 " : "✦ "}
+                  {r.is_private
+                    ? "🔒 "
+                    : "✦ "}
                   {r.name}
                 </strong>
 
@@ -2306,10 +2897,12 @@ export default function Home() {
                   </span>
                 )}
 
-                {r.owner_id === session.user.id && (
+                {r.owner_id ===
+                  session.user.id && (
                   <span
                     style={{
-                      color: "#e8a0ff",
+                      color:
+                        "#e8a0ff",
                       fontSize: 8,
                       marginLeft: 7,
                     }}
@@ -2329,18 +2922,24 @@ export default function Home() {
                 </div>
               </button>
 
-              {canManageRoom(r) && !r.is_official && (
-                <button
-                  onClick={() => openRoomManagement(r)}
-                  style={{
-                    ...tinyButton,
-                    color: "#e5a2ff",
-                    marginTop: 8,
-                  }}
-                >
-                  ⚙ GESTISCI
-                </button>
-              )}
+              {canManageRoom(r) &&
+                !r.is_official && (
+                  <button
+                    onClick={() =>
+                      openRoomManagement(
+                        r
+                      )
+                    }
+                    style={{
+                      ...tinyButton,
+                      color:
+                        "#e5a2ff",
+                      marginTop: 8,
+                    }}
+                  >
+                    ⚙ GESTISCI
+                  </button>
+                )}
             </div>
           ))}
         </section>
@@ -2364,58 +2963,107 @@ export default function Home() {
             padding: 18,
           }}
         >
-          <h1 style={{ fontFamily: displayFont }}>WHO SHOP</h1>
+          <h1
+            style={{
+              fontFamily:
+                displayFont,
+            }}
+          >
+            WHO SHOP
+          </h1>
 
-          <div style={{ ...card, padding: 15, marginBottom: 15 }}>
+          <div
+            style={{
+              ...card,
+              padding: 15,
+              marginBottom: 15,
+            }}
+          >
             ✦ {points} WHO Points
           </div>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(2,1fr)",
+              gridTemplateColumns:
+                "repeat(2,1fr)",
               gap: 10,
             }}
           >
-            {shopItems.map((item) => (
-              <div
-                key={item.id}
-                style={{ ...card, overflow: "hidden" }}
-              >
-                <img
-                  src={item.image}
-                  alt=""
+            {shopItems.map(
+              (item) => (
+                <div
+                  key={item.id}
                   style={{
-                    width: "100%",
-                    height: 160,
-                    objectFit: "contain",
+                    ...card,
+                    overflow:
+                      "hidden",
                   }}
-                />
-
-                <div style={{ padding: 12 }}>
-                  <strong>{item.name}</strong>
-
-                  <div style={{ color: "#dc9aff", margin: "8px 0" }}>
-                    ✦ {item.price}
-                  </div>
-
-                  <button
-                    disabled={owned.includes(item.id)}
-                    onClick={() => buyItem(item)}
+                >
+                  <img
+                    src={
+                      item.image
+                    }
+                    alt=""
                     style={{
-                      ...purpleButton,
-                      width: "100%",
-                      padding: 10,
-                      opacity: owned.includes(item.id) ? 0.4 : 1,
+                      width:
+                        "100%",
+                      height: 160,
+                      objectFit:
+                        "contain",
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      padding: 12,
                     }}
                   >
-                    {owned.includes(item.id)
-                      ? "✓ POSSEDUTO"
-                      : "SBLOCCA"}
-                  </button>
+                    <strong>
+                      {item.name}
+                    </strong>
+
+                    <div
+                      style={{
+                        color:
+                          "#dc9aff",
+                        margin:
+                          "8px 0",
+                      }}
+                    >
+                      ✦ {item.price}
+                    </div>
+
+                    <button
+                      disabled={owned.includes(
+                        item.id
+                      )}
+                      onClick={() =>
+                        buyItem(item)
+                      }
+                      style={{
+                        ...purpleButton,
+                        width:
+                          "100%",
+                        padding: 10,
+                        opacity:
+                          owned.includes(
+                            item.id
+                          )
+                            ? 0.4
+                            : 1,
+                      }}
+                    >
+                      {owned.includes(
+                        item.id
+                      )
+                        ? "✓ POSSEDUTO"
+                        : "SBLOCCA"}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            )}
           </div>
         </section>
 
@@ -2438,14 +3086,23 @@ export default function Home() {
             padding: 20,
           }}
         >
-          <div style={{ textAlign: "center" }}>
-            <Avatar name={avatar} size={130} />
+          <div
+            style={{
+              textAlign: "center",
+            }}
+          >
+            <Avatar
+              name={avatar}
+              size={130}
+            />
+
             <h1>@{nickname}</h1>
 
             {isFounder && (
               <div
                 style={{
-                  color: "#e8a0ff",
+                  color:
+                    "#e8a0ff",
                   fontWeight: 900,
                 }}
               >
@@ -2457,158 +3114,275 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(3,1fr)",
+              gridTemplateColumns:
+                "repeat(3,1fr)",
               gap: 8,
               marginTop: 20,
             }}
           >
-            <div style={{ ...card, padding: 13 }}>
+            <div
+              style={{
+                ...card,
+                padding: 13,
+              }}
+            >
               <small>POINTS</small>
               <h2>✦ {points}</h2>
             </div>
 
-            <div style={{ ...card, padding: 13 }}>
+            <div
+              style={{
+                ...card,
+                padding: 13,
+              }}
+            >
               <small>VIBE</small>
               <h2>⚡ {vibe}</h2>
             </div>
 
-            <div style={{ ...card, padding: 13 }}>
+            <div
+              style={{
+                ...card,
+                padding: 13,
+              }}
+            >
               <small>LEVEL</small>
               <h2>{level}</h2>
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
-            <strong>STILE MESSAGGI</strong>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
+            <strong>
+              STILE MESSAGGI
+            </strong>
 
             <div
               style={{
-                background: "#09070c",
-                border: `1px solid ${C.border}`,
+                background:
+                  "#09070c",
+                border:
+                  `1px solid ${C.border}`,
                 borderRadius: 12,
                 padding: 12,
                 marginTop: 12,
-                color: getMessageColor(messageColor),
-                fontFamily: getMessageFont(messageFont),
+                color:
+                  getMessageColor(
+                    messageColor
+                  ),
+                fontFamily:
+                  getMessageFont(
+                    messageFont
+                  ),
               }}
             >
-              Questo è il mio stile WHO.
+              Questo è il mio stile
+              WHO.
             </div>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3,1fr)",
+                gridTemplateColumns:
+                  "repeat(3,1fr)",
                 gap: 7,
                 marginTop: 12,
               }}
             >
               {[
-                ["purple", "VIOLA"],
+                [
+                  "purple",
+                  "VIOLA",
+                ],
                 ["cyan", "CIANO"],
                 ["pink", "ROSA"],
                 ["red", "ROSSO"],
                 ["green", "VERDE"],
                 ["white", "BIANCO"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => {
-                    setMessageColor(value);
-                    saveMessageStyle(value, messageFont);
-                  }}
-                  style={{
-                    padding: 10,
-                    borderRadius: 11,
-                    border: `1px solid ${C.border}`,
-                    background: "#0c0910",
-                    color: getMessageColor(value),
-                  }}
-                >
-                  ● {label}
-                </button>
-              ))}
+              ].map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      setMessageColor(
+                        value
+                      );
+                      saveMessageStyle(
+                        value,
+                        messageFont
+                      );
+                    }}
+                    style={{
+                      padding: 10,
+                      borderRadius: 11,
+                      border:
+                        `1px solid ${C.border}`,
+                      background:
+                        "#0c0910",
+                      color:
+                        getMessageColor(
+                          value
+                        ),
+                    }}
+                  >
+                    ● {label}
+                  </button>
+                )
+              )}
             </div>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2,1fr)",
+                gridTemplateColumns:
+                  "repeat(2,1fr)",
                 gap: 7,
                 marginTop: 12,
               }}
             >
               {[
-                ["standard", "STANDARD"],
+                [
+                  "standard",
+                  "STANDARD",
+                ],
                 ["tech", "TECH"],
                 ["bold", "BOLD"],
-                ["elegant", "ELEGANT"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => {
-                    setMessageFont(value);
-                    saveMessageStyle(messageColor, value);
-                  }}
-                  style={{
-                    padding: 11,
-                    borderRadius: 11,
-                    border: `1px solid ${C.border}`,
-                    background: "#0c0910",
-                    color: "#fff",
-                    fontFamily: getMessageFont(value),
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+                [
+                  "elegant",
+                  "ELEGANT",
+                ],
+              ].map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => {
+                      setMessageFont(
+                        value
+                      );
+                      saveMessageStyle(
+                        messageColor,
+                        value
+                      );
+                    }}
+                    style={{
+                      padding: 11,
+                      borderRadius: 11,
+                      border:
+                        `1px solid ${C.border}`,
+                      background:
+                        "#0c0910",
+                      color: "#fff",
+                      fontFamily:
+                        getMessageFont(
+                          value
+                        ),
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              )}
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
-            <strong>PRIVACY MESSAGGI</strong>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
+            <strong>
+              PRIVACY MESSAGGI
+            </strong>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3,1fr)",
+                gridTemplateColumns:
+                  "repeat(3,1fr)",
                 gap: 6,
                 marginTop: 10,
               }}
             >
               {[
-                ["everyone", "TUTTI"],
+                [
+                  "everyone",
+                  "TUTTI",
+                ],
                 ["vibe", "VIBE"],
-                ["nobody", "NESSUNO"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => saveDmSettings(value)}
-                  style={{
-                    padding: 10,
-                    borderRadius: 12,
-                    border: `1px solid ${C.border}`,
-                    background:
-                      dmPrivacy === value
-                        ? "rgba(181,76,255,.18)"
-                        : "#0c0910",
-                    color: "#fff",
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
+                [
+                  "nobody",
+                  "NESSUNO",
+                ],
+              ].map(
+                ([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() =>
+                      saveDmSettings(
+                        value
+                      )
+                    }
+                    style={{
+                      padding: 10,
+                      borderRadius: 12,
+                      border:
+                        `1px solid ${C.border}`,
+                      background:
+                        dmPrivacy ===
+                        value
+                          ? "rgba(181,76,255,.18)"
+                          : "#0c0910",
+                      color: "#fff",
+                    }}
+                  >
+                    {label}
+                  </button>
+                )
+              )}
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
-            <strong>REPUTAZIONE</strong>
-            <h3 style={{ color: C.green }}>✓ IN REGOLA</h3>
-            <div style={{ color: C.muted }}>{reputation}/100</div>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
+            <strong>
+              REPUTAZIONE
+            </strong>
+
+            <h3
+              style={{
+                color: C.green,
+              }}
+            >
+              ✓ IN REGOLA
+            </h3>
+
+            <div
+              style={{
+                color: C.muted,
+              }}
+            >
+              {reputation}/100
+            </div>
           </div>
 
           <button
-            onClick={() => setStarted("identity")}
+            onClick={() =>
+              setStarted(
+                "identity"
+              )
+            }
             style={{
               ...card,
               width: "100%",
@@ -2626,9 +3400,11 @@ export default function Home() {
               padding: 15,
               marginTop: 10,
               borderRadius: 15,
-              background: "rgba(120,30,55,.15)",
+              background:
+                "rgba(120,30,55,.15)",
               color: "#ff9ab6",
-              border: "1px solid rgba(255,90,130,.3)",
+              border:
+                "1px solid rgba(255,90,130,.3)",
             }}
           >
             ESCI
@@ -2658,16 +3434,20 @@ export default function Home() {
           maxWidth: 650,
           height: "100%",
           margin: "0 auto",
-          padding: "12px 14px 76px",
-          boxSizing: "border-box",
+          padding:
+            "12px 14px 76px",
+          boxSizing:
+            "border-box",
           display: "flex",
-          flexDirection: "column",
+          flexDirection:
+            "column",
         }}
       >
         <header
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             minHeight: 58,
           }}
@@ -2675,8 +3455,15 @@ export default function Home() {
           <Logo />
 
           <button
-            onClick={() => setPage("rooms")}
-            style={{ ...card, padding: "8px 12px" }}
+            onClick={() => {
+              setRoomPanel(null);
+              setPage("rooms");
+            }}
+            style={{
+              ...card,
+              padding:
+                "8px 12px",
+            }}
           >
             ◉ Stanze
           </button>
@@ -2685,22 +3472,29 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr 1fr",
+            gridTemplateColumns:
+              "1fr 1fr",
             gap: 7,
             marginBottom: 9,
           }}
         >
           <button
             onClick={() => {
-              setChatMode("public");
-              setPrivateConversation(null);
+              setChatMode(
+                "public"
+              );
+              setPrivateConversation(
+                null
+              );
             }}
             style={{
               padding: 10,
               borderRadius: 12,
-              border: `1px solid ${C.border}`,
+              border:
+                `1px solid ${C.border}`,
               background:
-                chatMode === "public"
+                chatMode ===
+                "public"
                   ? "rgba(181,76,255,.17)"
                   : "#0d0911",
               color: "#fff",
@@ -2712,16 +3506,22 @@ export default function Home() {
 
           <button
             onClick={() => {
-              setChatMode("inbox");
-              setPrivateConversation(null);
+              setChatMode(
+                "inbox"
+              );
+              setPrivateConversation(
+                null
+              );
               loadPrivateData();
             }}
             style={{
               padding: 10,
               borderRadius: 12,
-              border: `1px solid ${C.border}`,
+              border:
+                `1px solid ${C.border}`,
               background:
-                chatMode !== "public"
+                chatMode !==
+                "public"
                   ? "rgba(181,76,255,.17)"
                   : "#0d0911",
               color: "#fff",
@@ -2729,579 +3529,939 @@ export default function Home() {
             }}
           >
             ✉ PRIVATI
-            {incomingRequests.length + totalUnreadPrivate > 0
-              ? ` · ${incomingRequests.length + totalUnreadPrivate}`
+            {incomingRequests.length +
+              totalUnreadPrivate >
+            0
+              ? ` · ${
+                  incomingRequests.length +
+                  totalUnreadPrivate
+                }`
               : ""}
           </button>
         </div>
 
-        {chatMode === "inbox" && !privateConversation && (
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            <h2>Richieste</h2>
-
-            {incomingRequests.map((req) => (
-              <div
-                key={req.id}
-                style={{ ...card, padding: 13, marginBottom: 8 }}
-              >
-                <strong>✉ Nuova richiesta privata</strong>
-
-                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
-                  <button
-                    onClick={() => acceptRequest(req)}
-                    style={{ ...purpleButton, flex: 1, padding: 10 }}
-                  >
-                    ACCETTA
-                  </button>
-
-                  <button
-                    onClick={() => declineRequest(req)}
-                    style={{
-                      ...card,
-                      flex: 1,
-                      padding: 10,
-                      color: C.red,
-                    }}
-                  >
-                    RIFIUTA
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <h2>Conversazioni</h2>
-
-            {conversations.map((conv) => {
-              const info = conversationDetails[conv.id];
-
-              return (
-                <button
-                  key={conv.id}
-                  onClick={() => openConversationFromList(conv)}
-                  style={{
-                    ...card,
-                    width: "100%",
-                    padding: 11,
-                    marginBottom: 7,
-                    display: "flex",
-                    gap: 10,
-                    textAlign: "left",
-                  }}
-                >
-                  <Avatar name={info?.avatar || "Shadow"} size={45} />
-
-                  <div style={{ flex: 1 }}>
-                    <strong>@{info?.nickname || "WHO"}</strong>
-                    <div style={{ color: C.muted, fontSize: 10 }}>
-                      {info?.lastMessage || "Nuova conversazione"}
-                    </div>
-                  </div>
-
-                  {info?.unread > 0 && (
-                    <strong style={{ color: C.pink }}>
-                      {info.unread}
-                    </strong>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {chatMode === "private" && privateConversation && (
-          <>
+        {chatMode ===
+          "inbox" &&
+          !privateConversation && (
             <div
-              style={{
-                ...card,
-                padding: 9,
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-              }}
-            >
-              <button
-                onClick={() => {
-                  setChatMode("inbox");
-                  setPrivateConversation(null);
-                }}
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  color: "#dda0ff",
-                }}
-              >
-                ‹
-              </button>
-
-              <Avatar name={privatePeer?.avatar} size={36} />
-
-              <strong style={{ flex: 1 }}>
-                @{privatePeer?.nickname}
-              </strong>
-
-              <button
-                onClick={() => blockUser(privatePeer?.id)}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  color: C.red,
-                }}
-              >
-                ⊘ BLOCCA
-              </button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {privateMessages.map((m) => {
-                const mine = m.sender_id === session.user.id;
-
-                return (
-                  <div
-                    key={m.id}
-                    style={{
-                      display: "flex",
-                      justifyContent: mine
-                        ? "flex-end"
-                        : "flex-start",
-                      margin: 7,
-                    }}
-                  >
-                    <div
-                      style={{
-                        ...card,
-                        maxWidth: "82%",
-                        padding: 10,
-                      }}
-                    >
-                      {m.content}
-
-                      <button
-                        onClick={() =>
-                          setPrivateReply({
-                            ...m,
-                            nickname: mine
-                              ? nickname
-                              : privatePeer?.nickname,
-                          })
-                        }
-                        style={{
-                          display: "block",
-                          border: 0,
-                          background: "transparent",
-                          color: C.pink,
-                          marginTop: 5,
-                        }}
-                      >
-                        ↩ RISPONDI
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-
-              <div ref={privateBottomRef} />
-            </div>
-
-            <ReplyBox
-              data={privateReply}
-              cancel={() => setPrivateReply(null)}
-            />
-
-            <div style={{ ...card, padding: 6, display: "flex" }}>
-              <input
-                value={privateMessage}
-                onChange={(e) =>
-                  setPrivateMessage(e.target.value)
-                }
-                placeholder="Messaggio privato..."
-                style={{
-                  flex: 1,
-                  background: "transparent",
-                  border: 0,
-                  color: "#fff",
-                  outline: 0,
-                  padding: 10,
-                }}
-              />
-
-              <button
-                onClick={sendPrivateMessage}
-                style={{ ...purpleButton, width: 45 }}
-              >
-                ➤
-              </button>
-            </div>
-          </>
-        )}
-
-        {chatMode === "public" && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 6,
-              }}
-            >
-              <div>
-                <small style={{ color: "#c879ef" }}>
-                  CHAT PUBBLICA
-                </small>
-
-                <div
-                  style={{
-                    fontFamily: displayFont,
-                    fontSize: 19,
-                  }}
-                >
-                  {activeRoom.name}
-                </div>
-
-                {myRoomRole && (
-                  <small style={{ color: "#e8a0ff" }}>
-                    {myRoomRole === "FOUNDER"
-                      ? "♛ WHO FOUNDER"
-                      : myRoomRole === "OWNER"
-                      ? "♛ OWNER"
-                      : "◆ MOD"}
-                  </small>
-                )}
-              </div>
-
-              <div style={{ color: C.muted, fontSize: 9 }}>
-                ⚡ VIBE {vibe}
-              </div>
-            </div>
-
-            {myRoomStatus?.banned && (
-              <div
-                style={{
-                  ...card,
-                  padding: 10,
-                  color: C.red,
-                  textAlign: "center",
-                  marginBottom: 6,
-                }}
-              >
-                ⛔ SEI STATO BANNATO DA QUESTA STANZA
-              </div>
-            )}
-
-            {myRoomStatus?.muted && (
-              <div
-                style={{
-                  ...card,
-                  padding: 10,
-                  color: C.pink,
-                  textAlign: "center",
-                  marginBottom: 6,
-                }}
-              >
-                🔇 SEI TEMPORANEAMENTE SILENZIATO
-              </div>
-            )}
-
-            <div
-              ref={publicChatRef}
-              onScroll={handlePublicScroll}
               style={{
                 flex: 1,
                 overflowY: "auto",
-                minHeight: 0,
               }}
             >
-              {messages.map((msg) => {
-                const mine = msg.user_id === session.user.id;
-                const positive = myVotes[msg.id] === "like";
-                const negative = myVotes[msg.id] === "dislike";
-                const reported = reportedMessages.includes(msg.id);
+              <h2>Richieste</h2>
 
-                return (
-                  <article
-                    key={msg.id}
+              {incomingRequests.map(
+                (req) => (
+                  <div
+                    key={req.id}
                     style={{
-                      background: mine
-                        ? "rgba(112,37,150,.10)"
-                        : "rgba(255,255,255,.018)",
-                      border:
-                        "1px solid rgba(190,100,255,.08)",
-                      borderRadius: 12,
-                      padding: 7,
-                      marginBottom: 5,
+                      ...card,
+                      padding: 13,
+                      marginBottom: 8,
                     }}
                   >
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <Avatar name={msg.avatar} size={32} />
+                    <strong>
+                      ✉ Nuova richiesta
+                      privata
+                    </strong>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        display:
+                          "flex",
+                        gap: 6,
+                        marginTop: 10,
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          acceptRequest(
+                            req
+                          )
+                        }
+                        style={{
+                          ...purpleButton,
+                          flex: 1,
+                          padding: 10,
+                        }}
+                      >
+                        ACCETTA
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          declineRequest(
+                            req
+                          )
+                        }
+                        style={{
+                          ...card,
+                          flex: 1,
+                          padding: 10,
+                          color: C.red,
+                        }}
+                      >
+                        RIFIUTA
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+
+              <h2>
+                Conversazioni
+              </h2>
+
+              {conversations.map(
+                (conv) => {
+                  const info =
+                    conversationDetails[
+                      conv.id
+                    ];
+
+                  return (
+                    <button
+                      key={
+                        conv.id
+                      }
+                      onClick={() =>
+                        openConversationFromList(
+                          conv
+                        )
+                      }
+                      style={{
+                        ...card,
+                        width:
+                          "100%",
+                        padding: 11,
+                        marginBottom: 7,
+                        display:
+                          "flex",
+                        gap: 10,
+                        textAlign:
+                          "left",
+                      }}
+                    >
+                      <Avatar
+                        name={
+                          info?.avatar ||
+                          "Shadow"
+                        }
+                        size={45}
+                      />
+
+                      <div
+                        style={{
+                          flex: 1,
+                        }}
+                      >
                         <strong>
-                          @{msg.nickname || "anonimo"}
+                          @
+                          {info?.nickname ||
+                            "WHO"}
                         </strong>
 
                         <div
                           style={{
-                            color: getMessageColor(
-                              msg.message_color
-                            ),
-                            fontFamily: getMessageFont(
-                              msg.message_font
-                            ),
-                            marginTop: 4,
+                            color:
+                              C.muted,
+                            fontSize: 10,
                           }}
                         >
-                          {renderMessageText(msg.content)}
+                          {info?.lastMessage ||
+                            "Nuova conversazione"}
                         </div>
+                      </div>
 
+                      {info?.unread >
+                        0 && (
+                        <strong
+                          style={{
+                            color:
+                              C.pink,
+                          }}
+                        >
+                          {
+                            info.unread
+                          }
+                        </strong>
+                      )}
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          )}
+
+        {chatMode ===
+          "private" &&
+          privateConversation && (
+            <>
+              <div
+                style={{
+                  ...card,
+                  padding: 9,
+                  display: "flex",
+                  alignItems:
+                    "center",
+                  gap: 9,
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setChatMode(
+                      "inbox"
+                    );
+                    setPrivateConversation(
+                      null
+                    );
+                  }}
+                  style={{
+                    background:
+                      "transparent",
+                    border: 0,
+                    color:
+                      "#dda0ff",
+                  }}
+                >
+                  ‹
+                </button>
+
+                <Avatar
+                  name={
+                    privatePeer?.avatar
+                  }
+                  size={36}
+                />
+
+                <strong
+                  style={{
+                    flex: 1,
+                  }}
+                >
+                  @
+                  {
+                    privatePeer?.nickname
+                  }
+                </strong>
+
+                <button
+                  onClick={() =>
+                    blockUser(
+                      privatePeer?.id
+                    )
+                  }
+                  style={{
+                    border: 0,
+                    background:
+                      "transparent",
+                    color: C.red,
+                  }}
+                >
+                  ⊘ BLOCCA
+                </button>
+              </div>
+
+              <div
+                style={{
+                  flex: 1,
+                  overflowY:
+                    "auto",
+                }}
+              >
+                {privateMessages.map(
+                  (m) => {
+                    const mine =
+                      m.sender_id ===
+                      session.user
+                        .id;
+
+                    return (
+                      <div
+                        key={m.id}
+                        style={{
+                          display:
+                            "flex",
+                          justifyContent:
+                            mine
+                              ? "flex-end"
+                              : "flex-start",
+                          margin: 7,
+                        }}
+                      >
                         <div
                           style={{
-                            display: "flex",
-                            gap: 4,
-                            flexWrap: "wrap",
-                            marginTop: 7,
+                            ...card,
+                            maxWidth:
+                              "82%",
+                            padding: 10,
                           }}
                         >
-                          <button
-                            onClick={() => setReplyingTo(msg)}
-                            style={tinyButton}
-                          >
-                            ↩
-                          </button>
-
-                          <button
-                            onClick={() => mentionUser(msg)}
-                            style={tinyButton}
-                          >
-                            @
-                          </button>
-
-                          {!mine && (
-                            <button
-                              onClick={() => requestPrivate(msg)}
-                              style={{
-                                ...tinyButton,
-                                color: "#e6a6ff",
-                              }}
-                            >
-                              ✉ PVT
-                            </button>
-                          )}
+                          {m.content}
 
                           <button
                             onClick={() =>
-                              voteMessage(msg, "like")
+                              setPrivateReply(
+                                {
+                                  ...m,
+                                  nickname:
+                                    mine
+                                      ? nickname
+                                      : privatePeer?.nickname,
+                                }
+                              )
                             }
                             style={{
-                              ...tinyButton,
-                              color: positive
-                                ? C.cyan
-                                : "#a999b1",
+                              display:
+                                "block",
+                              border: 0,
+                              background:
+                                "transparent",
+                              color:
+                                C.pink,
+                              marginTop: 5,
                             }}
                           >
-                            ♡ {Number(msg.likes || 0)}
+                            ↩ RISPONDI
                           </button>
-
-                          <button
-                            onClick={() =>
-                              voteMessage(msg, "dislike")
-                            }
-                            style={{
-                              ...tinyButton,
-                              color: negative
-                                ? C.pink
-                                : "#a999b1",
-                            }}
-                          >
-                            ♢− {Number(msg.dislikes || 0)}
-                          </button>
-
-                          {!mine && roomCanModerate && (
-                            <button
-                              onClick={() =>
-                                setModerationMessage(
-                                  moderationMessage?.id === msg.id
-                                    ? null
-                                    : msg
-                                )
-                              }
-                              style={{
-                                ...tinyButton,
-                                color: "#ffad65",
-                              }}
-                            >
-                              ⚙ MOD
-                            </button>
-                          )}
-
-                          {!mine && (
-                            <button
-                              disabled={reported}
-                              onClick={() => reportMessage(msg)}
-                              style={{
-                                ...tinyButton,
-                                marginLeft: "auto",
-                                color: C.red,
-                                opacity: reported ? 0.4 : 1,
-                              }}
-                            >
-                              ⚑
-                            </button>
-                          )}
                         </div>
-
-                        {moderationMessage?.id === msg.id && (
-                          <div
-                            style={{
-                              ...card,
-                              padding: 8,
-                              marginTop: 7,
-                            }}
-                          >
-                            <div
-                              style={{
-                                color: C.muted,
-                                fontSize: 9,
-                                marginBottom: 6,
-                              }}
-                            >
-                              MODERA @{msg.nickname}
-                            </div>
-
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 5,
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <button
-                                onClick={() =>
-                                  muteFromRoom(msg, 10)
-                                }
-                                style={tinyButton}
-                              >
-                                🔇 10 MIN
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  muteFromRoom(msg, 60)
-                                }
-                                style={tinyButton}
-                              >
-                                🔇 1H
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  muteFromRoom(msg, 1440)
-                                }
-                                style={tinyButton}
-                              >
-                                🔇 24H
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  muteFromRoom(msg, 10080)
-                                }
-                                style={tinyButton}
-                              >
-                                🔇 7G
-                              </button>
-
-                              <button
-                                onClick={() => banFromRoom(msg)}
-                                style={{
-                                  ...tinyButton,
-                                  color: C.red,
-                                }}
-                              >
-                                ⛔ BAN
-                              </button>
-                            </div>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  </article>
-                );
-              })}
+                    );
+                  }
+                )}
 
-              <div ref={publicBottomRef} />
-            </div>
+                <div
+                  ref={
+                    privateBottomRef
+                  }
+                />
+              </div>
 
-            <div style={{ paddingTop: 5 }}>
               <ReplyBox
-                data={replyingTo}
-                cancel={() => setReplyingTo(null)}
+                data={
+                  privateReply
+                }
+                cancel={() =>
+                  setPrivateReply(
+                    null
+                  )
+                }
               />
 
               <div
                 style={{
                   ...card,
-                  padding: 5,
+                  padding: 6,
                   display: "flex",
-                  gap: 5,
                 }}
               >
                 <input
-                  disabled={
-                    myRoomStatus?.banned ||
-                    myRoomStatus?.muted
+                  value={
+                    privateMessage
                   }
-                  value={message}
-                  maxLength={500}
-                  onChange={(e) => setMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder={
-                    myRoomStatus?.banned
-                      ? "Sei bannato"
-                      : myRoomStatus?.muted
-                      ? "Sei silenziato"
-                      : "Scrivi qualcosa..."
+                  onChange={(e) =>
+                    setPrivateMessage(
+                      e.target.value
+                    )
                   }
+                  placeholder="Messaggio privato..."
                   style={{
                     flex: 1,
-                    minWidth: 0,
-                    background: "transparent",
+                    background:
+                      "transparent",
                     border: 0,
-                    color: getMessageColor(messageColor),
-                    fontFamily: getMessageFont(messageFont),
+                    color: "#fff",
                     outline: 0,
-                    padding: "10px 9px",
+                    padding: 10,
                   }}
                 />
 
                 <button
-                  onClick={sendMessage}
-                  disabled={
-                    sending ||
-                    !message.trim() ||
-                    myRoomStatus?.banned ||
-                    myRoomStatus?.muted
+                  onClick={
+                    sendPrivateMessage
                   }
                   style={{
                     ...purpleButton,
-                    width: 42,
-                    opacity:
+                    width: 45,
+                  }}
+                >
+                  ➤
+                </button>
+              </div>
+            </>
+          )}
+
+        {chatMode ===
+          "public" && (
+            <>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent:
+                    "space-between",
+                  marginBottom: 6,
+                }}
+              >
+                <div>
+                  <small
+                    style={{
+                      color:
+                        "#c879ef",
+                    }}
+                  >
+                    CHAT PUBBLICA
+                  </small>
+
+                  <div
+                    style={{
+                      fontFamily:
+                        displayFont,
+                      fontSize: 19,
+                    }}
+                  >
+                    {
+                      activeRoom.name
+                    }
+                  </div>
+
+                  {myRoomRole && (
+                    <small
+                      style={{
+                        color:
+                          "#e8a0ff",
+                      }}
+                    >
+                      {myRoomRole ===
+                      "FOUNDER"
+                        ? "♛ WHO FOUNDER"
+                        : myRoomRole ===
+                          "OWNER"
+                        ? "♛ OWNER"
+                        : "◆ MOD"}
+                    </small>
+                  )}
+                </div>
+
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 9,
+                  }}
+                >
+                  ⚡ VIBE {vibe}
+                </div>
+              </div>
+
+              {myRoomStatus?.banned && (
+                <div
+                  style={{
+                    ...card,
+                    padding: 10,
+                    color: C.red,
+                    textAlign:
+                      "center",
+                    marginBottom: 6,
+                  }}
+                >
+                  ⛔ SEI STATO
+                  BANNATO DA QUESTA
+                  STANZA
+                </div>
+              )}
+
+              {/*
+                Se è bannato NON mostriamo anche il MUTE.
+                Risolve il doppio avviso visto durante il test.
+              */}
+              {!myRoomStatus?.banned &&
+                myRoomStatus?.muted && (
+                  <div
+                    style={{
+                      ...card,
+                      padding: 10,
+                      color:
+                        C.pink,
+                      textAlign:
+                        "center",
+                      marginBottom: 6,
+                    }}
+                  >
+                    🔇 SEI
+                    TEMPORANEAMENTE
+                    SILENZIATO
+                  </div>
+                )}
+
+              <div
+                ref={
+                  publicChatRef
+                }
+                onScroll={
+                  handlePublicScroll
+                }
+                style={{
+                  flex: 1,
+                  overflowY:
+                    "auto",
+                  minHeight: 0,
+                }}
+              >
+                {messages.map(
+                  (msg) => {
+                    const mine =
+                      msg.user_id ===
+                      session.user
+                        .id;
+
+                    const positive =
+                      myVotes[
+                        msg.id
+                      ] === "like";
+
+                    const negative =
+                      myVotes[
+                        msg.id
+                      ] ===
+                      "dislike";
+
+                    const reported =
+                      reportedMessages.includes(
+                        msg.id
+                      );
+
+                    return (
+                      <article
+                        key={
+                          msg.id
+                        }
+                        style={{
+                          background:
+                            mine
+                              ? "rgba(112,37,150,.10)"
+                              : "rgba(255,255,255,.018)",
+                          border:
+                            "1px solid rgba(190,100,255,.08)",
+                          borderRadius: 12,
+                          padding: 7,
+                          marginBottom: 5,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display:
+                              "flex",
+                            gap: 8,
+                          }}
+                        >
+                          <Avatar
+                            name={
+                              msg.avatar
+                            }
+                            size={32}
+                          />
+
+                          <div
+                            style={{
+                              flex: 1,
+                              minWidth: 0,
+                            }}
+                          >
+                            <strong>
+                              @
+                              {msg.nickname ||
+                                "anonimo"}
+                            </strong>
+
+                            <div
+                              style={{
+                                color:
+                                  getMessageColor(
+                                    msg.message_color
+                                  ),
+                                fontFamily:
+                                  getMessageFont(
+                                    msg.message_font
+                                  ),
+                                marginTop: 4,
+                              }}
+                            >
+                              {renderMessageText(
+                                msg.content
+                              )}
+                            </div>
+
+                            <div
+                              style={{
+                                display:
+                                  "flex",
+                                gap: 4,
+                                flexWrap:
+                                  "wrap",
+                                marginTop: 7,
+                              }}
+                            >
+                              <button
+                                onClick={() =>
+                                  setReplyingTo(
+                                    msg
+                                  )
+                                }
+                                style={
+                                  tinyButton
+                                }
+                              >
+                                ↩
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  mentionUser(
+                                    msg
+                                  )
+                                }
+                                style={
+                                  tinyButton
+                                }
+                              >
+                                @
+                              </button>
+
+                              {!mine && (
+                                <button
+                                  onClick={() =>
+                                    requestPrivate(
+                                      msg
+                                    )
+                                  }
+                                  style={{
+                                    ...tinyButton,
+                                    color:
+                                      "#e6a6ff",
+                                  }}
+                                >
+                                  ✉ PVT
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() =>
+                                  voteMessage(
+                                    msg,
+                                    "like"
+                                  )
+                                }
+                                style={{
+                                  ...tinyButton,
+                                  color:
+                                    positive
+                                      ? C.cyan
+                                      : "#a999b1",
+                                }}
+                              >
+                                ♡{" "}
+                                {Number(
+                                  msg.likes ||
+                                    0
+                                )}
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  voteMessage(
+                                    msg,
+                                    "dislike"
+                                  )
+                                }
+                                style={{
+                                  ...tinyButton,
+                                  color:
+                                    negative
+                                      ? C.pink
+                                      : "#a999b1",
+                                }}
+                              >
+                                ♢−{" "}
+                                {Number(
+                                  msg.dislikes ||
+                                    0
+                                )}
+                              </button>
+
+                              {!mine &&
+                                roomCanModerate && (
+                                  <button
+                                    onClick={() =>
+                                      setModerationMessage(
+                                        moderationMessage?.id ===
+                                          msg.id
+                                          ? null
+                                          : msg
+                                      )
+                                    }
+                                    style={{
+                                      ...tinyButton,
+                                      color:
+                                        "#ffad65",
+                                    }}
+                                  >
+                                    ⚙ MOD
+                                  </button>
+                                )}
+
+                              {!mine && (
+                                <button
+                                  disabled={
+                                    reported
+                                  }
+                                  onClick={() =>
+                                    reportMessage(
+                                      msg
+                                    )
+                                  }
+                                  style={{
+                                    ...tinyButton,
+                                    marginLeft:
+                                      "auto",
+                                    color:
+                                      C.red,
+                                    opacity:
+                                      reported
+                                        ? 0.4
+                                        : 1,
+                                  }}
+                                >
+                                  ⚑
+                                </button>
+                              )}
+                            </div>
+
+                            {moderationMessage?.id ===
+                              msg.id &&
+                              roomCanModerate && (
+                                <div
+                                  style={{
+                                    ...card,
+                                    padding: 8,
+                                    marginTop: 7,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      color:
+                                        C.muted,
+                                      fontSize: 9,
+                                      marginBottom: 6,
+                                    }}
+                                  >
+                                    MODERA @
+                                    {
+                                      msg.nickname
+                                    }
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      display:
+                                        "flex",
+                                      gap: 5,
+                                      flexWrap:
+                                        "wrap",
+                                    }}
+                                  >
+                                    <button
+                                      onClick={() =>
+                                        muteFromRoom(
+                                          msg,
+                                          10
+                                        )
+                                      }
+                                      style={
+                                        tinyButton
+                                      }
+                                    >
+                                      🔇 10 MIN
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        muteFromRoom(
+                                          msg,
+                                          60
+                                        )
+                                      }
+                                      style={
+                                        tinyButton
+                                      }
+                                    >
+                                      🔇 1H
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        muteFromRoom(
+                                          msg,
+                                          1440
+                                        )
+                                      }
+                                      style={
+                                        tinyButton
+                                      }
+                                    >
+                                      🔇 24H
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        muteFromRoom(
+                                          msg,
+                                          10080
+                                        )
+                                      }
+                                      style={
+                                        tinyButton
+                                      }
+                                    >
+                                      🔇 7G
+                                    </button>
+
+                                    <button
+                                      onClick={() =>
+                                        banFromRoom(
+                                          msg
+                                        )
+                                      }
+                                      style={{
+                                        ...tinyButton,
+                                        color:
+                                          C.red,
+                                      }}
+                                    >
+                                      ⛔ BAN
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  }
+                )}
+
+                <div
+                  ref={
+                    publicBottomRef
+                  }
+                />
+              </div>
+
+              <div
+                style={{
+                  paddingTop: 5,
+                }}
+              >
+                <ReplyBox
+                  data={
+                    replyingTo
+                  }
+                  cancel={() =>
+                    setReplyingTo(
+                      null
+                    )
+                  }
+                />
+
+                <div
+                  style={{
+                    ...card,
+                    padding: 5,
+                    display: "flex",
+                    gap: 5,
+                  }}
+                >
+                  <input
+                    disabled={
+                      myRoomStatus?.banned ||
+                      myRoomStatus?.muted
+                    }
+                    value={
+                      message
+                    }
+                    maxLength={
+                      500
+                    }
+                    onChange={(e) =>
+                      setMessage(
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (
+                        e.key ===
+                          "Enter" &&
+                        !e.shiftKey
+                      ) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    placeholder={
+                      myRoomStatus?.banned
+                        ? "Sei bannato"
+                        : myRoomStatus?.muted
+                        ? "Sei silenziato"
+                        : "Scrivi qualcosa..."
+                    }
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      background:
+                        "transparent",
+                      border: 0,
+                      color:
+                        getMessageColor(
+                          messageColor
+                        ),
+                      fontFamily:
+                        getMessageFont(
+                          messageFont
+                        ),
+                      outline: 0,
+                      padding:
+                        "10px 9px",
+                    }}
+                  />
+
+                  <button
+                    onClick={
+                      sendMessage
+                    }
+                    disabled={
+                      sending ||
                       !message.trim() ||
                       myRoomStatus?.banned ||
                       myRoomStatus?.muted
-                        ? 0.4
-                        : 1,
-                  }}
-                >
-                  {sending ? "…" : "➤"}
-                </button>
+                    }
+                    style={{
+                      ...purpleButton,
+                      width: 42,
+                      opacity:
+                        !message.trim() ||
+                        myRoomStatus?.banned ||
+                        myRoomStatus?.muted
+                          ? 0.4
+                          : 1,
+                    }}
+                  >
+                    {sending
+                      ? "…"
+                      : "➤"}
+                  </button>
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
       </section>
 
       <Nav />
