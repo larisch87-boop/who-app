@@ -246,52 +246,29 @@ export default function Home() {
   const [dmPrivacy, setDmPrivacy] = useState("vibe");
   const [dmMinVibe, setDmMinVibe] = useState(100);
 
-  const [messageColor, setMessageColor] =
-    useState("purple");
-  const [messageFont, setMessageFont] =
-    useState("standard");
+  const [messageColor, setMessageColor] = useState("purple");
+  const [messageFont, setMessageFont] = useState("standard");
 
   const [rooms, setRooms] = useState(roomsDefault);
-  const [activeRoom, setActiveRoom] =
-    useState(roomsDefault[0]);
+  const [activeRoom, setActiveRoom] = useState(roomsDefault[0]);
 
   const [roomPanel, setRoomPanel] = useState(null);
   const [roomName, setRoomName] = useState("");
-  const [roomDescription, setRoomDescription] =
-    useState("");
+  const [roomDescription, setRoomDescription] = useState("");
   const [roomPrivate, setRoomPrivate] = useState(false);
   const [roomBusy, setRoomBusy] = useState(false);
 
   const [roomModerators, setRoomModerators] = useState([]);
-  const [moderatorNickname, setModeratorNickname] =
-    useState("");
+  const [moderatorNickname, setModeratorNickname] = useState("");
   const [roomSanctions, setRoomSanctions] = useState([]);
 
-  /*
-   * GRUPPI PRIVATI
-   *
-   * roomAccessMap:
-   * {
-   *   roomId: {
-   *      allowed: true/false,
-   *      member: true/false,
-   *      role: "MEMBER"/"MOD"/"OWNER",
-   *      status: "PENDING"/"APPROVED"/"REJECTED"/null
-   *   }
-   * }
-   */
-
   const [roomAccessMap, setRoomAccessMap] = useState({});
-  const [roomJoinRequests, setRoomJoinRequests] =
-    useState([]);
+  const [roomJoinRequests, setRoomJoinRequests] = useState([]);
   const [roomMembers, setRoomMembers] = useState([]);
-  const [roomAccessBusy, setRoomAccessBusy] =
-    useState(null);
+  const [roomAccessBusy, setRoomAccessBusy] = useState(null);
 
-  const [moderationMessage, setModerationMessage] =
-    useState(null);
-  const [roomCanModerate, setRoomCanModerate] =
-    useState(false);
+  const [moderationMessage, setModerationMessage] = useState(null);
+  const [roomCanModerate, setRoomCanModerate] = useState(false);
   const [myRoomRole, setMyRoomRole] = useState(null);
 
   const [myRoomStatus, setMyRoomStatus] = useState({
@@ -306,18 +283,15 @@ export default function Home() {
   const [sending, setSending] = useState(false);
 
   const [myVotes, setMyVotes] = useState({});
-  const [reportedMessages, setReportedMessages] =
-    useState([]);
+  const [reportedMessages, setReportedMessages] = useState([]);
 
   const [chatMode, setChatMode] = useState("public");
 
   const [requests, setRequests] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [conversationDetails, setConversationDetails] =
-    useState({});
+  const [conversationDetails, setConversationDetails] = useState({});
 
-  const [privateConversation, setPrivateConversation] =
-    useState(null);
+  const [privateConversation, setPrivateConversation] = useState(null);
   const [privatePeer, setPrivatePeer] = useState(null);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateMessage, setPrivateMessage] = useState("");
@@ -325,9 +299,7 @@ export default function Home() {
 
   const [blocked, setBlocked] = useState([]);
   const [owned, setOwned] = useState([]);
-
-  const [showNewMessages, setShowNewMessages] =
-    useState(false);
+  const [showNewMessages, setShowNewMessages] = useState(false);
 
   const publicChatRef = useRef(null);
   const publicBottomRef = useRef(null);
@@ -338,15 +310,11 @@ export default function Home() {
   const lastUserIdRef = useRef(null);
 
   const isFounder =
-    String(profile?.role || "").toUpperCase() ===
-    "FOUNDER";
+    String(profile?.role || "").toUpperCase() === "FOUNDER";
 
   const currentRoom = roomKey(activeRoom);
 
-  const level = Math.max(
-    1,
-    Math.floor(points / 250) + 1
-  );
+  const level = Math.max(1, Math.floor(points / 250) + 1);
 
   const incomingRequests = useMemo(
     () =>
@@ -396,8 +364,7 @@ export default function Home() {
 
   const purpleButton = {
     border: "1px solid rgba(220,110,255,.55)",
-    background:
-      "linear-gradient(135deg,#9c38cc,#5b1a7d)",
+    background: "linear-gradient(135deg,#9c38cc,#5b1a7d)",
     color: "#fff",
     borderRadius: 14,
     fontWeight: 900,
@@ -424,30 +391,20 @@ export default function Home() {
   function resetAccountState() {
     setPage("chat");
     setChatMode("public");
-
     setActiveRoom(roomsDefault[0]);
     setRooms(roomsDefault);
-
     setRoomPanel(null);
     setRoomName("");
     setRoomDescription("");
     setRoomPrivate(false);
     setRoomBusy(false);
-
     setRoomModerators([]);
     setModeratorNickname("");
     setRoomSanctions([]);
-
-    /*
-     * IMPORTANTISSIMO:
-     * cancelliamo anche tutti i dati di accesso
-     * quando cambia account.
-     */
     setRoomAccessMap({});
     setRoomJoinRequests([]);
     setRoomMembers([]);
     setRoomAccessBusy(null);
-
     setModerationMessage(null);
     setRoomCanModerate(false);
     setMyRoomRole(null);
@@ -462,20 +419,16 @@ export default function Home() {
     setMessage("");
     setReplyingTo(null);
     setSending(false);
-
     setMyVotes({});
     setReportedMessages([]);
-
     setRequests([]);
     setConversations([]);
     setConversationDetails({});
-
     setPrivateConversation(null);
     setPrivatePeer(null);
     setPrivateMessages([]);
     setPrivateMessage("");
     setPrivateReply(null);
-
     setBlocked([]);
     setOwned([]);
     setShowNewMessages(false);
@@ -483,10 +436,6 @@ export default function Home() {
     publicAtBottomRef.current = true;
     firstPublicLoadRef.current = true;
   }
-
-  /* ======================================================
-     AUTH
-     ====================================================== */
 
   useEffect(() => {
     let mounted = true;
@@ -497,41 +446,33 @@ export default function Home() {
       if (!mounted) return;
 
       const current = data?.session || null;
-
-      lastUserIdRef.current =
-        current?.user?.id || null;
-
+      lastUserIdRef.current = current?.user?.id || null;
       setSession(current);
       setLoading(false);
     }
 
     startAuth();
 
-    const { data: authData } =
-      supabase.auth.onAuthStateChange(
-        (_event, newSession) => {
-          const previousUserId =
-            lastUserIdRef.current;
+    const { data: authData } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        const previousUserId = lastUserIdRef.current;
+        const newUserId = newSession?.user?.id || null;
 
-          const newUserId =
-            newSession?.user?.id || null;
-
-          if (previousUserId !== newUserId) {
-            resetAccountState();
-          }
-
-          lastUserIdRef.current = newUserId;
-
-          setSession(newSession);
-
-          if (!newSession) {
-            setProfile(null);
-            setStarted(false);
-          }
-
-          setLoading(false);
+        if (previousUserId !== newUserId) {
+          resetAccountState();
         }
-      );
+
+        lastUserIdRef.current = newUserId;
+        setSession(newSession);
+
+        if (!newSession) {
+          setProfile(null);
+          setStarted(false);
+        }
+
+        setLoading(false);
+      }
+    );
 
     return () => {
       mounted = false;
@@ -579,7 +520,6 @@ export default function Home() {
 
     firstPublicLoadRef.current = true;
     publicAtBottomRef.current = true;
-
     setShowNewMessages(false);
     setModerationMessage(null);
     setRoomCanModerate(false);
@@ -614,14 +554,8 @@ export default function Home() {
       )
       .subscribe();
 
-    return () =>
-      supabase.removeChannel(channel);
-  }, [
-    session?.user?.id,
-    started,
-    currentRoom,
-    activeRoom?.id,
-  ]);
+    return () => supabase.removeChannel(channel);
+  }, [session?.user?.id, started, currentRoom, activeRoom?.id]);
 
   useEffect(() => {
     if (!session) return;
@@ -648,20 +582,14 @@ export default function Home() {
           await loadPrivateData();
 
           if (privateConversation) {
-            await loadPrivateMessages(
-              privateConversation.id
-            );
+            await loadPrivateMessages(privateConversation.id);
           }
         }
       )
       .subscribe();
 
-    return () =>
-      supabase.removeChannel(channel);
-  }, [
-    session?.user?.id,
-    privateConversation?.id,
-  ]);
+    return () => supabase.removeChannel(channel);
+  }, [session?.user?.id, privateConversation?.id]);
 
   useEffect(() => {
     if (
@@ -675,16 +603,9 @@ export default function Home() {
         });
       }, 80);
     }
-  }, [
-    privateMessages.length,
-    chatMode,
-    privateConversation?.id,
-  ]);
+  }, [privateMessages.length, chatMode, privateConversation?.id]);
 
-  async function loadProfile(
-    user,
-    preferredNickname = ""
-  ) {
+  async function loadProfile(user, preferredNickname = "") {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -698,19 +619,13 @@ export default function Home() {
 
     const preferred =
       cleanNickname(preferredNickname) ||
-      cleanNickname(
-        user.user_metadata?.username
-      ) ||
-      cleanNickname(
-        user.user_metadata?.nickname
-      );
+      cleanNickname(user.user_metadata?.username) ||
+      cleanNickname(user.user_metadata?.nickname);
 
     if (!data) {
       const username =
         preferred ||
-        cleanNickname(
-          user.email?.split("@")[0]
-        ) ||
+        cleanNickname(user.email?.split("@")[0]) ||
         `who_${user.id.slice(0, 8)}`;
 
       const created = await supabase
@@ -734,36 +649,25 @@ export default function Home() {
     }
 
     let finalProfile = data;
-
-    const currentNickname =
-      String(data.nickname || "");
-
-    const looksAutomatic =
-      /^who_[a-z0-9]{6,}$/i.test(
-        currentNickname
-      );
+    const currentNickname = String(data.nickname || "");
+    const looksAutomatic = /^who_[a-z0-9]{6,}$/i.test(currentNickname);
 
     if (
       preferred &&
       looksAutomatic &&
-      cleanNickname(currentNickname) !==
-        preferred
+      cleanNickname(currentNickname) !== preferred
     ) {
       const repaired = await supabase
         .from("profiles")
         .update({
           nickname: preferred,
-          updated_at:
-            new Date().toISOString(),
+          updated_at: new Date().toISOString(),
         })
         .eq("id", user.id)
         .select()
         .single();
 
-      if (
-        !repaired.error &&
-        repaired.data
-      ) {
+      if (!repaired.error && repaired.data) {
         finalProfile = repaired.data;
       }
     }
@@ -774,64 +678,39 @@ export default function Home() {
 
   function applyProfile(data) {
     setProfile(data);
-    setNickname(
-      data.nickname ||
-        data.username ||
-        ""
-    );
+    setNickname(data.nickname || data.username || "");
     setAvatar(data.avatar || "Shadow");
-    setPoints(
-      Number(data.who_points ?? 500)
-    );
+    setPoints(Number(data.who_points ?? 500));
     setVibe(Number(data.vibe ?? 100));
-    setReputation(
-      Number(data.reputation ?? 100)
-    );
-    setDmPrivacy(
-      data.dm_privacy || "vibe"
-    );
-    setDmMinVibe(
-      Number(data.dm_min_vibe ?? 100)
-    );
-    setMessageColor(
-      data.message_color || "purple"
-    );
-    setMessageFont(
-      data.message_font || "standard"
-    );
+    setReputation(Number(data.reputation ?? 100));
+    setDmPrivacy(data.dm_privacy || "vibe");
+    setDmMinVibe(Number(data.dm_min_vibe ?? 100));
+    setMessageColor(data.message_color || "purple");
+    setMessageFont(data.message_font || "standard");
   }
 
   async function register() {
-    const username =
-      cleanNickname(nickname);
+    const username = cleanNickname(nickname);
 
     if (username.length < 3) {
-      setAuthError(
-        "Nickname minimo 3 caratteri."
-      );
+      setAuthError("Nickname minimo 3 caratteri.");
       return;
     }
 
     if (password.length < 8) {
-      setAuthError(
-        "Password minimo 8 caratteri."
-      );
+      setAuthError("Password minimo 8 caratteri.");
       return;
     }
 
     setAuthError("");
 
-    const { data, error } =
-      await supabase.auth.signUp({
-        email: internalEmail(username),
-        password,
-        options: {
-          data: {
-            username,
-            nickname: username,
-          },
-        },
-      });
+    const { data, error } = await supabase.auth.signUp({
+      email: internalEmail(username),
+      password,
+      options: {
+        data: { username, nickname: username },
+      },
+    });
 
     if (error) {
       setAuthError(error.message);
@@ -853,59 +732,44 @@ export default function Home() {
           .from("profiles")
           .update({
             nickname: username,
-            updated_at:
-              new Date().toISOString(),
+            updated_at: new Date().toISOString(),
           })
           .eq("id", data.user.id);
       } else {
-        await supabase
-          .from("profiles")
-          .insert({
-            id: data.user.id,
-            nickname: username,
-            avatar: "Shadow",
-            message_color: "purple",
-            message_font: "standard",
-          });
+        await supabase.from("profiles").insert({
+          id: data.user.id,
+          nickname: username,
+          avatar: "Shadow",
+          message_color: "purple",
+          message_font: "standard",
+        });
       }
 
-      await loadProfile(
-        data.user,
-        username
-      );
-
+      await loadProfile(data.user, username);
       setStarted("identity");
     } else {
       setAuthMode("login");
-      setAuthError(
-        "Account creato. Ora accedi."
-      );
+      setAuthError("Account creato. Ora accedi.");
     }
   }
 
   async function login() {
-    const username =
-      cleanNickname(nickname);
+    const username = cleanNickname(nickname);
 
     if (!username) {
-      setAuthError(
-        "Inserisci il nickname."
-      );
+      setAuthError("Inserisci il nickname.");
       return;
     }
 
     setAuthError("");
 
-    const { error } =
-      await supabase.auth.signInWithPassword({
-        email: internalEmail(username),
-        password,
-      });
+    const { error } = await supabase.auth.signInWithPassword({
+      email: internalEmail(username),
+      password,
+    });
 
     if (error) {
-      setAuthError(
-        "Nickname o password non corretti."
-      );
+      setAuthError("Nickname o password non corretti.");
       return;
     }
 
@@ -914,255 +778,152 @@ export default function Home() {
 
   async function logout() {
     resetAccountState();
-
     setProfile(null);
     setStarted(false);
-
     await supabase.auth.signOut();
-
     lastUserIdRef.current = null;
     setSession(null);
-
     setNickname("");
     setPassword("");
     setAuthError("");
     setAuthMode("login");
-
     setAvatar("Shadow");
     setPoints(500);
     setVibe(100);
     setReputation(100);
-
     setDmPrivacy("vibe");
     setDmMinVibe(100);
-
     setMessageColor("purple");
     setMessageFont("standard");
   }
 
   async function selectAvatar(name) {
     if (!session) return;
+    if (name === "UNKNOWN" && !isFounder) return;
 
-    if (
-      name === "UNKNOWN" &&
-      !isFounder
-    )
-      return;
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        avatar: name,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
-    const { data, error } =
-      await supabase
-        .from("profiles")
-        .update({
-          avatar: name,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select()
-        .single();
-
-    if (!error && data) {
-      applyProfile(data);
-    }
+    if (!error && data) applyProfile(data);
   }
 
-  async function saveMessageStyle(
-    color,
-    fontStyle
-  ) {
+  async function saveMessageStyle(color, fontStyle) {
     if (!session) return;
 
-    const { data, error } =
-      await supabase
-        .from("profiles")
-        .update({
-          message_color: color,
-          message_font: fontStyle,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        message_color: color,
+        message_font: fontStyle,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
-    if (error) {
-      return alert(error.message);
-    }
-
+    if (error) return alert(error.message);
     applyProfile(data);
   }
 
-  async function saveDmSettings(
-    mode,
-    minimum = dmMinVibe
-  ) {
+  async function saveDmSettings(mode, minimum = dmMinVibe) {
     if (!session) return;
 
-    const min = Math.max(
-      0,
-      Number(minimum) || 0
-    );
+    const min = Math.max(0, Number(minimum) || 0);
 
-    const { data, error } =
-      await supabase
-        .from("profiles")
-        .update({
-          dm_privacy: mode,
-          dm_min_vibe: min,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq("id", session.user.id)
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        dm_privacy: mode,
+        dm_min_vibe: min,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
 
-    if (error) {
-      return alert(error.message);
-    }
-
+    if (error) return alert(error.message);
     applyProfile(data);
   }
 
-  /* ======================================================
-     GRUPPI PRIVATI — ACCESSO
-     ====================================================== */
-
-  async function loadRoomAccess(
-    roomList
-  ) {
+  async function loadRoomAccess(roomList) {
     if (!session) return;
 
     const uid = session.user.id;
+    const dbRooms = (roomList || []).filter((r) => isUuid(r.id));
+    const privateRooms = dbRooms.filter((r) => r.is_private);
 
-    const dbRooms = (
-      roomList || []
-    ).filter((r) => isUuid(r.id));
+    const { data: memberships } = await supabase
+      .from("room_members")
+      .select("room_id,role")
+      .eq("user_id", uid);
 
-    const privateRooms =
-      dbRooms.filter(
-        (r) => r.is_private
-      );
+    const { data: joinRequests } = await supabase
+      .from("room_join_requests")
+      .select("room_id,status")
+      .eq("user_id", uid);
 
-    const { data: memberships } =
-      await supabase
-        .from("room_members")
-        .select("room_id,role")
-        .eq("user_id", uid);
+    const membershipMap = new Map(
+      (memberships || []).map((m) => [m.room_id, m.role])
+    );
 
-    const { data: joinRequests } =
-      await supabase
-        .from("room_join_requests")
-        .select("room_id,status")
-        .eq("user_id", uid);
+    const requestMap = new Map(
+      (joinRequests || []).map((r) => [r.room_id, r.status])
+    );
 
-    const membershipMap =
-      new Map(
-        (memberships || []).map(
-          (m) => [
-            m.room_id,
-            m.role,
-          ]
-        )
-      );
+    const accessResults = await Promise.all(
+      privateRooms.map(async (room) => {
+        const { data } = await supabase.rpc("can_access_room", {
+          p_room_id: room.id,
+          p_user_id: uid,
+        });
 
-    const requestMap =
-      new Map(
-        (joinRequests || []).map(
-          (r) => [
-            r.room_id,
-            r.status,
-          ]
-        )
-      );
+        return [room.id, Boolean(data)];
+      })
+    );
 
-    const accessResults =
-      await Promise.all(
-        privateRooms.map(
-          async (room) => {
-            const { data } =
-              await supabase.rpc(
-                "can_access_room",
-                {
-                  p_room_id:
-                    room.id,
-                  p_user_id: uid,
-                }
-              );
-
-            return [
-              room.id,
-              Boolean(data),
-            ];
-          }
-        )
-      );
-
-    const allowedMap =
-      new Map(accessResults);
-
+    const allowedMap = new Map(accessResults);
     const map = {};
 
     for (const room of roomList || []) {
-      const role =
-        membershipMap.get(
-          room.id
-        ) || null;
+      const role = membershipMap.get(room.id) || null;
 
-      if (
-        !room.is_private ||
-        !isUuid(room.id)
-      ) {
+      if (!room.is_private || !isUuid(room.id)) {
         map[room.id] = {
           allowed: true,
-          member:
-            Boolean(role),
+          member: Boolean(role),
           role,
-          status:
-            requestMap.get(
-              room.id
-            ) || null,
+          status: requestMap.get(room.id) || null,
         };
-
         continue;
       }
 
       map[room.id] = {
-        allowed:
-          allowedMap.get(
-            room.id
-          ) === true,
-        member:
-          Boolean(role),
+        allowed: allowedMap.get(room.id) === true,
+        member: Boolean(role),
         role,
-        status:
-          requestMap.get(
-            room.id
-          ) || null,
+        status: requestMap.get(room.id) || null,
       };
     }
 
     setRoomAccessMap(map);
   }
 
-  async function requestRoomAccess(
-    room
-  ) {
-    if (
-      !session ||
-      !room ||
-      !isUuid(room.id)
-    )
-      return;
+  async function requestRoomAccess(room) {
+    if (!session || !room || !isUuid(room.id)) return;
 
     setRoomAccessBusy(room.id);
 
-    const { data, error } =
-      await supabase.rpc(
-        "request_room_access",
-        {
-          p_room_id: room.id,
-        }
-      );
+    const { data, error } = await supabase.rpc(
+      "request_room_access",
+      { p_room_id: room.id }
+    );
 
     setRoomAccessBusy(null);
 
@@ -1171,79 +932,47 @@ export default function Home() {
       return;
     }
 
-    setRoomAccessMap(
-      (old) => ({
-        ...old,
-        [room.id]: {
-          ...(old[room.id] || {}),
-          allowed:
-            data?.status ===
-            "ALREADY_MEMBER",
-          status:
-            data?.status ===
-            "ALREADY_MEMBER"
-              ? "APPROVED"
-              : data?.status ||
-                "PENDING",
-        },
-      })
-    );
+    setRoomAccessMap((old) => ({
+      ...old,
+      [room.id]: {
+        ...(old[room.id] || {}),
+        allowed: data?.status === "ALREADY_MEMBER",
+        status:
+          data?.status === "ALREADY_MEMBER"
+            ? "APPROVED"
+            : data?.status || "PENDING",
+      },
+    }));
 
-    if (
-      data?.status ===
-      "ALREADY_MEMBER"
-    ) {
+    if (data?.status === "ALREADY_MEMBER") {
       await loadRooms();
       return;
     }
 
-    alert(
-      "Richiesta inviata all'OWNER del gruppo."
-    );
-
+    alert("Richiesta inviata all'OWNER del gruppo.");
     await loadRooms();
   }
 
   async function enterRoom(room) {
     if (!room) return;
 
-    if (
-      room.is_private &&
-      isUuid(room.id)
-    ) {
-      const { data, error } =
-        await supabase.rpc(
-          "can_access_room",
-          {
-            p_room_id:
-              room.id,
-            p_user_id:
-              session.user.id,
-          }
-        );
-
-      if (
-        error ||
-        data !== true
-      ) {
-        const access =
-          roomAccessMap[
-            room.id
-          ];
-
-        if (
-          access?.status ===
-          "PENDING"
-        ) {
-          alert(
-            "La tua richiesta è ancora in attesa di approvazione."
-          );
-        } else {
-          alert(
-            "Questo gruppo è privato. Devi richiedere l'accesso."
-          );
+    if (room.is_private && isUuid(room.id)) {
+      const { data, error } = await supabase.rpc(
+        "can_access_room",
+        {
+          p_room_id: room.id,
+          p_user_id: session.user.id,
         }
+      );
 
+      if (error || data !== true) {
+        const access = roomAccessMap[room.id];
+
+        if (access?.status === "PENDING") {
+          alert("La tua richiesta è ancora in attesa di approvazione.");
+        } else {
+          alert("Questo gruppo è privato. Devi richiedere l'accesso.");
+        }
         return;
       }
     }
@@ -1253,30 +982,19 @@ export default function Home() {
     setActiveRoom(room);
     setPage("chat");
     setChatMode("public");
-
-    firstPublicLoadRef.current =
-      true;
+    firstPublicLoadRef.current = true;
   }
 
-  async function loadRoomJoinRequests(
-    room = activeRoom
-  ) {
-    if (
-      !room ||
-      !isUuid(room.id) ||
-      !canManageRoom(room)
-    ) {
+  async function loadRoomJoinRequests(room = activeRoom) {
+    if (!room || !isUuid(room.id) || !canManageRoom(room)) {
       setRoomJoinRequests([]);
       return;
     }
 
-    const { data, error } =
-      await supabase.rpc(
-        "get_room_join_requests",
-        {
-          p_room_id: room.id,
-        }
-      );
+    const { data, error } = await supabase.rpc(
+      "get_room_join_requests",
+      { p_room_id: room.id }
+    );
 
     if (error) {
       console.error(error);
@@ -1284,30 +1002,19 @@ export default function Home() {
       return;
     }
 
-    setRoomJoinRequests(
-      data || []
-    );
+    setRoomJoinRequests(data || []);
   }
 
-  async function loadRoomMembers(
-    room = activeRoom
-  ) {
-    if (
-      !room ||
-      !isUuid(room.id) ||
-      !canManageRoom(room)
-    ) {
+  async function loadRoomMembers(room = activeRoom) {
+    if (!room || !isUuid(room.id) || !canManageRoom(room)) {
       setRoomMembers([]);
       return;
     }
 
-    const { data, error } =
-      await supabase.rpc(
-        "get_room_members",
-        {
-          p_room_id: room.id,
-        }
-      );
+    const { data, error } = await supabase.rpc(
+      "get_room_members",
+      { p_room_id: room.id }
+    );
 
     if (error) {
       console.error(error);
@@ -1315,24 +1022,16 @@ export default function Home() {
       return;
     }
 
-    setRoomMembers(
-      data || []
-    );
+    setRoomMembers(data || []);
   }
 
-  async function approveRoomRequest(
-    request
-  ) {
+  async function approveRoomRequest(request) {
     if (!request) return;
 
-    const { error } =
-      await supabase.rpc(
-        "approve_room_request",
-        {
-          p_request_id:
-            request.request_id,
-        }
-      );
+    const { error } = await supabase.rpc(
+      "approve_room_request",
+      { p_request_id: request.request_id }
+    );
 
     if (error) {
       alert(error.message);
@@ -1340,182 +1039,102 @@ export default function Home() {
     }
 
     await Promise.all([
-      loadRoomJoinRequests(
-        activeRoom
-      ),
-      loadRoomMembers(
-        activeRoom
-      ),
+      loadRoomJoinRequests(activeRoom),
+      loadRoomMembers(activeRoom),
     ]);
   }
 
-  async function rejectRoomRequest(
-    request
-  ) {
+  async function rejectRoomRequest(request) {
     if (!request) return;
 
-    const { error } =
-      await supabase.rpc(
-        "reject_room_request",
-        {
-          p_request_id:
-            request.request_id,
-        }
-      );
+    const { error } = await supabase.rpc(
+      "reject_room_request",
+      { p_request_id: request.request_id }
+    );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    await loadRoomJoinRequests(
-      activeRoom
-    );
+    await loadRoomJoinRequests(activeRoom);
   }
 
-  async function removeRoomMember(
-    member
-  ) {
-    if (
-      !member ||
-      !activeRoom
-    )
-      return;
+  async function removeRoomMember(member) {
+    if (!member || !activeRoom) return;
+    if (member.member_role === "OWNER") return;
 
-    if (
-      member.member_role ===
-      "OWNER"
-    )
-      return;
-
-    if (
-      !confirm(
-        `Rimuovere @${
-          member.nickname ||
-          "WHO"
-        } dal gruppo?`
-      )
-    ) {
+    if (!confirm(`Rimuovere @${member.nickname || "WHO"} dal gruppo?`)) {
       return;
     }
 
-    const { error } =
-      await supabase.rpc(
-        "remove_room_member",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            member.user_id,
-        }
-      );
+    const { error } = await supabase.rpc("remove_room_member", {
+      p_room_id: activeRoom.id,
+      p_user_id: member.user_id,
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    await loadRoomMembers(
-      activeRoom
-    );
+    await loadRoomMembers(activeRoom);
   }
 
-  async function leaveRoom(
-    room
-  ) {
-    if (
-      !room ||
-      !isUuid(room.id)
-    )
-      return;
+  async function leaveRoom(room) {
+    if (!room || !isUuid(room.id)) return;
 
-    if (
-      !confirm(
-        `Vuoi abbandonare "${room.name}"?`
-      )
-    ) {
-      return;
-    }
+    if (!confirm(`Vuoi abbandonare "${room.name}"?`)) return;
 
-    const { error } =
-      await supabase.rpc(
-        "leave_room",
-        {
-          p_room_id:
-            room.id,
-        }
-      );
+    const { error } = await supabase.rpc("leave_room", {
+      p_room_id: room.id,
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setActiveRoom(
-      roomsDefault[0]
-    );
+    setActiveRoom(roomsDefault[0]);
     setRoomPanel(null);
     setPage("rooms");
-
     await loadRooms();
   }
 
-  /* ======================================================
-     GRUPPI
-     ====================================================== */
-
   function canManageRoom(room) {
-    if (!room || !session) {
-      return false;
-    }
+    if (!room || !session) return false;
 
     return Boolean(
       !room.is_official &&
-        room.owner_id ===
-          session.user.id
+      room.owner_id === session.user.id
     );
   }
 
   async function createRoom() {
-    if (
-      !session ||
-      roomBusy
-    )
-      return;
+    if (!session || roomBusy) return;
 
-    const name =
-      roomName.trim();
+    const name = roomName.trim();
 
     if (name.length < 3) {
-      alert(
-        "Nome gruppo minimo 3 caratteri."
-      );
+      alert("Nome gruppo minimo 3 caratteri.");
       return;
     }
 
     setRoomBusy(true);
 
-    const { data, error } =
-      await supabase
-        .from("rooms")
-        .insert({
-          room_key:
-            makeRoomKey(name),
-          name:
-            name.slice(0, 40),
-          description:
-            roomDescription
-              .trim()
-              .slice(0, 160),
-          is_private:
-            roomPrivate,
-          is_official: false,
-          is_active: true,
-          owner_id:
-            session.user.id,
-        })
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({
+        room_key: makeRoomKey(name),
+        name: name.slice(0, 40),
+        description: roomDescription.trim().slice(0, 160),
+        is_private: roomPrivate,
+        is_official: false,
+        is_active: true,
+        owner_id: session.user.id,
+      })
+      .select()
+      .single();
 
     setRoomBusy(false);
 
@@ -1535,54 +1154,29 @@ export default function Home() {
       setActiveRoom(data);
       setPage("chat");
       setChatMode("public");
-
-      firstPublicLoadRef.current =
-        true;
+      firstPublicLoadRef.current = true;
     }
   }
 
   async function updateRoom() {
-    if (
-      !activeRoom ||
-      !canManageRoom(
-        activeRoom
-      )
-    )
-      return;
+    if (!activeRoom || !canManageRoom(activeRoom)) return;
 
-    if (
-      roomName.trim()
-        .length < 3
-    ) {
-      alert(
-        "Nome gruppo minimo 3 caratteri."
-      );
+    if (roomName.trim().length < 3) {
+      alert("Nome gruppo minimo 3 caratteri.");
       return;
     }
 
-    const { data, error } =
-      await supabase
-        .from("rooms")
-        .update({
-          name:
-            roomName
-              .trim()
-              .slice(0, 40),
-          description:
-            roomDescription
-              .trim()
-              .slice(0, 160),
-          is_private:
-            roomPrivate,
-          updated_at:
-            new Date().toISOString(),
-        })
-        .eq(
-          "id",
-          activeRoom.id
-        )
-        .select()
-        .single();
+    const { data, error } = await supabase
+      .from("rooms")
+      .update({
+        name: roomName.trim().slice(0, 40),
+        description: roomDescription.trim().slice(0, 160),
+        is_private: roomPrivate,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", activeRoom.id)
+      .select()
+      .single();
 
     if (error) {
       alert(error.message);
@@ -1590,37 +1184,20 @@ export default function Home() {
     }
 
     setActiveRoom(data);
-
     await loadRooms();
-
-    alert(
-      "Gruppo aggiornato."
-    );
+    alert("Gruppo aggiornato.");
   }
 
-  async function openRoomManagement(
-    room
-  ) {
-    if (
-      !canManageRoom(room)
-    ) {
+  async function openRoomManagement(room) {
+    if (!canManageRoom(room)) {
       setRoomPanel(null);
       return;
     }
 
     setActiveRoom(room);
-    setRoomName(
-      room.name || ""
-    );
-    setRoomDescription(
-      room.description || ""
-    );
-    setRoomPrivate(
-      Boolean(
-        room.is_private
-      )
-    );
-
+    setRoomName(room.name || "");
+    setRoomDescription(room.description || "");
+    setRoomPrivate(Boolean(room.is_private));
     setRoomPanel("manage");
 
     await Promise.all([
@@ -1631,47 +1208,27 @@ export default function Home() {
     ]);
   }
 
-  async function loadRoomModerators(
-    room = activeRoom
-  ) {
-    if (
-      !room?.id ||
-      !isUuid(room.id)
-    ) {
+  async function loadRoomModerators(room = activeRoom) {
+    if (!room?.id || !isUuid(room.id)) {
       setRoomModerators([]);
       return;
     }
 
-    const { data, error } =
-      await supabase
-        .from(
-          "room_moderators"
-        )
-        .select("*")
-        .eq(
-          "room_id",
-          room.id
-        );
+    const { data, error } = await supabase
+      .from("room_moderators")
+      .select("*")
+      .eq("room_id", room.id);
 
     if (error) return;
 
     const result = [];
 
-    for (
-      const mod of
-      data || []
-    ) {
-      const p =
-        await supabase
-          .from("profiles")
-          .select(
-            "id,nickname,avatar"
-          )
-          .eq(
-            "id",
-            mod.user_id
-          )
-          .maybeSingle();
+    for (const mod of data || []) {
+      const p = await supabase
+        .from("profiles")
+        .select("id,nickname,avatar")
+        .eq("id", mod.user_id)
+        .maybeSingle();
 
       result.push({
         ...mod,
@@ -1679,155 +1236,77 @@ export default function Home() {
       });
     }
 
-    setRoomModerators(
-      result
-    );
+    setRoomModerators(result);
   }
 
   async function addRoomModerator() {
-    if (
-      !canManageRoom(
-        activeRoom
-      )
-    )
-      return;
+    if (!canManageRoom(activeRoom)) return;
 
-    const nick =
-      cleanNickname(
-        moderatorNickname.replace(
-          /^@/,
-          ""
-        )
-      );
+    const nick = cleanNickname(
+      moderatorNickname.replace(/^@/, "")
+    );
 
-    if (
-      !nick ||
-      !activeRoom?.id
-    )
-      return;
+    if (!nick || !activeRoom?.id) return;
 
-    const { error } =
-      await supabase.rpc(
-        "add_room_moderator",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_nickname:
-            nick,
-        }
-      );
+    const { error } = await supabase.rpc(
+      "add_room_moderator",
+      {
+        p_room_id: activeRoom.id,
+        p_nickname: nick,
+      }
+    );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModeratorNickname(
-      ""
-    );
-
-    await loadRoomModerators(
-      activeRoom
-    );
-
-    /*
-     * Ricarichiamo anche i membri.
-     */
-    await loadRoomMembers(
-      activeRoom
-    );
-
-    alert(
-      `@${nick} è ora MOD.`
-    );
+    setModeratorNickname("");
+    await loadRoomModerators(activeRoom);
+    await loadRoomMembers(activeRoom);
+    alert(`@${nick} è ora MOD.`);
   }
 
-  async function removeRoomModerator(
-    userId
-  ) {
-    if (
-      !canManageRoom(
-        activeRoom
-      )
-    )
-      return;
+  async function removeRoomModerator(userId) {
+    if (!canManageRoom(activeRoom)) return;
 
-    if (
-      !confirm(
-        "Rimuovere questo moderatore?"
-      )
-    )
-      return;
+    if (!confirm("Rimuovere questo moderatore?")) return;
 
-    const { error } =
-      await supabase.rpc(
-        "remove_room_moderator",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            userId,
-        }
-      );
-
-    if (error) {
-      return alert(
-        error.message
-      );
-    }
-
-    await loadRoomModerators(
-      activeRoom
+    const { error } = await supabase.rpc(
+      "remove_room_moderator",
+      {
+        p_room_id: activeRoom.id,
+        p_user_id: userId,
+      }
     );
+
+    if (error) return alert(error.message);
+
+    await loadRoomModerators(activeRoom);
   }
 
-  async function loadRoomSanctions(
-    room = activeRoom
-  ) {
-    if (
-      !room?.id ||
-      !isUuid(room.id)
-    ) {
+  async function loadRoomSanctions(room = activeRoom) {
+    if (!room?.id || !isUuid(room.id)) {
       setRoomSanctions([]);
       return;
     }
 
-    const { data, error } =
-      await supabase
-        .from(
-          "room_sanctions"
-        )
-        .select("*")
-        .eq(
-          "room_id",
-          room.id
-        )
-        .order(
-          "created_at",
-          {
-            ascending: false,
-          }
-        );
+    const { data, error } = await supabase
+      .from("room_sanctions")
+      .select("*")
+      .eq("room_id", room.id)
+      .order("created_at", { ascending: false });
 
     if (error) return;
 
     const result = [];
 
-    for (
-      const item of
-      data || []
-    ) {
-      const p =
-        await supabase
-          .from("profiles")
-          .select(
-            "id,nickname,avatar"
-          )
-          .eq(
-            "id",
-            item.user_id
-          )
-          .maybeSingle();
+    for (const item of data || []) {
+      const p = await supabase
+        .from("profiles")
+        .select("id,nickname,avatar")
+        .eq("id", item.user_id)
+        .maybeSingle();
 
       result.push({
         ...item,
@@ -1835,21 +1314,13 @@ export default function Home() {
       });
     }
 
-    setRoomSanctions(
-      result
-    );
+    setRoomSanctions(result);
   }
 
   async function loadCurrentRoomPermissions() {
-    if (
-      !session ||
-      !activeRoom
-    )
-      return;
+    if (!session || !activeRoom) return;
 
-    setRoomCanModerate(
-      false
-    );
+    setRoomCanModerate(false);
     setMyRoomRole(null);
 
     setMyRoomStatus({
@@ -1858,195 +1329,93 @@ export default function Home() {
       mute_until: null,
     });
 
-    if (
-      !activeRoom.id ||
-      !isUuid(
-        activeRoom.id
-      )
-    ) {
-      setRoomCanModerate(
-        isFounder
-      );
-
-      setMyRoomRole(
-        isFounder
-          ? "FOUNDER"
-          : null
-      );
-
+    if (!activeRoom.id || !isUuid(activeRoom.id)) {
+      setRoomCanModerate(isFounder);
+      setMyRoomRole(isFounder ? "FOUNDER" : null);
       return;
     }
 
-    const [
-      moderateResult,
-      modResult,
-      statusResult,
-    ] = await Promise.all([
-      supabase.rpc(
-        "can_moderate_room",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            session.user.id,
-        }
-      ),
+    const [moderateResult, modResult, statusResult] =
+      await Promise.all([
+        supabase.rpc("can_moderate_room", {
+          p_room_id: activeRoom.id,
+          p_user_id: session.user.id,
+        }),
 
-      supabase
-        .from(
-          "room_moderators"
-        )
-        .select("user_id")
-        .eq(
-          "room_id",
-          activeRoom.id
-        )
-        .eq(
-          "user_id",
-          session.user.id
-        )
-        .maybeSingle(),
+        supabase
+          .from("room_moderators")
+          .select("user_id")
+          .eq("room_id", activeRoom.id)
+          .eq("user_id", session.user.id)
+          .maybeSingle(),
 
-      supabase.rpc(
-        "get_my_room_status",
-        {
-          p_room_id:
-            activeRoom.id,
-        }
-      ),
-    ]);
+        supabase.rpc("get_my_room_status", {
+          p_room_id: activeRoom.id,
+        }),
+      ]);
 
     setRoomCanModerate(
-      isFounder ||
-        Boolean(
-          moderateResult.data
-        )
+      isFounder || Boolean(moderateResult.data)
     );
 
     if (isFounder) {
-      setMyRoomRole(
-        "FOUNDER"
-      );
-    } else if (
-      activeRoom.owner_id ===
-      session.user.id
-    ) {
-      setMyRoomRole(
-        "OWNER"
-      );
-    } else if (
-      modResult.data
-    ) {
-      setMyRoomRole(
-        "MOD"
-      );
+      setMyRoomRole("FOUNDER");
+    } else if (activeRoom.owner_id === session.user.id) {
+      setMyRoomRole("OWNER");
+    } else if (modResult.data) {
+      setMyRoomRole("MOD");
     } else {
-      setMyRoomRole(
-        null
-      );
+      setMyRoomRole(null);
     }
 
-    if (
-      statusResult.data
-    ) {
+    if (statusResult.data) {
       setMyRoomStatus({
-        banned:
-          Boolean(
-            statusResult.data
-              .banned
-          ),
-        muted:
-          Boolean(
-            statusResult.data
-              .muted
-          ),
-        mute_until:
-          statusResult.data
-            .mute_until ||
-          null,
+        banned: Boolean(statusResult.data.banned),
+        muted: Boolean(statusResult.data.muted),
+        mute_until: statusResult.data.mute_until || null,
       });
     }
   }
 
-  async function banFromRoom(
-    msg
-  ) {
-    if (
-      !msg?.user_id ||
-      !activeRoom?.id ||
-      !roomCanModerate
-    )
+  async function banFromRoom(msg) {
+    if (!msg?.user_id || !activeRoom?.id || !roomCanModerate)
       return;
 
-    if (
-      !confirm(
-        `Bannare @${msg.nickname} da questa stanza?`
-      )
-    ) {
+    if (!confirm(`Bannare @${msg.nickname} da questa stanza?`))
       return;
-    }
 
-    const { error } =
-      await supabase.rpc(
-        "ban_room_user",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            msg.user_id,
-          p_reason:
-            "Moderazione WHO",
-        }
-      );
+    const { error } = await supabase.rpc("ban_room_user", {
+      p_room_id: activeRoom.id,
+      p_user_id: msg.user_id,
+      p_reason: "Moderazione WHO",
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModerationMessage(
-      null
-    );
-
-    alert(
-      `@${msg.nickname} è stato bannato.`
-    );
+    setModerationMessage(null);
+    alert(`@${msg.nickname} è stato bannato.`);
   }
 
-  async function muteFromRoom(
-    msg,
-    minutes
-  ) {
-    if (
-      !msg?.user_id ||
-      !activeRoom?.id ||
-      !roomCanModerate
-    )
+  async function muteFromRoom(msg, minutes) {
+    if (!msg?.user_id || !activeRoom?.id || !roomCanModerate)
       return;
 
-    const { error } =
-      await supabase.rpc(
-        "mute_room_user",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            msg.user_id,
-          p_minutes:
-            minutes,
-          p_reason:
-            "Moderazione WHO",
-        }
-      );
+    const { error } = await supabase.rpc("mute_room_user", {
+      p_room_id: activeRoom.id,
+      p_user_id: msg.user_id,
+      p_minutes: minutes,
+      p_reason: "Moderazione WHO",
+    });
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModerationMessage(
-      null
-    );
+    setModerationMessage(null);
 
     const labels = {
       10: "10 minuti",
@@ -2055,84 +1424,43 @@ export default function Home() {
       10080: "7 giorni",
     };
 
-    alert(
-      `@${msg.nickname} silenziato per ${labels[minutes]}.`
-    );
+    alert(`@${msg.nickname} silenziato per ${labels[minutes]}.`);
   }
 
-  async function removeRoomSanction(
-    item
-  ) {
-    if (
-      !roomCanModerate &&
-      !canManageRoom(
-        activeRoom
-      )
-    )
-      return;
+  async function removeRoomSanction(item) {
+    if (!roomCanModerate && !canManageRoom(activeRoom)) return;
 
-    const { error } =
-      await supabase.rpc(
-        "remove_room_sanction",
-        {
-          p_room_id:
-            activeRoom.id,
-          p_user_id:
-            item.user_id,
-          p_type:
-            item.sanction_type,
-        }
-      );
-
-    if (error) {
-      return alert(
-        error.message
-      );
-    }
-
-    await loadRoomSanctions(
-      activeRoom
+    const { error } = await supabase.rpc(
+      "remove_room_sanction",
+      {
+        p_room_id: activeRoom.id,
+        p_user_id: item.user_id,
+        p_type: item.sanction_type,
+      }
     );
+
+    if (error) return alert(error.message);
+
+    await loadRoomSanctions(activeRoom);
   }
 
-  async function deleteCommunityRoom(
-    room
-  ) {
-    if (
-      !canManageRoom(room)
-    )
-      return;
+  async function deleteCommunityRoom(room) {
+    if (!canManageRoom(room)) return;
 
-    if (
-      !confirm(
-        `Eliminare il gruppo "${room.name}"?`
-      )
-    ) {
-      return;
-    }
+    if (!confirm(`Eliminare il gruppo "${room.name}"?`)) return;
 
-    const { error } =
-      await supabase
-        .from("rooms")
-        .delete()
-        .eq("id", room.id);
+    const { error } = await supabase
+      .from("rooms")
+      .delete()
+      .eq("id", room.id);
 
-    if (error) {
-      return alert(
-        error.message
-      );
-    }
+    if (error) return alert(error.message);
 
     setRoomPanel(null);
-    setActiveRoom(
-      roomsDefault[0]
-    );
+    setActiveRoom(roomsDefault[0]);
 
     await loadRooms();
-             }
-    /* ======================================================
-     CHAT PUBBLICA
-     ====================================================== */
+  }
 
   function scrollPublicToBottom(behavior = "smooth") {
     setTimeout(() => {
@@ -2295,63 +1623,98 @@ export default function Home() {
     );
   }
 
+  /* ======================================================
+     LIKE / DISLIKE — CORRETTO
+     Database:
+     1  = LIKE
+     -1 = DISLIKE
+     Interfaccia:
+     "like" / "dislike"
+     ====================================================== */
+
   async function loadVotes() {
     if (!session) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("message_votes")
-      .select("*")
+      .select("message_id,vote")
       .eq("user_id", session.user.id);
+
+    if (error) {
+      console.error("Errore caricamento voti:", error);
+      return;
+    }
 
     const map = {};
 
     (data || []).forEach((v) => {
-      map[v.message_id] = v.vote;
+      const numericVote = Number(v.vote);
+
+      if (numericVote === 1) {
+        map[v.message_id] = "like";
+      } else if (numericVote === -1) {
+        map[v.message_id] = "dislike";
+      }
     });
 
     setMyVotes(map);
   }
 
   async function voteMessage(msg, vote) {
-    if (!session) return;
+    if (!session || !msg?.id) return;
 
     const oldVote = myVotes[msg.id];
 
     if (oldVote === vote) return;
 
-    const existing = await supabase
-      .from("message_votes")
-      .select("*")
-      .eq("user_id", session.user.id)
-      .eq("message_id", msg.id)
-      .maybeSingle();
+    const numericVote = vote === "like" ? 1 : -1;
 
-    let error;
-
-    if (existing.data) {
-      const r = await supabase
+    const { data: existing, error: existingError } =
+      await supabase
         .from("message_votes")
-        .update({ vote })
+        .select("message_id,vote")
+        .eq("user_id", session.user.id)
+        .eq("message_id", msg.id)
+        .maybeSingle();
+
+    if (existingError) {
+      console.error(existingError);
+      alert(existingError.message);
+      return;
+    }
+
+    let voteError = null;
+
+    if (existing) {
+      const { error } = await supabase
+        .from("message_votes")
+        .update({
+          vote: numericVote,
+        })
         .eq("user_id", session.user.id)
         .eq("message_id", msg.id);
 
-      error = r.error;
+      voteError = error;
     } else {
-      const r = await supabase
+      const { error } = await supabase
         .from("message_votes")
         .insert({
           user_id: session.user.id,
           message_id: msg.id,
-          vote,
+          vote: numericVote,
         });
 
-      error = r.error;
+      voteError = error;
     }
 
-    if (error) return alert(error.message);
+    if (voteError) {
+      console.error(voteError);
+      alert(voteError.message);
+      return;
+    }
 
-    let likes = Number(msg.likes || 0);
-    let dislikes = Number(msg.dislikes || 0);
+    let likes = Number(msg.likes ?? 0);
+    let dislikes = Number(msg.dislikes ?? 0);
 
     if (oldVote === "like") {
       likes = Math.max(0, likes - 1);
@@ -2361,20 +1724,47 @@ export default function Home() {
       dislikes = Math.max(0, dislikes - 1);
     }
 
-    if (vote === "like") likes += 1;
-    if (vote === "dislike") dislikes += 1;
+    if (vote === "like") {
+      likes += 1;
+    }
 
-    await supabase
+    if (vote === "dislike") {
+      dislikes += 1;
+    }
+
+    const { error: messageError } = await supabase
       .from("messages")
-      .update({ likes, dislikes })
+      .update({
+        likes,
+        dislikes,
+      })
       .eq("id", msg.id);
+
+    if (messageError) {
+      console.error(messageError);
+      alert(messageError.message);
+
+      await loadVotes();
+      await loadMessages(false);
+      return;
+    }
 
     setMyVotes((old) => ({
       ...old,
       [msg.id]: vote,
     }));
 
-    await loadMessages(false);
+    setMessages((old) =>
+      old.map((item) =>
+        item.id === msg.id
+          ? {
+              ...item,
+              likes,
+              dislikes,
+            }
+          : item
+      )
+    );
   }
 
   async function loadReports() {
@@ -2396,11 +1786,7 @@ export default function Home() {
       return;
     }
 
-    if (
-      !confirm(
-        `Segnalare @${msg.nickname || "anonimo"}?`
-      )
-    ) {
+    if (!confirm(`Segnalare @${msg.nickname || "anonimo"}?`)) {
       return;
     }
 
@@ -2418,10 +1804,6 @@ export default function Home() {
 
     alert("Segnalazione inviata.");
   }
-
-  /* ======================================================
-     PRIVATI
-     ====================================================== */
 
   async function requestPrivate(msg) {
     if (!session || msg.user_id === session.user.id) return;
@@ -2502,7 +1884,6 @@ export default function Home() {
     if (error) return alert(error.message);
 
     alert("Richiesta privata inviata.");
-
     await loadPrivateData();
   }
 
@@ -2551,9 +1932,7 @@ export default function Home() {
 
             supabase
               .from("private_messages")
-              .select(
-                "id,content,sender_id,created_at,is_read"
-              )
+              .select("id,content,sender_id,created_at,is_read")
               .eq("conversation_id", conv.id)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -2751,10 +2130,6 @@ export default function Home() {
     setBlocked((data || []).map((x) => x.blocked_id));
   }
 
-  /* ======================================================
-     STANZE + ACCESSI PRIVATI
-     ====================================================== */
-
   async function loadRooms() {
     const { data, error } = await supabase
       .from("rooms")
@@ -2905,10 +2280,7 @@ export default function Home() {
             style={{
               border: 0,
               background: "transparent",
-              color:
-                page === id
-                  ? "#edaaff"
-                  : "#776d7b",
+              color: page === id ? "#edaaff" : "#776d7b",
               fontWeight: 900,
               fontSize: 10,
             }}
@@ -2967,8 +2339,7 @@ export default function Home() {
         </button>
       </div>
     );
-  }
-
+    }
   if (loading) {
     return (
       <main
@@ -3819,10 +3190,6 @@ export default function Home() {
     );
   }
 
-  /* ======================================================
-     SHOP
-     ====================================================== */
-
   if (page === "shop") {
     return (
       <main style={background}>
@@ -3910,10 +3277,6 @@ export default function Home() {
       </main>
     );
   }
-
-  /* ======================================================
-     PROFILO
-     ====================================================== */
 
   if (page === "profile") {
     return (
@@ -4163,10 +3526,6 @@ export default function Home() {
     );
   }
 
-  /* ======================================================
-     CHAT
-     ====================================================== */
-
   return (
     <main
       style={{
@@ -4352,9 +3711,7 @@ export default function Home() {
                     }}
                   >
                     <Avatar
-                      name={
-                        info?.avatar || "Shadow"
-                      }
+                      name={info?.avatar || "Shadow"}
                       size={45}
                     />
 
@@ -5013,4 +4370,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                     }
+                }
