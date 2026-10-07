@@ -152,7 +152,6 @@ function internalEmail(nickname) {
 
 function avatarImage(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
-
   return avatars.find((a) => a.name === name)?.image || "/shadow.png";
 }
 
@@ -322,15 +321,22 @@ export default function Home() {
     fontFamily: font,
   };
 
+  /* MIGLIORATO: pulsanti azione chat */
   const tinyButton = {
-    border: 0,
-    background: "transparent",
+    border: "1px solid rgba(190,100,255,.10)",
+    background: "rgba(255,255,255,.025)",
     color: "#a999b1",
-    borderRadius: 7,
-    padding: "4px 5px",
+    borderRadius: 8,
+    minHeight: 24,
+    padding: "3px 7px",
     fontSize: 9,
+    lineHeight: 1,
     fontWeight: 900,
     fontFamily: font,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
   };
 
   useEffect(() => {
@@ -907,9 +913,7 @@ export default function Home() {
     let dislikes = Number(msg.dislikes || 0);
 
     if (oldVote === "like") likes = Math.max(0, likes - 1);
-    if (oldVote === "dislike") {
-      dislikes = Math.max(0, dislikes - 1);
-    }
+    if (oldVote === "dislike") dislikes = Math.max(0, dislikes - 1);
 
     if (vote === "like") likes += 1;
     if (vote === "dislike") dislikes += 1;
@@ -1433,16 +1437,23 @@ export default function Home() {
     );
   }
 
+  /* MIGLIORATO: WHO non viene più tagliato */
   function Logo() {
     return (
       <div
         style={{
           fontFamily: displayFont,
-          fontSize: 40,
-          letterSpacing: -4,
+          fontSize: 39,
+          fontWeight: 900,
+          lineHeight: 1.12,
+          letterSpacing: "-1.5px",
+          padding: "5px 6px 6px 2px",
+          display: "inline-block",
+          overflow: "visible",
           background:
-            "linear-gradient(90deg,#fff,#e89cff,#8b55ff,#6eeeff)",
+            "linear-gradient(90deg,#ffffff 0%,#f0b4ff 35%,#9b63ff 68%,#6eeeff 100%)",
           WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
           color: "transparent",
         }}
       >
@@ -1510,12 +1521,7 @@ export default function Home() {
         }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <strong
-            style={{
-              color: "#df9cff",
-              fontSize: 10,
-            }}
-          >
+          <strong style={{ color: "#df9cff", fontSize: 10 }}>
             ↩ @{data.nickname}
           </strong>
 
@@ -1570,20 +1576,10 @@ export default function Home() {
             padding: "80px 20px",
           }}
         >
-          <div
-            style={{
-              textAlign: "center",
-              marginBottom: 30,
-            }}
-          >
+          <div style={{ textAlign: "center", marginBottom: 30 }}>
             <Logo />
 
-            <div
-              style={{
-                color: C.muted,
-                marginTop: 10,
-              }}
-            >
+            <div style={{ color: C.muted, marginTop: 10 }}>
               Nessun nome. Nessun giudizio. Solo WHO.
             </div>
           </div>
@@ -1609,10 +1605,7 @@ export default function Home() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              style={{
-                ...input,
-                marginTop: 9,
-              }}
+              style={{ ...input, marginTop: 9 }}
             />
 
             {authError && (
@@ -1691,10 +1684,7 @@ export default function Home() {
               <button
                 key={a.name}
                 onClick={() => selectAvatar(a.name)}
-                style={{
-                  ...card,
-                  padding: 13,
-                }}
+                style={{ ...card, padding: 13 }}
               >
                 <img
                   src={a.image}
@@ -1815,13 +1805,7 @@ export default function Home() {
             WHO SHOP
           </h1>
 
-          <div
-            style={{
-              ...card,
-              padding: 15,
-              marginBottom: 15,
-            }}
-          >
+          <div style={{ ...card, padding: 15, marginBottom: 15 }}>
             ✦ {points} WHO Points
           </div>
 
@@ -1938,21 +1922,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 16,
-              marginTop: 10,
-            }}
-          >
+          <div style={{ ...card, padding: 16, marginTop: 10 }}>
             <strong>STILE MESSAGGI</strong>
 
-            <p
-              style={{
-                color: C.muted,
-                fontSize: 11,
-              }}
-            >
+            <p style={{ color: C.muted, fontSize: 11 }}>
               Crea il tuo stile personale nella chat pubblica.
             </p>
 
@@ -2067,21 +2040,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 16,
-              marginTop: 10,
-            }}
-          >
+          <div style={{ ...card, padding: 16, marginTop: 10 }}>
             <strong>PRIVACY MESSAGGI</strong>
 
-            <p
-              style={{
-                color: C.muted,
-                fontSize: 11,
-              }}
-            >
+            <p style={{ color: C.muted, fontSize: 11 }}>
               Decidi chi può inviarti una richiesta privata.
             </p>
 
@@ -2132,10 +2094,7 @@ export default function Home() {
                   onChange={(e) =>
                     setDmMinVibe(Number(e.target.value))
                   }
-                  style={{
-                    ...input,
-                    marginTop: 7,
-                  }}
+                  style={{ ...input, marginTop: 7 }}
                 />
 
                 <button
@@ -2155,23 +2114,12 @@ export default function Home() {
             )}
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 16,
-              marginTop: 10,
-            }}
-          >
+          <div style={{ ...card, padding: 16, marginTop: 10 }}>
             <strong>REPUTAZIONE</strong>
 
             <h3 style={{ color: C.green }}>✓ IN REGOLA</h3>
 
-            <div
-              style={{
-                color: C.muted,
-                fontSize: 11,
-              }}
-            >
+            <div style={{ color: C.muted, fontSize: 11 }}>
               {reputation}/100
             </div>
           </div>
@@ -2223,7 +2171,7 @@ export default function Home() {
           maxWidth: 650,
           height: "100%",
           margin: "0 auto",
-          padding: "10px 12px 76px",
+          padding: "12px 14px 76px",
           boxSizing: "border-box",
           display: "flex",
           flexDirection: "column",
@@ -2235,6 +2183,8 @@ export default function Home() {
             justifyContent: "space-between",
             alignItems: "center",
             flexShrink: 0,
+            minHeight: 58,
+            overflow: "visible",
           }}
         >
           <Logo />
@@ -2243,7 +2193,7 @@ export default function Home() {
             onClick={() => setPage("rooms")}
             style={{
               ...card,
-              padding: "7px 10px",
+              padding: "8px 12px",
               fontSize: 11,
             }}
           >
@@ -2255,8 +2205,8 @@ export default function Home() {
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
-            gap: 6,
-            margin: "8px 0",
+            gap: 7,
+            margin: "6px 0 9px",
             flexShrink: 0,
           }}
         >
@@ -2270,8 +2220,8 @@ export default function Home() {
               }, 80);
             }}
             style={{
-              padding: 9,
-              borderRadius: 11,
+              padding: 10,
+              borderRadius: 12,
               border:
                 chatMode === "public"
                   ? "1px solid #c65cff"
@@ -2295,8 +2245,8 @@ export default function Home() {
               loadPrivateData();
             }}
             style={{
-              padding: 9,
-              borderRadius: 11,
+              padding: 10,
+              borderRadius: 12,
               border:
                 chatMode !== "public"
                   ? "1px solid #c65cff"
@@ -2328,13 +2278,7 @@ export default function Home() {
             <h2>Richieste</h2>
 
             {incomingRequests.length === 0 && (
-              <div
-                style={{
-                  ...card,
-                  padding: 15,
-                  color: C.muted,
-                }}
-              >
+              <div style={{ ...card, padding: 15, color: C.muted }}>
                 Nessuna nuova richiesta.
               </div>
             )}
@@ -2388,13 +2332,7 @@ export default function Home() {
             <h2 style={{ marginTop: 25 }}>Conversazioni</h2>
 
             {conversations.length === 0 && (
-              <div
-                style={{
-                  ...card,
-                  padding: 15,
-                  color: C.muted,
-                }}
-              >
+              <div style={{ ...card, padding: 15, color: C.muted }}>
                 Nessuna conversazione privata.
               </div>
             )}
@@ -2423,12 +2361,7 @@ export default function Home() {
                     size={45}
                   />
 
-                  <div
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                  >
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
                         display: "flex",
@@ -2546,12 +2479,7 @@ export default function Home() {
                   @{privatePeer?.nickname || "WHO"}
                 </strong>
 
-                <div
-                  style={{
-                    color: C.muted,
-                    fontSize: 9,
-                  }}
-                >
+                <div style={{ color: C.muted, fontSize: 9 }}>
                   CHAT PRIVATA
                 </div>
               </div>
@@ -2742,7 +2670,7 @@ export default function Home() {
                 display: "flex",
                 alignItems: "end",
                 justifyContent: "space-between",
-                margin: "1px 2px 5px",
+                margin: "1px 2px 6px",
                 flexShrink: 0,
               }}
             >
@@ -2768,12 +2696,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  color: C.muted,
-                  fontSize: 9,
-                }}
-              >
+              <div style={{ color: C.muted, fontSize: 9 }}>
                 ⚡ VIBE {vibe}
               </div>
             </div>
@@ -2822,19 +2745,19 @@ export default function Home() {
                       key={msg.id}
                       style={{
                         background: mine
-                          ? "rgba(112,37,150,.10)"
-                          : "rgba(255,255,255,.015)",
-                        borderBottom:
-                          "1px solid rgba(190,100,255,.10)",
-                        borderRadius: 10,
-                        padding: "6px 5px",
-                        marginBottom: 2,
+                          ? "linear-gradient(90deg,rgba(112,37,150,.13),rgba(112,37,150,.05))"
+                          : "rgba(255,255,255,.018)",
+                        border:
+                          "1px solid rgba(190,100,255,.08)",
+                        borderRadius: 12,
+                        padding: "7px 7px 6px",
+                        marginBottom: 5,
                       }}
                     >
                       <div
                         style={{
                           display: "flex",
-                          gap: 7,
+                          gap: 8,
                           alignItems: "flex-start",
                         }}
                       >
@@ -2847,15 +2770,10 @@ export default function Home() {
                             flexShrink: 0,
                           }}
                         >
-                          <Avatar name={msg.avatar} size={30} />
+                          <Avatar name={msg.avatar} size={32} />
                         </button>
 
-                        <div
-                          style={{
-                            flex: 1,
-                            minWidth: 0,
-                          }}
-                        >
+                        <div style={{ flex: 1, minWidth: 0 }}>
                           <div
                             style={{
                               display: "flex",
@@ -2913,7 +2831,7 @@ export default function Home() {
                           <div
                             style={{
                               marginTop: 3,
-                              lineHeight: 1.28,
+                              lineHeight: 1.32,
                               fontSize: 13,
                               overflowWrap: "anywhere",
                               color: getMessageColor(
@@ -2927,14 +2845,15 @@ export default function Home() {
                             {renderMessageText(msg.content)}
                           </div>
 
+                          {/* BARRA AZIONI MIGLIORATA */}
                           <div
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 2,
+                              gap: 4,
                               flexWrap: "wrap",
-                              marginTop: 3,
-                              minHeight: 22,
+                              marginTop: 7,
+                              minHeight: 26,
                             }}
                           >
                             <button
@@ -2955,12 +2874,15 @@ export default function Home() {
 
                             {!mine && (
                               <button
-                                title="Privato"
+                                title="Chat privata"
                                 onClick={() => requestPrivate(msg)}
                                 style={{
                                   ...tinyButton,
-                                  color: "#dda0ff",
-                                  fontSize: 9,
+                                  color: "#e6a6ff",
+                                  border:
+                                    "1px solid rgba(218,120,255,.20)",
+                                  background:
+                                    "rgba(181,76,255,.07)",
                                 }}
                               >
                                 ✉ PVT
@@ -2968,7 +2890,7 @@ export default function Home() {
                             )}
 
                             <button
-                              title="Reazione positiva"
+                              title="Mi piace"
                               onClick={() =>
                                 voteMessage(msg, "like")
                               }
@@ -2976,17 +2898,20 @@ export default function Home() {
                                 ...tinyButton,
                                 color: positive
                                   ? C.cyan
-                                  : "#9e8ba8",
+                                  : "#a999b1",
+                                border: positive
+                                  ? "1px solid rgba(100,232,255,.35)"
+                                  : "1px solid rgba(190,100,255,.10)",
                                 background: positive
-                                  ? "rgba(100,232,255,.08)"
-                                  : "transparent",
+                                  ? "rgba(100,232,255,.10)"
+                                  : "rgba(255,255,255,.025)",
                               }}
                             >
-                              ◇+ {Number(msg.likes || 0)}
+                              ♡ {Number(msg.likes || 0)}
                             </button>
 
                             <button
-                              title="Reazione negativa"
+                              title="Non mi piace"
                               onClick={() =>
                                 voteMessage(msg, "dislike")
                               }
@@ -2994,26 +2919,38 @@ export default function Home() {
                                 ...tinyButton,
                                 color: negative
                                   ? C.pink
-                                  : "#9e8ba8",
+                                  : "#a999b1",
+                                border: negative
+                                  ? "1px solid rgba(239,125,255,.35)"
+                                  : "1px solid rgba(190,100,255,.10)",
                                 background: negative
-                                  ? "rgba(239,125,255,.08)"
-                                  : "transparent",
+                                  ? "rgba(239,125,255,.10)"
+                                  : "rgba(255,255,255,.025)",
                               }}
                             >
-                              ◇− {Number(msg.dislikes || 0)}
+                              ♢− {Number(msg.dislikes || 0)}
                             </button>
 
                             {!mine && (
                               <button
-                                title="Segnala"
+                                title={
+                                  reported
+                                    ? "Già segnalato"
+                                    : "Segnala"
+                                }
                                 disabled={reported}
                                 onClick={() => reportMessage(msg)}
                                 style={{
                                   ...tinyButton,
                                   marginLeft: "auto",
                                   color: reported
-                                    ? "#5e5662"
-                                    : "#aa7583",
+                                    ? "#665b69"
+                                    : "#d7839b",
+                                  border:
+                                    "1px solid rgba(255,114,149,.12)",
+                                  background: reported
+                                    ? "transparent"
+                                    : "rgba(255,114,149,.035)",
                                   opacity: reported ? 0.45 : 1,
                                 }}
                               >
@@ -3128,4 +3065,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-    }
+}
