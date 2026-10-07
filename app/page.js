@@ -146,10 +146,7 @@ const shopItems = [
 ];
 
 function cleanNickname(value = "") {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "")
-    .slice(0, 20);
+  return value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
 }
 
 function internalEmail(nickname) {
@@ -178,12 +175,6 @@ function makeRoomKey(name) {
     .slice(0, 35);
 
   return `${base || "room"}-${Date.now().toString(36).slice(-6)}`;
-}
-
-function isUuid(value) {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(value || "")
-  );
 }
 
 function getMessageColor(value) {
@@ -254,11 +245,24 @@ export default function Home() {
 
   const [equipmentBusy, setEquipmentBusy] = useState(null);
 
+  // NUOVE FUNZIONI WHO
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showUserProfile, setShowUserProfile] = useState(false);
+
+  const [showCreateRoom, setShowCreateRoom] = useState(false);
+  const [newRoomName, setNewRoomName] = useState("");
+  const [newRoomDescription, setNewRoomDescription] = useState("");
+  const [newRoomPrivate, setNewRoomPrivate] = useState(false);
+
+  const [dmUser, setDmUser] = useState(null);
+  const [dmMessages, setDmMessages] = useState([]);
+  const [dmText, setDmText] = useState("");
+  const [dmSending, setDmSending] = useState(false);
+  const [unreadDM, setUnreadDM] = useState(0);
+
   const publicChatRef = useRef(null);
   const publicBottomRef = useRef(null);
-  const publicAtBottomRef = useRef(true);
   const firstPublicLoadRef = useRef(true);
-  const lastUserIdRef = useRef(null);
 
   const isFounder =
     String(profile?.role || "").toUpperCase() === "FOUNDER";
@@ -387,11 +391,9 @@ export default function Home() {
 
     async function startAuth() {
       const { data } = await supabase.auth.getSession();
-
       if (!mounted) return;
 
       const current = data?.session || null;
-      lastUserIdRef.current = current?.user?.id || null;
       setSession(current);
       setLoading(false);
     }
@@ -400,7 +402,6 @@ export default function Home() {
 
     const { data: authData } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        lastUserIdRef.current = newSession?.user?.id || null;
         setSession(newSession);
 
         if (!newSession) {
@@ -423,11 +424,18 @@ export default function Home() {
     loadProfile(session.user);
   }, [session?.user?.id]);
 
+  // CARICAMENTO IMMEDIATO CHAT + REALTIME
   useEffect(() => {
     if (!session || !started) return;
 
+    firstPublicLoadRef.current = true;
+
     loadInventory();
     loadMessages(true);
+    loadVotes();
+    loadReports();
+    loadRooms();
+    loadUnreadDM();
 
     const channel = supabase
       .channel(`who-public-${currentRoom}`)
@@ -443,8 +451,41 @@ export default function Home() {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [session?.user?.id, started, currentRoom]);
+
+  // NOTIFICHE PRIVATI REALTIME
+  useEffect(() => {
+    if (!session?.user?.id || !started) return;
+
+    loadUnreadDM();
+
+    const dmChannel = supabase
+      .channel(`who-dm-notifications-${session.user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "direct_messages",
+          filter: `receiver_id=eq.${session.user.id}`,
+        },
+        () => {
+          loadUnreadDM();
+
+          if (dmUser) {
+            loadDirectMessages(dmUser);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(dmChannel);
+    };
+  }, [session?.user?.id, started, dmUser?.id]);
 
   async function register() {
     const username = cleanNickname(nickname);
@@ -514,6 +555,10 @@ export default function Home() {
     setPassword("");
     setAvatar("Shadow");
     setOwned([]);
+    setMessages([]);
+    setDmMessages([]);
+    setUnreadDM(0);
+
     setEquipped({
       head: null,
       face: null,
@@ -550,9 +595,7 @@ export default function Home() {
 
       supabase
         .from("profiles")
-        .select(
-          "equipped_head,equipped_face,equipped_aura,equipped_frame"
-        )
+        .select("equipped_head,equipped_face,equipped_aura,equipped_frame")
         .eq("id", session.user.id)
         .single(),
     ]);
@@ -572,8 +615,7 @@ export default function Home() {
   }
 
   async function buyItem(item) {
-    if (!session) return;
-    if (owned.includes(item.id)) return;
+    if (!session || owned.includes(item.id)) return;
 
     if (points < item.price) {
       alert("WHO Points insufficienti.");
@@ -597,12 +639,10 @@ export default function Home() {
       return;
     }
 
-    const inventory = await supabase
-      .from("user_inventory")
-      .insert({
-        user_id: session.user.id,
-        item_id: item.id,
-      });
+    const inventory = await supabase.from("user_inventory").insert({
+      user_id: session.user.id,
+      item_id: item.id,
+    });
 
     if (inventory.error) {
       alert(inventory.error.message);
@@ -611,7 +651,6 @@ export default function Home() {
 
     setPoints(newPoints);
     setOwned((old) => [...old, item.id]);
-
     alert(`${item.name} aggiunto alla tua collezione.`);
   }
 
@@ -620,7 +659,7 @@ export default function Home() {
 
     setEquipmentBusy(item.id);
 
-    const { data, error } = await supabase.rpc("equip_item", {
+    const { error } = await supabase.rpc("equip_item", {
       p_item_id: item.id,
     });
 
@@ -785,14 +824,16 @@ export default function Home() {
   }
 
   async function loadMessages(forceBottom = false) {
+    const room = roomKey(activeRoom);
+
     const { data, error } = await supabase
       .from("messages")
       .select("*")
-      .eq("room", currentRoom)
+      .eq("room", room)
       .order("id", { ascending: true });
 
     if (error) {
-      console.error(error);
+      console.error("WHO loadMessages:", error);
       return;
     }
 
@@ -805,7 +846,7 @@ export default function Home() {
         publicBottomRef.current?.scrollIntoView({
           behavior: "auto",
         });
-      }, 50);
+      }, 80);
     }
   }
 
@@ -853,8 +894,7 @@ export default function Home() {
     const map = {};
 
     (data || []).forEach((v) => {
-      map[v.message_id] =
-        Number(v.vote) === 1 ? "like" : "dislike";
+      map[v.message_id] = Number(v.vote) === 1 ? "like" : "dislike";
     });
 
     setMyVotes(map);
@@ -881,13 +921,11 @@ export default function Home() {
         .eq("user_id", session.user.id)
         .eq("message_id", msg.id));
     } else {
-      ({ error } = await supabase
-        .from("message_votes")
-        .insert({
-          user_id: session.user.id,
-          message_id: msg.id,
-          vote: numericVote,
-        }));
+      ({ error } = await supabase.from("message_votes").insert({
+        user_id: session.user.id,
+        message_id: msg.id,
+        vote: numericVote,
+      }));
     }
 
     if (error) {
@@ -906,24 +944,24 @@ export default function Home() {
   async function loadReports() {
     if (!session) return;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("message_reports")
       .select("message_id")
       .eq("user_id", session.user.id);
 
-    setReportedMessages((data || []).map((x) => x.message_id));
+    if (!error) {
+      setReportedMessages((data || []).map((x) => x.message_id));
+    }
   }
 
   async function reportMessage(msg) {
-    if (reportedMessages.includes(msg.id)) return;
+    if (!session || reportedMessages.includes(msg.id)) return;
 
-    const { error } = await supabase
-      .from("message_reports")
-      .insert({
-        message_id: msg.id,
-        user_id: session.user.id,
-        reason: "user_report",
-      });
+    const { error } = await supabase.from("message_reports").insert({
+      message_id: msg.id,
+      user_id: session.user.id,
+      reason: "user_report",
+    });
 
     if (error) {
       alert(error.message);
@@ -932,6 +970,191 @@ export default function Home() {
 
     setReportedMessages((old) => [...old, msg.id]);
     alert("Segnalazione inviata.");
+  }
+
+  // PROFILO PUBBLICO UTENTE
+  async function openUserProfile(msg) {
+    if (!msg?.user_id) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", msg.user_id)
+      .maybeSingle();
+
+    if (error || !data) {
+      setSelectedUser({
+        id: msg.user_id,
+        nickname: msg.nickname || "anonimo",
+        avatar: msg.avatar || "Shadow",
+        vibe: 100,
+        reputation: 100,
+        who_points: 0,
+      });
+    } else {
+      setSelectedUser(data);
+    }
+
+    setShowUserProfile(true);
+  }
+
+  function closeUserProfile() {
+    setShowUserProfile(false);
+    setSelectedUser(null);
+  }
+
+  // STANZE COMMUNITY
+  async function loadRooms() {
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      // Se la tabella non esiste ancora, manteniamo le stanze ufficiali.
+      setRooms((old) => (old.length ? old : roomsDefault));
+      return;
+    }
+
+    const community = (data || []).filter(
+      (r) =>
+        !roomsDefault.some(
+          (d) =>
+            d.room_key === r.room_key ||
+            String(d.id) === String(r.id)
+        )
+    );
+
+    setRooms([...roomsDefault, ...community]);
+  }
+
+  async function createRoom() {
+    if (!session) return;
+
+    const name = newRoomName.trim();
+
+    if (name.length < 3) {
+      alert("Il nome della stanza deve avere almeno 3 caratteri.");
+      return;
+    }
+
+    const newRoom = {
+      room_key: makeRoomKey(name),
+      name: name.slice(0, 35).toUpperCase(),
+      description:
+        newRoomDescription.trim().slice(0, 120) ||
+        "Stanza della community WHO",
+      creator_id: session.user.id,
+      creator_nickname: profile?.nickname || nickname,
+      is_private: newRoomPrivate,
+      is_official: false,
+    };
+
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert(newRoom)
+      .select()
+      .single();
+
+    if (error) {
+      alert(
+        "Per attivare le stanze community serve la tabella rooms su Supabase."
+      );
+      return;
+    }
+
+    setRooms((old) => [...old, data]);
+    setNewRoomName("");
+    setNewRoomDescription("");
+    setNewRoomPrivate(false);
+    setShowCreateRoom(false);
+  }
+
+  // PRIVATI
+  async function loadUnreadDM() {
+    if (!session?.user?.id) return;
+
+    const { count, error } = await supabase
+      .from("direct_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("receiver_id", session.user.id)
+      .eq("is_read", false);
+
+    if (!error) {
+      setUnreadDM(count || 0);
+    }
+  }
+
+  async function openPrivateChat(user) {
+    if (!user?.id || user.id === session?.user?.id) return;
+
+    setShowUserProfile(false);
+    setSelectedUser(null);
+    setDmUser(user);
+    setPage("dm");
+
+    await loadDirectMessages(user);
+  }
+
+  async function loadDirectMessages(user = dmUser) {
+    if (!session?.user?.id || !user?.id) return;
+
+    const myId = session.user.id;
+
+    const { data, error } = await supabase
+      .from("direct_messages")
+      .select("*")
+      .or(
+        `and(sender_id.eq.${myId},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${myId})`
+      )
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("WHO DM:", error);
+      return;
+    }
+
+    setDmMessages(data || []);
+
+    await supabase
+      .from("direct_messages")
+      .update({ is_read: true })
+      .eq("sender_id", user.id)
+      .eq("receiver_id", myId)
+      .eq("is_read", false);
+
+    loadUnreadDM();
+  }
+
+  async function sendDirectMessage() {
+    const text = dmText.trim();
+
+    if (!text || !dmUser?.id || !session || dmSending) return;
+
+    setDmSending(true);
+
+    const { error } = await supabase.from("direct_messages").insert({
+      sender_id: session.user.id,
+      receiver_id: dmUser.id,
+      sender_nickname: profile?.nickname || nickname,
+      sender_avatar: avatar,
+      receiver_nickname: dmUser.nickname,
+      content: text.slice(0, 500),
+      message_color: messageColor,
+      message_font: messageFont,
+      is_read: false,
+    });
+
+    if (error) {
+      alert(
+        "I messaggi privati richiedono la tabella direct_messages su Supabase."
+      );
+    } else {
+      setDmText("");
+      await loadDirectMessages(dmUser);
+    }
+
+    setDmSending(false);
   }
 
   function Logo() {
@@ -978,6 +1201,7 @@ export default function Home() {
             key={id}
             onClick={() => setPage(id)}
             style={{
+              position: "relative",
               border: 0,
               background: "transparent",
               color: page === id ? "#edaaff" : "#776d7b",
@@ -987,6 +1211,27 @@ export default function Home() {
           >
             <div style={{ fontSize: 19 }}>{icon}</div>
             {label}
+
+            {id === "chat" && unreadDM > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: "25%",
+                  minWidth: 17,
+                  height: 17,
+                  padding: "0 4px",
+                  borderRadius: 20,
+                  background: C.red,
+                  color: "#fff",
+                  fontSize: 9,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                {unreadDM > 99 ? "99+" : unreadDM}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -1127,17 +1372,12 @@ export default function Home() {
 
                 <div
                   style={{
-                    color:
-                      avatar === a.name
-                        ? "#efaaff"
-                        : C.muted,
+                    color: avatar === a.name ? "#efaaff" : C.muted,
                     marginTop: 12,
                     fontWeight: 900,
                   }}
                 >
-                  {avatar === a.name
-                    ? "✓ SELEZIONATO"
-                    : "SCEGLI"}
+                  {avatar === a.name ? "✓ SELEZIONATO" : "SCEGLI"}
                 </div>
               </button>
             ))}
@@ -1157,7 +1397,10 @@ export default function Home() {
         </section>
       </main>
     );
-              }
+  }
+
+  // ===== FINE BLOCCO 1/2 =====
+  // INCOLLA IL BLOCCO 2/2 ESATTAMENTE QUI SOTTO
   if (page === "rooms") {
     return (
       <main style={background}>
@@ -1173,18 +1416,107 @@ export default function Home() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
+              gap: 10,
             }}
           >
-            <h1 style={{ fontFamily: displayFont }}>
-              STANZE
-            </h1>
+            <h1 style={{ fontFamily: displayFont }}>STANZE</h1>
+
+            <button
+              onClick={() => setShowCreateRoom(!showCreateRoom)}
+              style={{
+                ...purpleButton,
+                padding: "10px 13px",
+              }}
+            >
+              ＋ CREA
+            </button>
           </div>
+
+          {showCreateRoom && (
+            <div
+              style={{
+                ...card,
+                padding: 15,
+                marginBottom: 14,
+              }}
+            >
+              <strong>CREA UNA STANZA</strong>
+
+              <input
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                maxLength={35}
+                placeholder="Nome stanza"
+                style={{ ...input, marginTop: 12 }}
+              />
+
+              <input
+                value={newRoomDescription}
+                onChange={(e) =>
+                  setNewRoomDescription(e.target.value)
+                }
+                maxLength={120}
+                placeholder="Descrizione"
+                style={{ ...input, marginTop: 8 }}
+              />
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  marginTop: 12,
+                  color: C.muted,
+                  fontSize: 11,
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={newRoomPrivate}
+                  onChange={(e) =>
+                    setNewRoomPrivate(e.target.checked)
+                  }
+                />
+                Stanza privata
+              </label>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                <button
+                  onClick={() => setShowCreateRoom(false)}
+                  style={{
+                    ...card,
+                    padding: 11,
+                  }}
+                >
+                  ANNULLA
+                </button>
+
+                <button
+                  onClick={createRoom}
+                  style={{
+                    ...purpleButton,
+                    padding: 11,
+                  }}
+                >
+                  CREA STANZA
+                </button>
+              </div>
+            </div>
+          )}
 
           {rooms.map((room) => (
             <button
               key={room.id}
               onClick={() => {
                 setActiveRoom(room);
+                setMessages([]);
                 firstPublicLoadRef.current = true;
                 setPage("chat");
               }}
@@ -1210,8 +1542,246 @@ export default function Home() {
               >
                 {room.description}
               </div>
+
+              {!room.is_official && (
+                <div
+                  style={{
+                    color: "#b46ed1",
+                    fontSize: 8,
+                    marginTop: 6,
+                  }}
+                >
+                  COMMUNITY
+                  {room.creator_nickname
+                    ? ` · @${room.creator_nickname}`
+                    : ""}
+                </div>
+              )}
             </button>
           ))}
+        </section>
+
+        <Nav />
+      </main>
+    );
+  }
+
+  // CHAT PRIVATA
+  if (page === "dm" && dmUser) {
+    return (
+      <main
+        style={{
+          ...background,
+          height: "100dvh",
+          overflow: "hidden",
+          paddingBottom: 0,
+        }}
+      >
+        <section
+          style={{
+            maxWidth: 650,
+            height: "100%",
+            margin: "0 auto",
+            padding: "12px 14px 82px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <header
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              minHeight: 62,
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            <button
+              onClick={() => {
+                setDmUser(null);
+                setDmMessages([]);
+                setPage("chat");
+              }}
+              style={{
+                ...tinyButton,
+                fontSize: 16,
+                padding: "5px 10px",
+              }}
+            >
+              ‹
+            </button>
+
+            <button
+              onClick={() => {
+                setSelectedUser(dmUser);
+                setShowUserProfile(true);
+              }}
+              style={{
+                border: 0,
+                background: "transparent",
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                color: "#fff",
+                textAlign: "left",
+              }}
+            >
+              <Avatar
+                name={dmUser.avatar || "Shadow"}
+                size={37}
+              />
+
+              <div>
+                <div
+                  style={{
+                    color: C.pink,
+                    fontSize: 9,
+                    fontWeight: 900,
+                  }}
+                >
+                  CHAT PRIVATA
+                </div>
+
+                <strong>
+                  @{dmUser.nickname || "anonimo"}
+                </strong>
+              </div>
+            </button>
+          </header>
+
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              minHeight: 0,
+              paddingTop: 10,
+            }}
+          >
+            {dmMessages.length === 0 && (
+              <div
+                style={{
+                  ...card,
+                  padding: 18,
+                  textAlign: "center",
+                  color: C.muted,
+                  fontSize: 11,
+                  marginTop: 15,
+                }}
+              >
+                Nessun messaggio ancora.
+                <br />
+                Inizia una conversazione privata con
+                {" "}
+                <strong>@{dmUser.nickname}</strong>.
+              </div>
+            )}
+
+            {dmMessages.map((msg) => {
+              const mine =
+                msg.sender_id === session.user.id;
+
+              return (
+                <div
+                  key={msg.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: mine
+                      ? "flex-end"
+                      : "flex-start",
+                    marginBottom: 7,
+                  }}
+                >
+                  <div
+                    style={{
+                      maxWidth: "82%",
+                      background: mine
+                        ? "linear-gradient(135deg,rgba(156,56,204,.35),rgba(91,26,125,.30))"
+                        : "rgba(255,255,255,.045)",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: mine
+                        ? "15px 15px 4px 15px"
+                        : "15px 15px 15px 4px",
+                      padding: "9px 11px",
+                    }}
+                  >
+                    {!mine && (
+                      <div
+                        style={{
+                          color: "#df9cff",
+                          fontSize: 9,
+                          fontWeight: 900,
+                          marginBottom: 3,
+                        }}
+                      >
+                        @{msg.sender_nickname ||
+                          dmUser.nickname}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        color: getMessageColor(
+                          msg.message_color
+                        ),
+                        fontFamily: getMessageFont(
+                          msg.message_font
+                        ),
+                        wordBreak: "break-word",
+                      }}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div
+            style={{
+              ...card,
+              padding: 5,
+              display: "flex",
+              gap: 5,
+              marginTop: 6,
+            }}
+          >
+            <input
+              value={dmText}
+              maxLength={500}
+              onChange={(e) => setDmText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendDirectMessage();
+                }
+              }}
+              placeholder={`Messaggio privato a @${dmUser.nickname}...`}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: "transparent",
+                border: 0,
+                color: getMessageColor(messageColor),
+                fontFamily: getMessageFont(messageFont),
+                outline: 0,
+                padding: "10px 9px",
+              }}
+            />
+
+            <button
+              onClick={sendDirectMessage}
+              disabled={dmSending || !dmText.trim()}
+              style={{
+                ...purpleButton,
+                width: 42,
+                opacity: !dmText.trim() ? 0.4 : 1,
+              }}
+            >
+              {dmSending ? "…" : "➤"}
+            </button>
+          </div>
         </section>
 
         <Nav />
@@ -1357,7 +1927,9 @@ export default function Home() {
                       </button>
                     ) : (
                       <button
-                        disabled={equipmentBusy === item.id}
+                        disabled={
+                          equipmentBusy === item.id
+                        }
                         onClick={() => equipItem(item)}
                         style={{
                           ...purpleButton,
@@ -1504,7 +2076,8 @@ export default function Home() {
                 }}
               >
                 {ownedItems.map((item) => {
-                  const active = isItemEquipped(item);
+                  const active =
+                    isItemEquipped(item);
 
                   return (
                     <div
@@ -1582,7 +2155,8 @@ export default function Home() {
                       ) : (
                         <button
                           disabled={
-                            equipmentBusy === item.id
+                            equipmentBusy ===
+                            item.id
                           }
                           onClick={() =>
                             equipItem(item)
@@ -1629,7 +2203,8 @@ export default function Home() {
                 ["frame", "◇ CORNICE"],
               ].map(([slot, label]) => {
                 const item = shopItems.find(
-                  (x) => x.id === equipped[slot]
+                  (x) =>
+                    x.id === equipped[slot]
                 );
 
                 return (
@@ -1661,7 +2236,9 @@ export default function Home() {
                           : "#716777",
                       }}
                     >
-                      {item ? item.name : "VUOTO"}
+                      {item
+                        ? item.name
+                        : "VUOTO"}
                     </strong>
                   </div>
                 );
@@ -1685,8 +2262,10 @@ export default function Home() {
                 borderRadius: 12,
                 padding: 12,
                 marginTop: 12,
-                color: getMessageColor(messageColor),
-                fontFamily: getMessageFont(messageFont),
+                color:
+                  getMessageColor(messageColor),
+                fontFamily:
+                  getMessageFont(messageFont),
               }}
             >
               Questo è il mio stile WHO.
@@ -1695,7 +2274,8 @@ export default function Home() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(3,1fr)",
+                gridTemplateColumns:
+                  "repeat(3,1fr)",
                 gap: 7,
                 marginTop: 12,
               }}
@@ -1718,14 +2298,18 @@ export default function Home() {
                       .update({
                         message_color: value,
                       })
-                      .eq("id", session.user.id);
+                      .eq(
+                        "id",
+                        session.user.id
+                      );
                   }}
                   style={{
                     padding: 10,
                     borderRadius: 11,
                     border: `1px solid ${C.border}`,
                     background: "#0c0910",
-                    color: getMessageColor(value),
+                    color:
+                      getMessageColor(value),
                   }}
                 >
                   ● {label}
@@ -1736,7 +2320,8 @@ export default function Home() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "repeat(2,1fr)",
+                gridTemplateColumns:
+                  "repeat(2,1fr)",
                 gap: 7,
                 marginTop: 12,
               }}
@@ -1757,7 +2342,10 @@ export default function Home() {
                       .update({
                         message_font: value,
                       })
-                      .eq("id", session.user.id);
+                      .eq(
+                        "id",
+                        session.user.id
+                      );
                   }}
                   style={{
                     padding: 11,
@@ -1765,7 +2353,8 @@ export default function Home() {
                     border: `1px solid ${C.border}`,
                     background: "#0c0910",
                     color: "#fff",
-                    fontFamily: getMessageFont(value),
+                    fontFamily:
+                      getMessageFont(value),
                   }}
                 >
                   {label}
@@ -1793,7 +2382,9 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() => setStarted("identity")}
+            onClick={() =>
+              setStarted("identity")
+            }
             style={{
               ...card,
               width: "100%",
@@ -1811,7 +2402,8 @@ export default function Home() {
               padding: 15,
               marginTop: 10,
               borderRadius: 15,
-              background: "rgba(120,30,55,.15)",
+              background:
+                "rgba(120,30,55,.15)",
               color: "#ff9ab6",
               border:
                 "1px solid rgba(255,90,130,.3)",
@@ -1849,33 +2441,95 @@ export default function Home() {
         <header
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             alignItems: "center",
             minHeight: 58,
           }}
         >
           <Logo />
 
-          <button
-            onClick={() => setPage("rooms")}
+          <div
             style={{
-              ...card,
-              padding: "8px 12px",
+              display: "flex",
+              gap: 6,
             }}
           >
-            ◉ Stanze
-          </button>
+            <button
+              onClick={() => {
+                if (unreadDM > 0) {
+                  alert(
+                    `Hai ${unreadDM} messagg${
+                      unreadDM === 1 ? "io" : "i"
+                    } privat${
+                      unreadDM === 1 ? "o" : "i"
+                    } non lett${
+                      unreadDM === 1 ? "o" : "i"
+                    }. Apri il profilo di un utente per entrare nella chat privata.`
+                  );
+                } else {
+                  alert(
+                    "Nessun nuovo messaggio privato."
+                  );
+                }
+              }}
+              style={{
+                ...card,
+                padding: "8px 10px",
+                position: "relative",
+              }}
+            >
+              ✉
+
+              {unreadDM > 0 && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -7,
+                    right: -7,
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 20,
+                    background: C.red,
+                    color: "#fff",
+                    fontSize: 9,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  {unreadDM > 99
+                    ? "99+"
+                    : unreadDM}
+                </span>
+              )}
+            </button>
+
+            <button
+              onClick={() =>
+                setPage("rooms")
+              }
+              style={{
+                ...card,
+                padding: "8px 12px",
+              }}
+            >
+              ◉ Stanze
+            </button>
+          </div>
         </header>
 
         <div
           style={{
             display: "flex",
-            justifyContent: "space-between",
+            justifyContent:
+              "space-between",
             marginBottom: 8,
           }}
         >
           <div>
-            <small style={{ color: "#c879ef" }}>
+            <small
+              style={{ color: "#c879ef" }}
+            >
               CHAT PUBBLICA
             </small>
 
@@ -1921,18 +2575,36 @@ export default function Home() {
             minHeight: 0,
           }}
         >
+          {messages.length === 0 && (
+            <div
+              style={{
+                color: C.muted,
+                textAlign: "center",
+                fontSize: 10,
+                padding: 20,
+              }}
+            >
+              Nessun messaggio in questa
+              stanza.
+            </div>
+          )}
+
           {messages.map((msg) => {
             const mine =
-              msg.user_id === session.user.id;
+              msg.user_id ===
+              session.user.id;
 
             const positive =
               myVotes[msg.id] === "like";
 
             const negative =
-              myVotes[msg.id] === "dislike";
+              myVotes[msg.id] ===
+              "dislike";
 
             const reported =
-              reportedMessages.includes(msg.id);
+              reportedMessages.includes(
+                msg.id
+              );
 
             return (
               <article
@@ -1954,11 +2626,30 @@ export default function Home() {
                     gap: 8,
                   }}
                 >
-                  <Avatar
-                    name={msg.avatar}
-                    size={32}
-                    equipment={mine ? equipped : null}
-                  />
+                  <button
+                    disabled={mine}
+                    onClick={() =>
+                      !mine &&
+                      openUserProfile(msg)
+                    }
+                    style={{
+                      padding: 0,
+                      border: 0,
+                      background:
+                        "transparent",
+                      height: 32,
+                    }}
+                  >
+                    <Avatar
+                      name={msg.avatar}
+                      size={32}
+                      equipment={
+                        mine
+                          ? equipped
+                          : null
+                      }
+                    />
+                  </button>
 
                   <div
                     style={{
@@ -1966,9 +2657,26 @@ export default function Home() {
                       minWidth: 0,
                     }}
                   >
-                    <strong>
-                      @{msg.nickname || "anonimo"}
-                    </strong>
+                    <button
+                      disabled={mine}
+                      onClick={() =>
+                        !mine &&
+                        openUserProfile(msg)
+                      }
+                      style={{
+                        border: 0,
+                        padding: 0,
+                        background:
+                          "transparent",
+                        color: "#fff",
+                        fontWeight: 900,
+                        fontFamily: font,
+                      }}
+                    >
+                      @
+                      {msg.nickname ||
+                        "anonimo"}
+                    </button>
 
                     {msg.reply_to_nickname && (
                       <div
@@ -1981,7 +2689,10 @@ export default function Home() {
                             "2px solid rgba(181,76,255,.5)",
                         }}
                       >
-                        ↩ @{msg.reply_to_nickname}
+                        ↩ @
+                        {
+                          msg.reply_to_nickname
+                        }
                         {msg.reply_preview
                           ? ` · ${msg.reply_preview}`
                           : ""}
@@ -1990,14 +2701,17 @@ export default function Home() {
 
                     <div
                       style={{
-                        color: getMessageColor(
-                          msg.message_color
-                        ),
-                        fontFamily: getMessageFont(
-                          msg.message_font
-                        ),
+                        color:
+                          getMessageColor(
+                            msg.message_color
+                          ),
+                        fontFamily:
+                          getMessageFont(
+                            msg.message_font
+                          ),
                         marginTop: 4,
-                        wordBreak: "break-word",
+                        wordBreak:
+                          "break-word",
                       }}
                     >
                       {msg.content}
@@ -2020,9 +2734,49 @@ export default function Home() {
                         ↩
                       </button>
 
+                      {!mine && (
+                        <button
+                          onClick={() =>
+                            openUserProfile(
+                              msg
+                            )
+                          }
+                          style={{
+                            ...tinyButton,
+                            color:
+                              "#df9cff",
+                          }}
+                        >
+                          ● PROFILO
+                        </button>
+                      )}
+
+                      {!mine && (
+                        <button
+                          onClick={() =>
+                            openPrivateChat({
+                              id: msg.user_id,
+                              nickname:
+                                msg.nickname,
+                              avatar:
+                                msg.avatar,
+                            })
+                          }
+                          style={{
+                            ...tinyButton,
+                            color: C.cyan,
+                          }}
+                        >
+                          ✉ PRIVATO
+                        </button>
+                      )}
+
                       <button
                         onClick={() =>
-                          voteMessage(msg, "like")
+                          voteMessage(
+                            msg,
+                            "like"
+                          )
                         }
                         style={{
                           ...tinyButton,
@@ -2031,12 +2785,18 @@ export default function Home() {
                             : "#a999b1",
                         }}
                       >
-                        ♡ {Number(msg.likes || 0)}
+                        ♡{" "}
+                        {Number(
+                          msg.likes || 0
+                        )}
                       </button>
 
                       <button
                         onClick={() =>
-                          voteMessage(msg, "dislike")
+                          voteMessage(
+                            msg,
+                            "dislike"
+                          )
                         }
                         style={{
                           ...tinyButton,
@@ -2046,7 +2806,9 @@ export default function Home() {
                         }}
                       >
                         ♢−{" "}
-                        {Number(msg.dislikes || 0)}
+                        {Number(
+                          msg.dislikes || 0
+                        )}
                       </button>
 
                       {!mine && (
@@ -2057,7 +2819,8 @@ export default function Home() {
                           }
                           style={{
                             ...tinyButton,
-                            marginLeft: "auto",
+                            marginLeft:
+                              "auto",
                             color: C.red,
                             opacity: reported
                               ? 0.4
@@ -2080,8 +2843,10 @@ export default function Home() {
         {replyingTo && (
           <div
             style={{
-              background: "rgba(181,76,255,.08)",
-              borderLeft: "2px solid #c75cff",
+              background:
+                "rgba(181,76,255,.08)",
+              borderLeft:
+                "2px solid #c75cff",
               borderRadius: 10,
               padding: "7px 9px",
               marginTop: 5,
@@ -2110,10 +2875,13 @@ export default function Home() {
             </div>
 
             <button
-              onClick={() => setReplyingTo(null)}
+              onClick={() =>
+                setReplyingTo(null)
+              }
               style={{
                 border: 0,
-                background: "transparent",
+                background:
+                  "transparent",
                 color: "#aaa",
               }}
             >
@@ -2150,11 +2918,17 @@ export default function Home() {
               style={{
                 flex: 1,
                 minWidth: 0,
-                background: "transparent",
+                background:
+                  "transparent",
                 border: 0,
-                color: getMessageColor(messageColor),
+                color:
+                  getMessageColor(
+                    messageColor
+                  ),
                 fontFamily:
-                  getMessageFont(messageFont),
+                  getMessageFont(
+                    messageFont
+                  ),
                 outline: 0,
                 padding: "10px 9px",
               }}
@@ -2163,13 +2937,16 @@ export default function Home() {
             <button
               onClick={sendMessage}
               disabled={
-                sending || !message.trim()
+                sending ||
+                !message.trim()
               }
               style={{
                 ...purpleButton,
                 width: 42,
                 opacity:
-                  !message.trim() ? 0.4 : 1,
+                  !message.trim()
+                    ? 0.4
+                    : 1,
               }}
             >
               {sending ? "…" : "➤"}
@@ -2178,7 +2955,238 @@ export default function Home() {
         </div>
       </section>
 
+      {showUserProfile &&
+        selectedUser && (
+          <div
+            onClick={closeUserProfile}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 500,
+              background:
+                "rgba(0,0,0,.78)",
+              display: "grid",
+              placeItems: "center",
+              padding: 18,
+            }}
+          >
+            <div
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              style={{
+                ...card,
+                width: "100%",
+                maxWidth: 390,
+                padding: 20,
+                textAlign: "center",
+                boxShadow:
+                  "0 0 50px rgba(181,76,255,.18)",
+              }}
+            >
+              <button
+                onClick={
+                  closeUserProfile
+                }
+                style={{
+                  float: "right",
+                  border: 0,
+                  background:
+                    "transparent",
+                  color: C.muted,
+                  fontSize: 18,
+                }}
+              >
+                ✕
+              </button>
+
+              <div
+                style={{
+                  paddingTop: 15,
+                  minHeight: 125,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <Avatar
+                  name={
+                    selectedUser.avatar ||
+                    "Shadow"
+                  }
+                  size={105}
+                />
+              </div>
+
+              <h2
+                style={{
+                  marginBottom: 4,
+                }}
+              >
+                @
+                {selectedUser.nickname ||
+                  "anonimo"}
+              </h2>
+
+              {String(
+                selectedUser.role || ""
+              ).toUpperCase() ===
+                "FOUNDER" && (
+                <div
+                  style={{
+                    color:
+                      "#e8a0ff",
+                    fontWeight: 900,
+                    fontSize: 11,
+                  }}
+                >
+                  ♛ WHO FOUNDER
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    "repeat(3,1fr)",
+                  gap: 7,
+                  marginTop: 18,
+                }}
+              >
+                <div
+                  style={{
+                    background:
+                      "#09070c",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 12,
+                    padding: 10,
+                  }}
+                >
+                  <small
+                    style={{
+                      color: C.muted,
+                    }}
+                  >
+                    VIBE
+                  </small>
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      marginTop: 4,
+                    }}
+                  >
+                    ⚡{" "}
+                    {Number(
+                      selectedUser.vibe ??
+                        100
+                    )}
+                  </strong>
+                </div>
+
+                <div
+                  style={{
+                    background:
+                      "#09070c",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 12,
+                    padding: 10,
+                  }}
+                >
+                  <small
+                    style={{
+                      color: C.muted,
+                    }}
+                  >
+                    LEVEL
+                  </small>
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      marginTop: 4,
+                    }}
+                  >
+                    {Math.max(
+                      1,
+                      Math.floor(
+                        Number(
+                          selectedUser.who_points ??
+                            0
+                        ) / 250
+                      ) + 1
+                    )}
+                  </strong>
+                </div>
+
+                <div
+                  style={{
+                    background:
+                      "#09070c",
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 12,
+                    padding: 10,
+                  }}
+                >
+                  <small
+                    style={{
+                      color: C.muted,
+                    }}
+                  >
+                    REP
+                  </small>
+                  <strong
+                    style={{
+                      display:
+                        "block",
+                      marginTop: 4,
+                      color: C.green,
+                    }}
+                  >
+                    {Number(
+                      selectedUser.reputation ??
+                        100
+                    )}
+                  </strong>
+                </div>
+              </div>
+
+              {selectedUser.id !==
+                session.user.id && (
+                <button
+                  onClick={() =>
+                    openPrivateChat(
+                      selectedUser
+                    )
+                  }
+                  style={{
+                    ...purpleButton,
+                    width: "100%",
+                    padding: 14,
+                    marginTop: 16,
+                  }}
+                >
+                  ✉ MESSAGGIO PRIVATO
+                </button>
+              )}
+
+              <button
+                onClick={
+                  closeUserProfile
+                }
+                style={{
+                  ...card,
+                  width: "100%",
+                  padding: 12,
+                  marginTop: 8,
+                }}
+              >
+                CHIUDI
+              </button>
+            </div>
+          </div>
+        )}
+
       <Nav />
     </main>
   );
-                  }
+                }
