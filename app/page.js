@@ -101,6 +101,7 @@ const shopItems = [
     rarity: "LEGENDARY",
     price: 1200,
     image: "/shop/royal/crown.png",
+    slot: "head",
   },
   {
     id: "void-mask",
@@ -108,6 +109,7 @@ const shopItems = [
     rarity: "LEGENDARY",
     price: 1000,
     image: "/shop/void-mask.png",
+    slot: "face",
   },
   {
     id: "glitch-eyes",
@@ -115,6 +117,7 @@ const shopItems = [
     rarity: "EPIC",
     price: 750,
     image: "/shop/glitch-eyes.png",
+    slot: "face",
   },
   {
     id: "dual-aura",
@@ -122,6 +125,7 @@ const shopItems = [
     rarity: "EPIC",
     price: 850,
     image: "/shop/dual-aura.png",
+    slot: "aura",
   },
   {
     id: "neon-visor",
@@ -129,6 +133,7 @@ const shopItems = [
     rarity: "EPIC",
     price: 650,
     image: "/shop/neon-visor.png",
+    slot: "face",
   },
   {
     id: "nexus-frame",
@@ -136,6 +141,7 @@ const shopItems = [
     rarity: "LIMITED",
     price: 1500,
     image: "/shop/nexus-frame.png",
+    slot: "frame",
   },
 ];
 
@@ -153,10 +159,7 @@ function internalEmail(nickname) {
 function avatarImage(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
 
-  return (
-    avatars.find((a) => a.name === name)?.image ||
-    "/shadow.png"
-  );
+  return avatars.find((a) => a.name === name)?.image || "/shadow.png";
 }
 
 function roomKey(room) {
@@ -175,9 +178,7 @@ function makeRoomKey(name) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 35);
 
-  return `${base || "room"}-${Date.now()
-    .toString(36)
-    .slice(-6)}`;
+  return `${base || "room"}-${Date.now().toString(36).slice(-6)}`;
 }
 
 function isUuid(value) {
@@ -195,7 +196,6 @@ function getMessageColor(value) {
     green: "#61e5a4",
     white: "#f8f4fb",
   };
-
   return colors[value] || colors.purple;
 }
 
@@ -207,26 +207,11 @@ function getMessageFont(value) {
     bold: '"Arial Black","Trebuchet MS",sans-serif',
     elegant: 'Georgia,"Times New Roman",serif',
   };
-
   return fonts[value] || fonts.standard;
-}
-
-function formatPrivateTime(value) {
-  if (!value) return "";
-
-  try {
-    return new Date(value).toLocaleTimeString("it-IT", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  } catch {
-    return "";
-  }
 }
 
 export default function Home() {
   const [loading, setLoading] = useState(true);
-
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
 
@@ -252,31 +237,6 @@ export default function Home() {
   const [rooms, setRooms] = useState(roomsDefault);
   const [activeRoom, setActiveRoom] = useState(roomsDefault[0]);
 
-  const [roomPanel, setRoomPanel] = useState(null);
-  const [roomName, setRoomName] = useState("");
-  const [roomDescription, setRoomDescription] = useState("");
-  const [roomPrivate, setRoomPrivate] = useState(false);
-  const [roomBusy, setRoomBusy] = useState(false);
-
-  const [roomModerators, setRoomModerators] = useState([]);
-  const [moderatorNickname, setModeratorNickname] = useState("");
-  const [roomSanctions, setRoomSanctions] = useState([]);
-
-  const [roomAccessMap, setRoomAccessMap] = useState({});
-  const [roomJoinRequests, setRoomJoinRequests] = useState([]);
-  const [roomMembers, setRoomMembers] = useState([]);
-  const [roomAccessBusy, setRoomAccessBusy] = useState(null);
-
-  const [moderationMessage, setModerationMessage] = useState(null);
-  const [roomCanModerate, setRoomCanModerate] = useState(false);
-  const [myRoomRole, setMyRoomRole] = useState(null);
-
-  const [myRoomStatus, setMyRoomStatus] = useState({
-    banned: false,
-    muted: false,
-    mute_until: null,
-  });
-
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [replyingTo, setReplyingTo] = useState(null);
@@ -285,26 +245,23 @@ export default function Home() {
   const [myVotes, setMyVotes] = useState({});
   const [reportedMessages, setReportedMessages] = useState([]);
 
-  const [chatMode, setChatMode] = useState("public");
-
-  const [requests, setRequests] = useState([]);
-  const [conversations, setConversations] = useState([]);
-  const [conversationDetails, setConversationDetails] = useState({});
-
-  const [privateConversation, setPrivateConversation] = useState(null);
-  const [privatePeer, setPrivatePeer] = useState(null);
-  const [privateMessages, setPrivateMessages] = useState([]);
-  const [privateMessage, setPrivateMessage] = useState("");
-  const [privateReply, setPrivateReply] = useState(null);
-
-  const [blocked, setBlocked] = useState([]);
   const [owned, setOwned] = useState([]);
-  const [showNewMessages, setShowNewMessages] = useState(false);
+
+  // =====================================================
+  // WHO EQUIPMENT
+  // =====================================================
+
+  const [equipped, setEquipped] = useState({
+    head: null,
+    face: null,
+    aura: null,
+    frame: null,
+  });
+
+  const [equipmentBusy, setEquipmentBusy] = useState(null);
 
   const publicChatRef = useRef(null);
   const publicBottomRef = useRef(null);
-  const privateBottomRef = useRef(null);
-
   const publicAtBottomRef = useRef(true);
   const firstPublicLoadRef = useRef(true);
   const lastUserIdRef = useRef(null);
@@ -313,25 +270,7 @@ export default function Home() {
     String(profile?.role || "").toUpperCase() === "FOUNDER";
 
   const currentRoom = roomKey(activeRoom);
-
   const level = Math.max(1, Math.floor(points / 250) + 1);
-
-  const incomingRequests = useMemo(
-    () =>
-      requests.filter(
-        (r) =>
-          r.receiver_id === session?.user?.id &&
-          r.status === "pending"
-      ),
-    [requests, session]
-  );
-
-  const totalUnreadPrivate = useMemo(() => {
-    return Object.values(conversationDetails).reduce(
-      (sum, item) => sum + Number(item?.unread || 0),
-      0
-    );
-  }, [conversationDetails]);
 
   const background = {
     minHeight: "100dvh",
@@ -379,231 +318,29 @@ export default function Home() {
     minHeight: 24,
     padding: "3px 7px",
     fontSize: 9,
-    lineHeight: 1,
     fontWeight: 900,
     fontFamily: font,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
   };
 
-  function resetAccountState() {
-    setPage("chat");
-    setChatMode("public");
-    setActiveRoom(roomsDefault[0]);
-    setRooms(roomsDefault);
-    setRoomPanel(null);
-    setRoomName("");
-    setRoomDescription("");
-    setRoomPrivate(false);
-    setRoomBusy(false);
-    setRoomModerators([]);
-    setModeratorNickname("");
-    setRoomSanctions([]);
-    setRoomAccessMap({});
-    setRoomJoinRequests([]);
-    setRoomMembers([]);
-    setRoomAccessBusy(null);
-    setModerationMessage(null);
-    setRoomCanModerate(false);
-    setMyRoomRole(null);
+  function applyProfile(data) {
+    setProfile(data);
+    setNickname(data.nickname || data.username || "");
+    setAvatar(data.avatar || "Shadow");
+    setPoints(Number(data.who_points ?? 500));
+    setVibe(Number(data.vibe ?? 100));
+    setReputation(Number(data.reputation ?? 100));
+    setDmPrivacy(data.dm_privacy || "vibe");
+    setDmMinVibe(Number(data.dm_min_vibe ?? 100));
+    setMessageColor(data.message_color || "purple");
+    setMessageFont(data.message_font || "standard");
 
-    setMyRoomStatus({
-      banned: false,
-      muted: false,
-      mute_until: null,
+    setEquipped({
+      head: data.equipped_head || null,
+      face: data.equipped_face || null,
+      aura: data.equipped_aura || null,
+      frame: data.equipped_frame || null,
     });
-
-    setMessages([]);
-    setMessage("");
-    setReplyingTo(null);
-    setSending(false);
-    setMyVotes({});
-    setReportedMessages([]);
-    setRequests([]);
-    setConversations([]);
-    setConversationDetails({});
-    setPrivateConversation(null);
-    setPrivatePeer(null);
-    setPrivateMessages([]);
-    setPrivateMessage("");
-    setPrivateReply(null);
-    setBlocked([]);
-    setOwned([]);
-    setShowNewMessages(false);
-
-    publicAtBottomRef.current = true;
-    firstPublicLoadRef.current = true;
   }
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function startAuth() {
-      const { data } = await supabase.auth.getSession();
-
-      if (!mounted) return;
-
-      const current = data?.session || null;
-      lastUserIdRef.current = current?.user?.id || null;
-      setSession(current);
-      setLoading(false);
-    }
-
-    startAuth();
-
-    const { data: authData } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        const previousUserId = lastUserIdRef.current;
-        const newUserId = newSession?.user?.id || null;
-
-        if (previousUserId !== newUserId) {
-          resetAccountState();
-        }
-
-        lastUserIdRef.current = newUserId;
-        setSession(newSession);
-
-        if (!newSession) {
-          setProfile(null);
-          setStarted(false);
-        }
-
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      mounted = false;
-      authData.subscription.unsubscribe();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!session?.user) return;
-
-    let cancelled = false;
-
-    async function loadCurrentProfile() {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (error) {
-        console.error(error);
-        return;
-      }
-
-      if (data) {
-        applyProfile(data);
-        setStarted(true);
-        return;
-      }
-
-      await loadProfile(session.user);
-    }
-
-    loadCurrentProfile();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session?.user?.id]);
-
-  useEffect(() => {
-    if (!session || !started) return;
-
-    firstPublicLoadRef.current = true;
-    publicAtBottomRef.current = true;
-    setShowNewMessages(false);
-    setModerationMessage(null);
-    setRoomCanModerate(false);
-    setMyRoomRole(null);
-
-    setMyRoomStatus({
-      banned: false,
-      muted: false,
-      mute_until: null,
-    });
-
-    loadMessages(true);
-    loadRooms();
-    loadInventory();
-    loadPrivateData();
-    loadBlocks();
-    loadVotes();
-    loadReports();
-    loadCurrentRoomPermissions();
-
-    const channel = supabase
-      .channel(`who-public-${currentRoom}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `room=eq.${currentRoom}`,
-        },
-        () => loadMessages(false)
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [session?.user?.id, started, currentRoom, activeRoom?.id]);
-
-  useEffect(() => {
-    if (!session) return;
-
-    const channel = supabase
-      .channel(`who-private-${session.user.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "private_requests",
-        },
-        () => loadPrivateData()
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "private_messages",
-        },
-        async () => {
-          await loadPrivateData();
-
-          if (privateConversation) {
-            await loadPrivateMessages(privateConversation.id);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => supabase.removeChannel(channel);
-  }, [session?.user?.id, privateConversation?.id]);
-
-  useEffect(() => {
-    if (
-      chatMode === "private" &&
-      privateConversation &&
-      privateMessages.length
-    ) {
-      setTimeout(() => {
-        privateBottomRef.current?.scrollIntoView({
-          behavior: "smooth",
-        });
-      }, 80);
-    }
-  }, [privateMessages.length, chatMode, privateConversation?.id]);
 
   async function loadProfile(user, preferredNickname = "") {
     const { data, error } = await supabase
@@ -644,50 +381,77 @@ export default function Home() {
         applyProfile(created.data);
         setStarted("identity");
       }
-
       return;
     }
 
-    let finalProfile = data;
-    const currentNickname = String(data.nickname || "");
-    const looksAutomatic = /^who_[a-z0-9]{6,}$/i.test(currentNickname);
-
-    if (
-      preferred &&
-      looksAutomatic &&
-      cleanNickname(currentNickname) !== preferred
-    ) {
-      const repaired = await supabase
-        .from("profiles")
-        .update({
-          nickname: preferred,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id)
-        .select()
-        .single();
-
-      if (!repaired.error && repaired.data) {
-        finalProfile = repaired.data;
-      }
-    }
-
-    applyProfile(finalProfile);
+    applyProfile(data);
     setStarted(true);
   }
 
-  function applyProfile(data) {
-    setProfile(data);
-    setNickname(data.nickname || data.username || "");
-    setAvatar(data.avatar || "Shadow");
-    setPoints(Number(data.who_points ?? 500));
-    setVibe(Number(data.vibe ?? 100));
-    setReputation(Number(data.reputation ?? 100));
-    setDmPrivacy(data.dm_privacy || "vibe");
-    setDmMinVibe(Number(data.dm_min_vibe ?? 100));
-    setMessageColor(data.message_color || "purple");
-    setMessageFont(data.message_font || "standard");
-  }
+  useEffect(() => {
+    let mounted = true;
+
+    async function startAuth() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!mounted) return;
+
+      const current = data?.session || null;
+      lastUserIdRef.current = current?.user?.id || null;
+      setSession(current);
+      setLoading(false);
+    }
+
+    startAuth();
+
+    const { data: authData } = supabase.auth.onAuthStateChange(
+      (_event, newSession) => {
+        lastUserIdRef.current = newSession?.user?.id || null;
+        setSession(newSession);
+
+        if (!newSession) {
+          setProfile(null);
+          setStarted(false);
+        }
+
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      mounted = false;
+      authData.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+
+    loadProfile(session.user);
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session || !started) return;
+
+    loadInventory();
+    loadMessages(true);
+
+    const channel = supabase
+      .channel(`who-public-${currentRoom}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `room=eq.${currentRoom}`,
+        },
+        () => loadMessages(false)
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [session?.user?.id, started, currentRoom]);
 
   async function register() {
     const username = cleanNickname(nickname);
@@ -718,33 +482,6 @@ export default function Home() {
     }
 
     if (data.session && data.user) {
-      resetAccountState();
-      setSession(data.session);
-
-      const existing = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", data.user.id)
-        .maybeSingle();
-
-      if (existing.data) {
-        await supabase
-          .from("profiles")
-          .update({
-            nickname: username,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", data.user.id);
-      } else {
-        await supabase.from("profiles").insert({
-          id: data.user.id,
-          nickname: username,
-          avatar: "Shadow",
-          message_color: "purple",
-          message_font: "standard",
-        });
-      }
-
       await loadProfile(data.user, username);
       setStarted("identity");
     } else {
@@ -761,8 +498,6 @@ export default function Home() {
       return;
     }
 
-    setAuthError("");
-
     const { error } = await supabase.auth.signInWithPassword({
       email: internalEmail(username),
       password,
@@ -777,24 +512,21 @@ export default function Home() {
   }
 
   async function logout() {
-    resetAccountState();
+    await supabase.auth.signOut();
+
+    setSession(null);
     setProfile(null);
     setStarted(false);
-    await supabase.auth.signOut();
-    lastUserIdRef.current = null;
-    setSession(null);
     setNickname("");
     setPassword("");
-    setAuthError("");
-    setAuthMode("login");
     setAvatar("Shadow");
-    setPoints(500);
-    setVibe(100);
-    setReputation(100);
-    setDmPrivacy("vibe");
-    setDmMinVibe(100);
-    setMessageColor("purple");
-    setMessageFont("standard");
+    setOwned([]);
+    setEquipped({
+      head: null,
+      face: null,
+      aura: null,
+      frame: null,
+    });
   }
 
   async function selectAvatar(name) {
@@ -814,681 +546,275 @@ export default function Home() {
     if (!error && data) applyProfile(data);
   }
 
-  async function saveMessageStyle(color, fontStyle) {
+  // =====================================================
+  // INVENTARIO + EQUIPAGGIAMENTO
+  // =====================================================
+
+  async function loadInventory() {
     if (!session) return;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        message_color: color,
-        message_font: fontStyle,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
+    const [inventoryResult, profileResult] = await Promise.all([
+      supabase
+        .from("user_inventory")
+        .select("item_id")
+        .eq("user_id", session.user.id),
 
-    if (error) return alert(error.message);
-    applyProfile(data);
-  }
+      supabase
+        .from("profiles")
+        .select(
+          "equipped_head,equipped_face,equipped_aura,equipped_frame"
+        )
+        .eq("id", session.user.id)
+        .single(),
+    ]);
 
-  async function saveDmSettings(mode, minimum = dmMinVibe) {
-    if (!session) return;
-
-    const min = Math.max(0, Number(minimum) || 0);
-
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        dm_privacy: mode,
-        dm_min_vibe: min,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
-
-    if (error) return alert(error.message);
-    applyProfile(data);
-  }
-
-  async function loadRoomAccess(roomList) {
-    if (!session) return;
-
-    const uid = session.user.id;
-    const dbRooms = (roomList || []).filter((r) => isUuid(r.id));
-    const privateRooms = dbRooms.filter((r) => r.is_private);
-
-    const { data: memberships } = await supabase
-      .from("room_members")
-      .select("room_id,role")
-      .eq("user_id", uid);
-
-    const { data: joinRequests } = await supabase
-      .from("room_join_requests")
-      .select("room_id,status")
-      .eq("user_id", uid);
-
-    const membershipMap = new Map(
-      (memberships || []).map((m) => [m.room_id, m.role])
-    );
-
-    const requestMap = new Map(
-      (joinRequests || []).map((r) => [r.room_id, r.status])
-    );
-
-    const accessResults = await Promise.all(
-      privateRooms.map(async (room) => {
-        const { data } = await supabase.rpc("can_access_room", {
-          p_room_id: room.id,
-          p_user_id: uid,
-        });
-
-        return [room.id, Boolean(data)];
-      })
-    );
-
-    const allowedMap = new Map(accessResults);
-    const map = {};
-
-    for (const room of roomList || []) {
-      const role = membershipMap.get(room.id) || null;
-
-      if (!room.is_private || !isUuid(room.id)) {
-        map[room.id] = {
-          allowed: true,
-          member: Boolean(role),
-          role,
-          status: requestMap.get(room.id) || null,
-        };
-        continue;
-      }
-
-      map[room.id] = {
-        allowed: allowedMap.get(room.id) === true,
-        member: Boolean(role),
-        role,
-        status: requestMap.get(room.id) || null,
-      };
+    if (!inventoryResult.error) {
+      setOwned(
+        (inventoryResult.data || []).map((x) => x.item_id)
+      );
     }
 
-    setRoomAccessMap(map);
+    if (!profileResult.error && profileResult.data) {
+      setEquipped({
+        head: profileResult.data.equipped_head || null,
+        face: profileResult.data.equipped_face || null,
+        aura: profileResult.data.equipped_aura || null,
+        frame: profileResult.data.equipped_frame || null,
+      });
+    }
   }
 
-  async function requestRoomAccess(room) {
-    if (!session || !room || !isUuid(room.id)) return;
+  async function buyItem(item) {
+    if (!session) return;
 
-    setRoomAccessBusy(room.id);
+    if (owned.includes(item.id)) return;
 
-    const { data, error } = await supabase.rpc(
-      "request_room_access",
-      { p_room_id: room.id }
-    );
+    if (points < item.price) {
+      alert("WHO Points insufficienti.");
+      return;
+    }
 
-    setRoomAccessBusy(null);
+    const newPoints = points - item.price;
+
+    const update = await supabase
+      .from("profiles")
+      .update({
+        who_points: newPoints,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
+
+    if (update.error) {
+      alert(update.error.message);
+      return;
+    }
+
+    const inventory = await supabase
+      .from("user_inventory")
+      .insert({
+        user_id: session.user.id,
+        item_id: item.id,
+      });
+
+    if (inventory.error) {
+      alert(inventory.error.message);
+      return;
+    }
+
+    setPoints(newPoints);
+    setOwned((old) => [...old, item.id]);
+
+    alert(`${item.name} aggiunto alla tua collezione.`);
+  }
+
+  async function equipItem(item) {
+    if (!session || !owned.includes(item.id)) return;
+
+    setEquipmentBusy(item.id);
+
+    const { data, error } = await supabase.rpc("equip_item", {
+      p_item_id: item.id,
+    });
+
+    setEquipmentBusy(null);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setRoomAccessMap((old) => ({
+    setEquipped((old) => ({
       ...old,
-      [room.id]: {
-        ...(old[room.id] || {}),
-        allowed: data?.status === "ALREADY_MEMBER",
-        status:
-          data?.status === "ALREADY_MEMBER"
-            ? "APPROVED"
-            : data?.status || "PENDING",
-      },
+      [item.slot]: item.id,
     }));
 
-    if (data?.status === "ALREADY_MEMBER") {
-      await loadRooms();
-      return;
-    }
+    await loadProfile(session.user);
 
-    alert("Richiesta inviata all'OWNER del gruppo.");
-    await loadRooms();
+    alert(`${item.name} equipaggiato.`);
   }
 
-  async function enterRoom(room) {
-    if (!room) return;
+  async function unequipSlot(slot) {
+    if (!session) return;
 
-    if (room.is_private && isUuid(room.id)) {
-      const { data, error } = await supabase.rpc(
-        "can_access_room",
-        {
-          p_room_id: room.id,
-          p_user_id: session.user.id,
-        }
-      );
+    setEquipmentBusy(`remove-${slot}`);
 
-      if (error || data !== true) {
-        const access = roomAccessMap[room.id];
-
-        if (access?.status === "PENDING") {
-          alert("La tua richiesta è ancora in attesa di approvazione.");
-        } else {
-          alert("Questo gruppo è privato. Devi richiedere l'accesso.");
-        }
-        return;
-      }
-    }
-
-    setRoomPanel(null);
-    setModerationMessage(null);
-    setActiveRoom(room);
-    setPage("chat");
-    setChatMode("public");
-    firstPublicLoadRef.current = true;
-  }
-
-  async function loadRoomJoinRequests(room = activeRoom) {
-    if (!room || !isUuid(room.id) || !canManageRoom(room)) {
-      setRoomJoinRequests([]);
-      return;
-    }
-
-    const { data, error } = await supabase.rpc(
-      "get_room_join_requests",
-      { p_room_id: room.id }
-    );
-
-    if (error) {
-      console.error(error);
-      setRoomJoinRequests([]);
-      return;
-    }
-
-    setRoomJoinRequests(data || []);
-  }
-
-  async function loadRoomMembers(room = activeRoom) {
-    if (!room || !isUuid(room.id) || !canManageRoom(room)) {
-      setRoomMembers([]);
-      return;
-    }
-
-    const { data, error } = await supabase.rpc(
-      "get_room_members",
-      { p_room_id: room.id }
-    );
-
-    if (error) {
-      console.error(error);
-      setRoomMembers([]);
-      return;
-    }
-
-    setRoomMembers(data || []);
-  }
-
-  async function approveRoomRequest(request) {
-    if (!request) return;
-
-    const { error } = await supabase.rpc(
-      "approve_room_request",
-      { p_request_id: request.request_id }
-    );
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await Promise.all([
-      loadRoomJoinRequests(activeRoom),
-      loadRoomMembers(activeRoom),
-    ]);
-  }
-
-  async function rejectRoomRequest(request) {
-    if (!request) return;
-
-    const { error } = await supabase.rpc(
-      "reject_room_request",
-      { p_request_id: request.request_id }
-    );
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await loadRoomJoinRequests(activeRoom);
-  }
-
-  async function removeRoomMember(member) {
-    if (!member || !activeRoom) return;
-    if (member.member_role === "OWNER") return;
-
-    if (!confirm(`Rimuovere @${member.nickname || "WHO"} dal gruppo?`)) {
-      return;
-    }
-
-    const { error } = await supabase.rpc("remove_room_member", {
-      p_room_id: activeRoom.id,
-      p_user_id: member.user_id,
+    const { error } = await supabase.rpc("unequip_item", {
+      p_slot: slot,
     });
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    await loadRoomMembers(activeRoom);
-  }
-
-  async function leaveRoom(room) {
-    if (!room || !isUuid(room.id)) return;
-
-    if (!confirm(`Vuoi abbandonare "${room.name}"?`)) return;
-
-    const { error } = await supabase.rpc("leave_room", {
-      p_room_id: room.id,
-    });
+    setEquipmentBusy(null);
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setActiveRoom(roomsDefault[0]);
-    setRoomPanel(null);
-    setPage("rooms");
-    await loadRooms();
+    setEquipped((old) => ({
+      ...old,
+      [slot]: null,
+    }));
+
+    await loadProfile(session.user);
   }
 
-  function canManageRoom(room) {
-    if (!room || !session) return false;
-
-    return Boolean(
-      !room.is_official &&
-      room.owner_id === session.user.id
-    );
+  function isItemEquipped(item) {
+    return equipped[item.slot] === item.id;
   }
 
-  async function createRoom() {
-    if (!session || roomBusy) return;
+  function Avatar({
+    name,
+    size = 46,
+    equipment = null,
+  }) {
+    const eq = equipment || {};
 
-    const name = roomName.trim();
-
-    if (name.length < 3) {
-      alert("Nome gruppo minimo 3 caratteri.");
-      return;
-    }
-
-    setRoomBusy(true);
-
-    const { data, error } = await supabase
-      .from("rooms")
-      .insert({
-        room_key: makeRoomKey(name),
-        name: name.slice(0, 40),
-        description: roomDescription.trim().slice(0, 160),
-        is_private: roomPrivate,
-        is_official: false,
-        is_active: true,
-        owner_id: session.user.id,
-      })
-      .select()
-      .single();
-
-    setRoomBusy(false);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setRoomPanel(null);
-    setRoomName("");
-    setRoomDescription("");
-    setRoomPrivate(false);
-
-    await loadRooms();
-
-    if (data) {
-      setActiveRoom(data);
-      setPage("chat");
-      setChatMode("public");
-      firstPublicLoadRef.current = true;
-    }
-  }
-
-  async function updateRoom() {
-    if (!activeRoom || !canManageRoom(activeRoom)) return;
-
-    if (roomName.trim().length < 3) {
-      alert("Nome gruppo minimo 3 caratteri.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("rooms")
-      .update({
-        name: roomName.trim().slice(0, 40),
-        description: roomDescription.trim().slice(0, 160),
-        is_private: roomPrivate,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", activeRoom.id)
-      .select()
-      .single();
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setActiveRoom(data);
-    await loadRooms();
-    alert("Gruppo aggiornato.");
-  }
-
-  async function openRoomManagement(room) {
-    if (!canManageRoom(room)) {
-      setRoomPanel(null);
-      return;
-    }
-
-    setActiveRoom(room);
-    setRoomName(room.name || "");
-    setRoomDescription(room.description || "");
-    setRoomPrivate(Boolean(room.is_private));
-    setRoomPanel("manage");
-
-    await Promise.all([
-      loadRoomModerators(room),
-      loadRoomSanctions(room),
-      loadRoomJoinRequests(room),
-      loadRoomMembers(room),
-    ]);
-  }
-
-  async function loadRoomModerators(room = activeRoom) {
-    if (!room?.id || !isUuid(room.id)) {
-      setRoomModerators([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("room_moderators")
-      .select("*")
-      .eq("room_id", room.id);
-
-    if (error) return;
-
-    const result = [];
-
-    for (const mod of data || []) {
-      const p = await supabase
-        .from("profiles")
-        .select("id,nickname,avatar")
-        .eq("id", mod.user_id)
-        .maybeSingle();
-
-      result.push({
-        ...mod,
-        profile: p.data,
-      });
-    }
-
-    setRoomModerators(result);
-  }
-
-  async function addRoomModerator() {
-    if (!canManageRoom(activeRoom)) return;
-
-    const nick = cleanNickname(
-      moderatorNickname.replace(/^@/, "")
+    const head = shopItems.find(
+      (x) => x.id === eq.head
     );
 
-    if (!nick || !activeRoom?.id) return;
-
-    const { error } = await supabase.rpc(
-      "add_room_moderator",
-      {
-        p_room_id: activeRoom.id,
-        p_nickname: nick,
-      }
+    const face = shopItems.find(
+      (x) => x.id === eq.face
     );
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setModeratorNickname("");
-    await loadRoomModerators(activeRoom);
-    await loadRoomMembers(activeRoom);
-    alert(`@${nick} è ora MOD.`);
-  }
-
-  async function removeRoomModerator(userId) {
-    if (!canManageRoom(activeRoom)) return;
-
-    if (!confirm("Rimuovere questo moderatore?")) return;
-
-    const { error } = await supabase.rpc(
-      "remove_room_moderator",
-      {
-        p_room_id: activeRoom.id,
-        p_user_id: userId,
-      }
+    const aura = shopItems.find(
+      (x) => x.id === eq.aura
     );
 
-    if (error) return alert(error.message);
-
-    await loadRoomModerators(activeRoom);
-  }
-
-  async function loadRoomSanctions(room = activeRoom) {
-    if (!room?.id || !isUuid(room.id)) {
-      setRoomSanctions([]);
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("room_sanctions")
-      .select("*")
-      .eq("room_id", room.id)
-      .order("created_at", { ascending: false });
-
-    if (error) return;
-
-    const result = [];
-
-    for (const item of data || []) {
-      const p = await supabase
-        .from("profiles")
-        .select("id,nickname,avatar")
-        .eq("id", item.user_id)
-        .maybeSingle();
-
-      result.push({
-        ...item,
-        profile: p.data,
-      });
-    }
-
-    setRoomSanctions(result);
-  }
-
-  async function loadCurrentRoomPermissions() {
-    if (!session || !activeRoom) return;
-
-    setRoomCanModerate(false);
-    setMyRoomRole(null);
-
-    setMyRoomStatus({
-      banned: false,
-      muted: false,
-      mute_until: null,
-    });
-
-    if (!activeRoom.id || !isUuid(activeRoom.id)) {
-      setRoomCanModerate(isFounder);
-      setMyRoomRole(isFounder ? "FOUNDER" : null);
-      return;
-    }
-
-    const [moderateResult, modResult, statusResult] =
-      await Promise.all([
-        supabase.rpc("can_moderate_room", {
-          p_room_id: activeRoom.id,
-          p_user_id: session.user.id,
-        }),
-
-        supabase
-          .from("room_moderators")
-          .select("user_id")
-          .eq("room_id", activeRoom.id)
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
-
-        supabase.rpc("get_my_room_status", {
-          p_room_id: activeRoom.id,
-        }),
-      ]);
-
-    setRoomCanModerate(
-      isFounder || Boolean(moderateResult.data)
+    const frame = shopItems.find(
+      (x) => x.id === eq.frame
     );
 
-    if (isFounder) {
-      setMyRoomRole("FOUNDER");
-    } else if (activeRoom.owner_id === session.user.id) {
-      setMyRoomRole("OWNER");
-    } else if (modResult.data) {
-      setMyRoomRole("MOD");
-    } else {
-      setMyRoomRole(null);
-    }
+    const outerSize = size * 1.55;
 
-    if (statusResult.data) {
-      setMyRoomStatus({
-        banned: Boolean(statusResult.data.banned),
-        muted: Boolean(statusResult.data.muted),
-        mute_until: statusResult.data.mute_until || null,
-      });
-    }
-  }
+    return (
+      <div
+        style={{
+          position: "relative",
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "inline-block",
+        }}
+      >
+        {aura && (
+          <img
+            src={aura.image}
+            alt=""
+            style={{
+              position: "absolute",
+              width: outerSize,
+              height: outerSize,
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%,-50%)",
+              objectFit: "contain",
+              mixBlendMode: "screen",
+              pointerEvents: "none",
+              zIndex: 0,
+            }}
+          />
+        )}
 
-  async function banFromRoom(msg) {
-    if (!msg?.user_id || !activeRoom?.id || !roomCanModerate)
-      return;
+        <img
+          src={avatarImage(name)}
+          alt=""
+          onError={(e) => {
+            e.currentTarget.src = "/shadow.png";
+          }}
+          style={{
+            position: "relative",
+            zIndex: 2,
+            width: size,
+            height: size,
+            objectFit: "cover",
+            borderRadius: "50%",
+            border: "1px solid rgba(200,100,255,.35)",
+          }}
+        />
 
-    if (!confirm(`Bannare @${msg.nickname} da questa stanza?`))
-      return;
+        {face && (
+          <img
+            src={face.image}
+            alt=""
+            style={{
+              position: "absolute",
+              zIndex: 4,
+              width: size * 0.9,
+              height: size * 0.9,
+              objectFit: "contain",
+              left: "50%",
+              top: "52%",
+              transform: "translate(-50%,-50%)",
+              mixBlendMode: "screen",
+              pointerEvents: "none",
+            }}
+          />
+        )}
 
-    const { error } = await supabase.rpc("ban_room_user", {
-      p_room_id: activeRoom.id,
-      p_user_id: msg.user_id,
-      p_reason: "Moderazione WHO",
-    });
+        {head && (
+          <img
+            src={head.image}
+            alt=""
+            style={{
+              position: "absolute",
+              zIndex: 5,
+              width: size * 0.85,
+              height: size * 0.85,
+              objectFit: "contain",
+              left: "50%",
+              top: "-30%",
+              transform: "translateX(-50%)",
+              mixBlendMode: "screen",
+              pointerEvents: "none",
+            }}
+          />
+        )}
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setModerationMessage(null);
-    alert(`@${msg.nickname} è stato bannato.`);
-  }
-
-  async function muteFromRoom(msg, minutes) {
-    if (!msg?.user_id || !activeRoom?.id || !roomCanModerate)
-      return;
-
-    const { error } = await supabase.rpc("mute_room_user", {
-      p_room_id: activeRoom.id,
-      p_user_id: msg.user_id,
-      p_minutes: minutes,
-      p_reason: "Moderazione WHO",
-    });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setModerationMessage(null);
-
-    const labels = {
-      10: "10 minuti",
-      60: "1 ora",
-      1440: "24 ore",
-      10080: "7 giorni",
-    };
-
-    alert(`@${msg.nickname} silenziato per ${labels[minutes]}.`);
-  }
-
-  async function removeRoomSanction(item) {
-    if (!roomCanModerate && !canManageRoom(activeRoom)) return;
-
-    const { error } = await supabase.rpc(
-      "remove_room_sanction",
-      {
-        p_room_id: activeRoom.id,
-        p_user_id: item.user_id,
-        p_type: item.sanction_type,
-      }
+        {frame && (
+          <img
+            src={frame.image}
+            alt=""
+            style={{
+              position: "absolute",
+              zIndex: 6,
+              width: size * 1.25,
+              height: size * 1.25,
+              objectFit: "contain",
+              left: "50%",
+              top: "50%",
+              transform: "translate(-50%,-50%)",
+              mixBlendMode: "screen",
+              pointerEvents: "none",
+            }}
+          />
+        )}
+      </div>
     );
-
-    if (error) return alert(error.message);
-
-    await loadRoomSanctions(activeRoom);
-  }
-
-  async function deleteCommunityRoom(room) {
-    if (!canManageRoom(room)) return;
-
-    if (!confirm(`Eliminare il gruppo "${room.name}"?`)) return;
-
-    const { error } = await supabase
-      .from("rooms")
-      .delete()
-      .eq("id", room.id);
-
-    if (error) return alert(error.message);
-
-    setRoomPanel(null);
-    setActiveRoom(roomsDefault[0]);
-
-    await loadRooms();
-  }
-
-  function scrollPublicToBottom(behavior = "smooth") {
-    setTimeout(() => {
-      publicBottomRef.current?.scrollIntoView({
-        behavior,
-        block: "end",
-      });
-      publicAtBottomRef.current = true;
-      setShowNewMessages(false);
-    }, 60);
-  }
-
-  function handlePublicScroll() {
-    const el = publicChatRef.current;
-    if (!el) return;
-
-    const distance =
-      el.scrollHeight - el.scrollTop - el.clientHeight;
-
-    const nearBottom = distance < 100;
-    publicAtBottomRef.current = nearBottom;
-
-    if (nearBottom) setShowNewMessages(false);
   }
 
   async function loadMessages(forceBottom = false) {
-    const wasAtBottom = publicAtBottomRef.current;
-
     const { data, error } = await supabase
       .from("messages")
       .select("*")
@@ -1497,32 +823,19 @@ export default function Home() {
 
     if (error) {
       console.error(error);
-      setMessages([]);
       return;
     }
 
-    const next = data || [];
+    setMessages(data || []);
 
-    setMessages((old) => {
-      if (
-        next.length > old.length &&
-        !wasAtBottom &&
-        !forceBottom &&
-        !firstPublicLoadRef.current
-      ) {
-        setShowNewMessages(true);
-      }
-
-      return next;
-    });
-
-    if (
-      forceBottom ||
-      wasAtBottom ||
-      firstPublicLoadRef.current
-    ) {
+    if (forceBottom || firstPublicLoadRef.current) {
       firstPublicLoadRef.current = false;
-      scrollPublicToBottom(forceBottom ? "auto" : "smooth");
+
+      setTimeout(() => {
+        publicBottomRef.current?.scrollIntoView({
+          behavior: "auto",
+        });
+      }, 50);
     }
   }
 
@@ -1531,35 +844,7 @@ export default function Home() {
 
     if (!text || sending || !session) return;
 
-    if (myRoomStatus?.banned) {
-      alert("Sei stato bannato da questa stanza.");
-      return;
-    }
-
-    if (myRoomStatus?.muted) {
-      alert("Sei temporaneamente silenziato in questa stanza.");
-      return;
-    }
-
     setSending(true);
-
-    const mentionMatch = text.match(/@([a-z0-9_]{3,20})/i);
-
-    let mentionedUserId = null;
-    let mentionedNickname = null;
-
-    if (mentionMatch) {
-      const target = await supabase
-        .from("profiles")
-        .select("id,nickname")
-        .ilike("nickname", mentionMatch[1])
-        .maybeSingle();
-
-      if (target.data) {
-        mentionedUserId = target.data.id;
-        mentionedNickname = target.data.nickname;
-      }
-    }
 
     const { error } = await supabase.from("messages").insert({
       room: currentRoom,
@@ -1569,89 +854,37 @@ export default function Home() {
       content: text.slice(0, 500),
       likes: 0,
       dislikes: 0,
+      message_color: messageColor,
+      message_font: messageFont,
       reply_to_id: replyingTo?.id || null,
       reply_to_nickname: replyingTo?.nickname || null,
       reply_preview: replyingTo?.content?.slice(0, 100) || null,
-      mentioned_user_id: mentionedUserId,
-      mentioned_nickname: mentionedNickname,
-      message_color: messageColor,
-      message_font: messageFont,
     });
 
     if (error) {
       alert(error.message);
-      await loadCurrentRoomPermissions();
     } else {
       setMessage("");
       setReplyingTo(null);
-      publicAtBottomRef.current = true;
       await loadMessages(true);
     }
 
     setSending(false);
   }
 
-  function mentionUser(msg) {
-    if (!msg.nickname) return;
-
-    setMessage((old) => {
-      const mention = `@${msg.nickname} `;
-
-      if (old.includes(mention)) return old;
-
-      return `${old}${old ? " " : ""}${mention}`;
-    });
-  }
-
-  function renderMessageText(text = "") {
-    const parts = String(text).split(/(@[a-zA-Z0-9_]+)/g);
-
-    return parts.map((part, index) =>
-      /^@[a-zA-Z0-9_]+$/.test(part) ? (
-        <span
-          key={index}
-          style={{
-            color: C.cyan,
-            fontWeight: 900,
-          }}
-        >
-          {part}
-        </span>
-      ) : (
-        <span key={index}>{part}</span>
-      )
-    );
-  }
-
-  /* ======================================================
-     LIKE / DISLIKE — VERSIONE SICURA
-     Il browser modifica SOLO message_votes.
-     Il trigger Supabase aggiorna messages.likes/dislikes.
-     ====================================================== */
-
   async function loadVotes() {
     if (!session) return;
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("message_votes")
       .select("message_id,vote")
       .eq("user_id", session.user.id);
 
-    if (error) {
-      console.error("Errore caricamento voti:", error);
-      return;
-    }
-
     const map = {};
 
     (data || []).forEach((v) => {
-      const numericVote = Number(v.vote);
-
-      if (numericVote === 1) {
-        map[v.message_id] = "like";
-      } else if (numericVote === -1) {
-        map[v.message_id] = "dislike";
-      }
+      map[v.message_id] =
+        Number(v.vote) === 1 ? "like" : "dislike";
     });
 
     setMyVotes(map);
@@ -1660,53 +893,35 @@ export default function Home() {
   async function voteMessage(msg, vote) {
     if (!session || !msg?.id) return;
 
-    const oldVote = myVotes[msg.id];
-
-    if (oldVote === vote) return;
-
     const numericVote = vote === "like" ? 1 : -1;
 
-    const { data: existing, error: existingError } =
-      await supabase
-        .from("message_votes")
-        .select("message_id,vote")
-        .eq("user_id", session.user.id)
-        .eq("message_id", msg.id)
-        .maybeSingle();
+    const { data: existing } = await supabase
+      .from("message_votes")
+      .select("message_id")
+      .eq("user_id", session.user.id)
+      .eq("message_id", msg.id)
+      .maybeSingle();
 
-    if (existingError) {
-      console.error("Errore controllo voto:", existingError);
-      alert(existingError.message);
-      return;
-    }
-
-    let voteError = null;
+    let error;
 
     if (existing) {
-      const { error } = await supabase
+      ({ error } = await supabase
         .from("message_votes")
-        .update({
-          vote: numericVote,
-        })
+        .update({ vote: numericVote })
         .eq("user_id", session.user.id)
-        .eq("message_id", msg.id);
-
-      voteError = error;
+        .eq("message_id", msg.id));
     } else {
-      const { error } = await supabase
+      ({ error } = await supabase
         .from("message_votes")
         .insert({
           user_id: session.user.id,
           message_id: msg.id,
           vote: numericVote,
-        });
-
-      voteError = error;
+        }));
     }
 
-    if (voteError) {
-      console.error("Errore voto:", voteError);
-      alert(voteError.message);
+    if (error) {
+      alert(error.message);
       return;
     }
 
@@ -1715,35 +930,10 @@ export default function Home() {
       [msg.id]: vote,
     }));
 
-    const { data: refreshedMessage, error: refreshError } =
-      await supabase
-        .from("messages")
-        .select("*")
-        .eq("id", msg.id)
-        .single();
+    await loadMessages(false);
+  }
 
-    if (refreshError) {
-      console.error(
-        "Errore aggiornamento contatori:",
-        refreshError
-      );
-
-      await loadMessages(false);
-      return;
-    }
-
-    setMessages((old) =>
-      old.map((item) =>
-        item.id === msg.id
-          ? {
-              ...item,
-              ...refreshedMessage,
-            }
-          : item
-      )
-    );
-    }
-    async function loadReports() {
+  async function loadReports() {
     if (!session) return;
 
     const { data } = await supabase
@@ -1757,14 +947,7 @@ export default function Home() {
   }
 
   async function reportMessage(msg) {
-    if (reportedMessages.includes(msg.id)) {
-      alert("Hai già segnalato questo messaggio.");
-      return;
-    }
-
-    if (!confirm(`Segnalare @${msg.nickname || "anonimo"}?`)) {
-      return;
-    }
+    if (reportedMessages.includes(msg.id)) return;
 
     const { error } = await supabase
       .from("message_reports")
@@ -1774,432 +957,13 @@ export default function Home() {
         reason: "user_report",
       });
 
-    if (error) return alert(error.message);
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
     setReportedMessages((old) => [...old, msg.id]);
-
     alert("Segnalazione inviata.");
-  }
-
-  async function requestPrivate(msg) {
-    if (!session || msg.user_id === session.user.id) return;
-
-    let targetId = msg.user_id;
-
-    if (!targetId) {
-      const result = await supabase
-        .from("profiles")
-        .select("id")
-        .ilike("nickname", msg.nickname)
-        .maybeSingle();
-
-      targetId = result.data?.id;
-    }
-
-    if (!targetId) {
-      alert("Questo messaggio non è collegato a un account.");
-      return;
-    }
-
-    const check = await supabase.rpc("can_private_message", {
-      target_user: targetId,
-    });
-
-    const result = check.data;
-
-    if (!result?.allowed) {
-      if (result?.reason === "vibe_too_low") {
-        alert(
-          `Questo utente richiede almeno ${result.required_vibe} VIBE.`
-        );
-      } else if (result?.reason === "private_disabled") {
-        alert("Questo utente non accetta messaggi privati.");
-      } else {
-        alert("Non puoi contattare questo utente.");
-      }
-
-      return;
-    }
-
-    const existingConversation = conversations.find(
-      (c) =>
-        c.user_one === targetId ||
-        c.user_two === targetId
-    );
-
-    if (existingConversation) {
-      openConversation(
-        existingConversation,
-        msg.nickname,
-        msg.avatar,
-        targetId
-      );
-      return;
-    }
-
-    const existingRequest = requests.find(
-      (r) =>
-        r.sender_id === session.user.id &&
-        r.receiver_id === targetId &&
-        r.status === "pending"
-    );
-
-    if (existingRequest) {
-      alert("Richiesta privata già inviata.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("private_requests")
-      .insert({
-        sender_id: session.user.id,
-        receiver_id: targetId,
-        status: "pending",
-      });
-
-    if (error) return alert(error.message);
-
-    alert("Richiesta privata inviata.");
-    await loadPrivateData();
-  }
-
-  async function loadPrivateData() {
-    if (!session) return;
-
-    const uid = session.user.id;
-
-    const [requestResult, conversationResult] =
-      await Promise.all([
-        supabase
-          .from("private_requests")
-          .select("*")
-          .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-          .order("created_at", { ascending: false }),
-
-        supabase
-          .from("private_conversations")
-          .select("*")
-          .or(`user_one.eq.${uid},user_two.eq.${uid}`)
-          .order("updated_at", { ascending: false }),
-      ]);
-
-    const reqs = requestResult.data || [];
-    const convs = conversationResult.data || [];
-
-    setRequests(reqs);
-    setConversations(convs);
-
-    const details = {};
-
-    await Promise.all(
-      convs.map(async (conv) => {
-        const peerId =
-          conv.user_one === uid
-            ? conv.user_two
-            : conv.user_one;
-
-        const [peerResult, lastResult, unreadResult] =
-          await Promise.all([
-            supabase
-              .from("profiles")
-              .select("id,nickname,avatar")
-              .eq("id", peerId)
-              .maybeSingle(),
-
-            supabase
-              .from("private_messages")
-              .select("id,content,sender_id,created_at,is_read")
-              .eq("conversation_id", conv.id)
-              .order("created_at", { ascending: false })
-              .limit(1)
-              .maybeSingle(),
-
-            supabase
-              .from("private_messages")
-              .select("id", {
-                count: "exact",
-                head: true,
-              })
-              .eq("conversation_id", conv.id)
-              .neq("sender_id", uid)
-              .eq("is_read", false),
-          ]);
-
-        details[conv.id] = {
-          peerId,
-          nickname: peerResult.data?.nickname || "WHO",
-          avatar: peerResult.data?.avatar || "Shadow",
-          lastMessage: lastResult.data?.content || "",
-          lastMessageAt:
-            lastResult.data?.created_at ||
-            conv.updated_at ||
-            conv.created_at,
-          lastSenderId: lastResult.data?.sender_id || null,
-          unread: unreadResult.count || 0,
-        };
-      })
-    );
-
-    setConversationDetails(details);
-  }
-
-  async function acceptRequest(req) {
-    const { data, error } = await supabase.rpc(
-      "accept_private_request",
-      {
-        request_id: req.id,
-      }
-    );
-
-    if (error) return alert(error.message);
-
-    await loadPrivateData();
-
-    const { data: conversation } = await supabase
-      .from("private_conversations")
-      .select("*")
-      .eq("id", data)
-      .single();
-
-    if (conversation) {
-      const peer = await supabase
-        .from("profiles")
-        .select("nickname,avatar")
-        .eq("id", req.sender_id)
-        .maybeSingle();
-
-      openConversation(
-        conversation,
-        peer.data?.nickname || "WHO",
-        peer.data?.avatar || "Shadow",
-        req.sender_id
-      );
-    }
-  }
-
-  async function declineRequest(req) {
-    await supabase
-      .from("private_requests")
-      .update({
-        status: "declined",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", req.id);
-
-    await loadPrivateData();
-  }
-
-  async function openConversation(
-    conversation,
-    peerName,
-    peerAvatar,
-    peerId
-  ) {
-    setPrivateConversation(conversation);
-
-    setPrivatePeer({
-      id: peerId,
-      nickname: peerName || "WHO",
-      avatar: peerAvatar || "Shadow",
-    });
-
-    setChatMode("private");
-
-    await loadPrivateMessages(conversation.id);
-    await loadPrivateData();
-  }
-
-  async function openConversationFromList(conv) {
-    const info = conversationDetails[conv.id];
-
-    if (info) {
-      await openConversation(
-        conv,
-        info.nickname,
-        info.avatar,
-        info.peerId
-      );
-    }
-  }
-
-  async function loadPrivateMessages(conversationId) {
-    if (!conversationId || !session) return;
-
-    const { data } = await supabase
-      .from("private_messages")
-      .select("*")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: true });
-
-    setPrivateMessages(data || []);
-
-    await supabase
-      .from("private_messages")
-      .update({ is_read: true })
-      .eq("conversation_id", conversationId)
-      .neq("sender_id", session.user.id)
-      .eq("is_read", false);
-  }
-
-  async function sendPrivateMessage() {
-    const text = privateMessage.trim();
-
-    if (!text || !privateConversation || !session) return;
-
-    const { error } = await supabase
-      .from("private_messages")
-      .insert({
-        conversation_id: privateConversation.id,
-        sender_id: session.user.id,
-        content: text.slice(0, 1000),
-        reply_to_id: privateReply?.id || null,
-        reply_to_nickname: privateReply?.nickname || null,
-        reply_preview:
-          privateReply?.content?.slice(0, 100) || null,
-      });
-
-    if (error) return alert(error.message);
-
-    setPrivateMessage("");
-    setPrivateReply(null);
-
-    await loadPrivateMessages(privateConversation.id);
-    await loadPrivateData();
-  }
-
-  async function blockUser(userId) {
-    if (!session || !userId) return;
-
-    if (!confirm("Vuoi bloccare questo utente?")) return;
-
-    const { error } = await supabase
-      .from("user_blocks")
-      .upsert(
-        {
-          blocker_id: session.user.id,
-          blocked_id: userId,
-        },
-        {
-          onConflict: "blocker_id,blocked_id",
-        }
-      );
-
-    if (error) return alert(error.message);
-
-    setPrivateConversation(null);
-    setPrivatePeer(null);
-    setPrivateMessages([]);
-
-    await loadBlocks();
-
-    alert("Utente bloccato.");
-  }
-
-  async function loadBlocks() {
-    if (!session) return;
-
-    const { data } = await supabase
-      .from("user_blocks")
-      .select("blocked_id")
-      .eq("blocker_id", session.user.id);
-
-    setBlocked((data || []).map((x) => x.blocked_id));
-  }
-
-  async function loadRooms() {
-    const { data, error } = await supabase
-      .from("rooms")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    const db = data || [];
-
-    const official = db.filter((r) => r.is_official);
-    const community = db.filter((r) => !r.is_official);
-
-    const combined = [
-      ...(official.length ? official : roomsDefault),
-      ...community,
-    ];
-
-    setRooms(combined);
-
-    await loadRoomAccess(combined);
-  }
-
-  async function loadInventory() {
-    if (!session) return;
-
-    const { data } = await supabase
-      .from("user_inventory")
-      .select("item_id")
-      .eq("user_id", session.user.id);
-
-    setOwned((data || []).map((x) => x.item_id));
-  }
-
-  async function buyItem(item) {
-    if (owned.includes(item.id) || points < item.price) {
-      if (points < item.price) {
-        alert("WHO Points insufficienti.");
-      }
-      return;
-    }
-
-    const newPoints = points - item.price;
-
-    const update = await supabase
-      .from("profiles")
-      .update({
-        who_points: newPoints,
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
-
-    if (update.error) {
-      return alert(update.error.message);
-    }
-
-    const inventory = await supabase
-      .from("user_inventory")
-      .insert({
-        user_id: session.user.id,
-        item_id: item.id,
-      });
-
-    if (inventory.error) {
-      return alert(inventory.error.message);
-    }
-
-    setPoints(newPoints);
-    setOwned((old) => [...old, item.id]);
-  }
-
-  function Avatar({ name, size = 46 }) {
-    return (
-      <img
-        src={avatarImage(name)}
-        alt=""
-        onError={(e) => {
-          e.currentTarget.src = "/shadow.png";
-        }}
-        style={{
-          width: size,
-          height: size,
-          objectFit: "cover",
-          borderRadius: "50%",
-          flexShrink: 0,
-          border: "1px solid rgba(200,100,255,.35)",
-        }}
-      />
-    );
   }
 
   function Logo() {
@@ -2209,13 +973,8 @@ export default function Home() {
           fontFamily: displayFont,
           fontSize: 39,
           fontWeight: 900,
-          lineHeight: 1.12,
-          letterSpacing: "-1.5px",
-          padding: "5px 6px 6px 2px",
-          display: "inline-block",
-          overflow: "visible",
           background:
-            "linear-gradient(90deg,#ffffff 0%,#f0b4ff 35%,#9b63ff 68%,#6eeeff 100%)",
+            "linear-gradient(90deg,#fff,#f0b4ff,#9b63ff,#6eeeff)",
           WebkitBackgroundClip: "text",
           WebkitTextFillColor: "transparent",
         }}
@@ -2249,10 +1008,7 @@ export default function Home() {
         ].map(([id, icon, label]) => (
           <button
             key={id}
-            onClick={() => {
-              if (id !== "rooms") setRoomPanel(null);
-              setPage(id);
-            }}
+            onClick={() => setPage(id)}
             style={{
               border: 0,
               background: "transparent",
@@ -2266,54 +1022,6 @@ export default function Home() {
           </button>
         ))}
       </nav>
-    );
-  }
-
-  function ReplyBox({ data, cancel }) {
-    if (!data) return null;
-
-    return (
-      <div
-        style={{
-          background: "rgba(181,76,255,.08)",
-          borderLeft: "2px solid #c75cff",
-          borderRadius: 10,
-          padding: "7px 9px",
-          marginBottom: 6,
-          display: "flex",
-        }}
-      >
-        <div style={{ flex: 1 }}>
-          <strong
-            style={{
-              color: "#df9cff",
-              fontSize: 10,
-            }}
-          >
-            ↩ @{data.nickname}
-          </strong>
-
-          <div
-            style={{
-              color: C.muted,
-              fontSize: 10,
-            }}
-          >
-            {data.content}
-          </div>
-        </div>
-
-        <button
-          onClick={cancel}
-          style={{
-            border: 0,
-            background: "transparent",
-            color: "#aaa",
-          }}
-        >
-          ✕
-        </button>
-      </div>
     );
   }
 
@@ -2341,14 +1049,8 @@ export default function Home() {
             padding: "80px 20px",
           }}
         >
-          <div
-            style={{
-              textAlign: "center",
-              marginBottom: 30,
-            }}
-          >
+          <div style={{ textAlign: "center", marginBottom: 30 }}>
             <Logo />
-
             <div style={{ color: C.muted }}>
               Nessun nome. Nessun giudizio. Solo WHO.
             </div>
@@ -2375,29 +1077,17 @@ export default function Home() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              style={{
-                ...input,
-                marginTop: 9,
-              }}
+              style={{ ...input, marginTop: 9 }}
             />
 
             {authError && (
-              <div
-                style={{
-                  color: "#ff9ab6",
-                  marginTop: 10,
-                }}
-              >
+              <div style={{ color: "#ff9ab6", marginTop: 10 }}>
                 {authError}
               </div>
             )}
 
             <button
-              onClick={
-                authMode === "login"
-                  ? login
-                  : register
-              }
+              onClick={authMode === "login" ? login : register}
               style={{
                 ...purpleButton,
                 width: "100%",
@@ -2405,17 +1095,13 @@ export default function Home() {
                 marginTop: 14,
               }}
             >
-              {authMode === "login"
-                ? "ACCEDI"
-                : "CREA ACCOUNT"}
+              {authMode === "login" ? "ACCEDI" : "CREA ACCOUNT"}
             </button>
 
             <button
               onClick={() =>
                 setAuthMode(
-                  authMode === "login"
-                    ? "register"
-                    : "login"
+                  authMode === "login" ? "register" : "login"
                 )
               }
               style={{
@@ -2463,20 +1149,14 @@ export default function Home() {
               <button
                 key={a.name}
                 onClick={() => selectAvatar(a.name)}
-                style={{
-                  ...card,
-                  padding: 13,
-                }}
+                style={{ ...card, padding: 13 }}
               >
-                <img
-                  src={a.image}
-                  alt=""
-                  style={{
-                    width: 105,
-                    height: 105,
-                    borderRadius: "50%",
-                    objectFit: "cover",
-                  }}
+                <Avatar
+                  name={a.name}
+                  size={105}
+                  equipment={
+                    avatar === a.name ? equipped : null
+                  }
                 />
 
                 <div
@@ -2485,7 +1165,7 @@ export default function Home() {
                       avatar === a.name
                         ? "#efaaff"
                         : C.muted,
-                    marginTop: 8,
+                    marginTop: 12,
                     fontWeight: 900,
                   }}
                 >
@@ -2511,13 +1191,8 @@ export default function Home() {
         </section>
       </main>
     );
-  }
-
+}
   if (page === "rooms") {
-    const showManagement =
-      roomPanel === "manage" &&
-      canManageRoom(activeRoom);
-
     return (
       <main style={background}>
         <section
@@ -2534,634 +1209,53 @@ export default function Home() {
               alignItems: "center",
             }}
           >
-            <h1
-              style={{
-                fontFamily: displayFont,
-                fontSize: 35,
-              }}
-            >
-              Stanze
+            <h1 style={{ fontFamily: displayFont }}>
+              STANZE
             </h1>
-
-            <button
-              onClick={() => {
-                setRoomName("");
-                setRoomDescription("");
-                setRoomPrivate(false);
-                setRoomPanel("create");
-              }}
-              style={{
-                ...purpleButton,
-                padding: "11px 14px",
-              }}
-            >
-              ＋ CREA
-            </button>
           </div>
 
-          {roomPanel === "create" && (
-            <div
+          {rooms.map((room) => (
+            <button
+              key={room.id}
+              onClick={() => {
+                setActiveRoom(room);
+                firstPublicLoadRef.current = true;
+                setPage("chat");
+              }}
               style={{
                 ...card,
-                padding: 16,
-                marginBottom: 15,
+                width: "100%",
+                padding: 15,
+                marginBottom: 9,
+                textAlign: "left",
               }}
             >
-              <strong>CREA GRUPPO</strong>
-
-              <input
-                value={roomName}
-                onChange={(e) =>
-                  setRoomName(e.target.value)
-                }
-                placeholder="Nome gruppo"
-                style={{
-                  ...input,
-                  marginTop: 12,
-                }}
-              />
-
-              <textarea
-                value={roomDescription}
-                onChange={(e) =>
-                  setRoomDescription(e.target.value)
-                }
-                placeholder="Descrizione"
-                style={{
-                  ...input,
-                  minHeight: 80,
-                  marginTop: 8,
-                }}
-              />
-
-              <button
-                onClick={() =>
-                  setRoomPrivate(!roomPrivate)
-                }
-                style={{
-                  ...card,
-                  width: "100%",
-                  padding: 12,
-                  marginTop: 8,
-                }}
-              >
-                {roomPrivate
-                  ? "🔒 PRIVATO"
-                  : "🌐 PUBBLICO"}
-              </button>
-
-              <button
-                onClick={createRoom}
-                disabled={roomBusy}
-                style={{
-                  ...purpleButton,
-                  width: "100%",
-                  padding: 13,
-                  marginTop: 9,
-                }}
-              >
-                {roomBusy
-                  ? "CREAZIONE…"
-                  : "CREA GRUPPO"}
-              </button>
-
-              <button
-                onClick={() => setRoomPanel(null)}
-                style={{
-                  ...card,
-                  width: "100%",
-                  padding: 11,
-                  marginTop: 7,
-                }}
-              >
-                ANNULLA
-              </button>
-            </div>
-          )}
-
-          {showManagement && (
-            <div
-              style={{
-                ...card,
-                padding: 16,
-                marginBottom: 15,
-              }}
-            >
-              <strong>⚙ GESTIONE GRUPPO</strong>
-
-              <input
-                value={roomName}
-                onChange={(e) =>
-                  setRoomName(e.target.value)
-                }
-                style={{
-                  ...input,
-                  marginTop: 12,
-                }}
-              />
-
-              <textarea
-                value={roomDescription}
-                onChange={(e) =>
-                  setRoomDescription(e.target.value)
-                }
-                style={{
-                  ...input,
-                  minHeight: 75,
-                  marginTop: 8,
-                }}
-              />
-
-              <button
-                onClick={() =>
-                  setRoomPrivate(!roomPrivate)
-                }
-                style={{
-                  ...card,
-                  width: "100%",
-                  padding: 11,
-                  marginTop: 8,
-                }}
-              >
-                {roomPrivate
-                  ? "🔒 PRIVATO"
-                  : "🌐 PUBBLICO"}
-              </button>
-
-              <button
-                onClick={updateRoom}
-                style={{
-                  ...purpleButton,
-                  width: "100%",
-                  padding: 12,
-                  marginTop: 8,
-                }}
-              >
-                SALVA MODIFICHE
-              </button>
-
-              {activeRoom?.is_private && (
-                <>
-                  <h3 style={{ marginTop: 22 }}>
-                    🔐 RICHIESTE DI ACCESSO
-                  </h3>
-
-                  {roomJoinRequests.length === 0 && (
-                    <div
-                      style={{
-                        color: C.muted,
-                        fontSize: 11,
-                      }}
-                    >
-                      Nessuna richiesta in attesa.
-                    </div>
-                  )}
-
-                  {roomJoinRequests.map((req) => (
-                    <div
-                      key={req.request_id}
-                      style={{
-                        ...card,
-                        padding: 10,
-                        marginTop: 7,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 9,
-                      }}
-                    >
-                      <Avatar
-                        name={req.avatar || "Shadow"}
-                        size={36}
-                      />
-
-                      <div style={{ flex: 1 }}>
-                        <strong>
-                          @{req.nickname || "WHO"}
-                        </strong>
-
-                        <div
-                          style={{
-                            color: "#e8a0ff",
-                            fontSize: 9,
-                            marginTop: 2,
-                          }}
-                        >
-                          VUOLE ENTRARE
-                        </div>
-                      </div>
-
-                      <button
-                        onClick={() =>
-                          approveRoomRequest(req)
-                        }
-                        style={{
-                          ...tinyButton,
-                          color: C.green,
-                        }}
-                      >
-                        ✓ ACCETTA
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          rejectRoomRequest(req)
-                        }
-                        style={{
-                          ...tinyButton,
-                          color: C.red,
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-
-                  <h3 style={{ marginTop: 22 }}>
-                    👥 MEMBRI
-                  </h3>
-
-                  {roomMembers.map((member) => (
-                    <div
-                      key={member.user_id}
-                      style={{
-                        ...card,
-                        padding: 10,
-                        marginTop: 7,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 9,
-                      }}
-                    >
-                      <Avatar
-                        name={member.avatar || "Shadow"}
-                        size={35}
-                      />
-
-                      <div style={{ flex: 1 }}>
-                        <strong>
-                          @{member.nickname || "WHO"}
-                        </strong>
-
-                        <div
-                          style={{
-                            color:
-                              member.member_role === "OWNER"
-                                ? "#e8a0ff"
-                                : member.member_role === "MOD"
-                                ? C.cyan
-                                : C.muted,
-                            fontSize: 9,
-                          }}
-                        >
-                          {member.member_role === "OWNER"
-                            ? "♛ OWNER"
-                            : member.member_role === "MOD"
-                            ? "◆ MOD"
-                            : "MEMBRO"}
-                        </div>
-                      </div>
-
-                      {member.member_role !== "OWNER" && (
-                        <button
-                          onClick={() =>
-                            removeRoomMember(member)
-                          }
-                          style={{
-                            ...tinyButton,
-                            color: C.red,
-                          }}
-                        >
-                          RIMUOVI
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </>
-              )}
-
-              <h3 style={{ marginTop: 22 }}>
-                ◆ MODERATORI
-              </h3>
+              <strong>
+                {room.is_private ? "🔒 " : "✦ "}
+                {room.name}
+              </strong>
 
               <div
                 style={{
-                  display: "flex",
-                  gap: 6,
+                  color: C.muted,
+                  fontSize: 11,
+                  marginTop: 5,
                 }}
               >
-                <input
-                  value={moderatorNickname}
-                  onChange={(e) =>
-                    setModeratorNickname(e.target.value)
-                  }
-                  placeholder="@nickname"
-                  style={input}
-                />
-
-                <button
-                  onClick={addRoomModerator}
-                  style={{
-                    ...purpleButton,
-                    padding: "0 15px",
-                  }}
-                >
-                  ＋
-                </button>
+                {room.description}
               </div>
-
-              {roomModerators.map((mod) => (
-                <div
-                  key={mod.user_id}
-                  style={{
-                    ...card,
-                    padding: 9,
-                    marginTop: 7,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                  }}
-                >
-                  <Avatar
-                    name={
-                      mod.profile?.avatar || "Shadow"
-                    }
-                    size={32}
-                  />
-
-                  <strong style={{ flex: 1 }}>
-                    @{mod.profile?.nickname || "WHO"} · ◆ MOD
-                  </strong>
-
-                  <button
-                    onClick={() =>
-                      removeRoomModerator(mod.user_id)
-                    }
-                    style={{
-                      ...tinyButton,
-                      color: C.red,
-                    }}
-                  >
-                    RIMUOVI
-                  </button>
-                </div>
-              ))}
-
-              <h3 style={{ marginTop: 22 }}>
-                ⛔ SANZIONI
-              </h3>
-
-              {roomSanctions.length === 0 && (
-                <div
-                  style={{
-                    color: C.muted,
-                    fontSize: 11,
-                  }}
-                >
-                  Nessuna sanzione attiva.
-                </div>
-              )}
-
-              {roomSanctions.map((item) => (
-                <div
-                  key={`${item.user_id}-${item.sanction_type}`}
-                  style={{
-                    ...card,
-                    padding: 10,
-                    marginTop: 7,
-                  }}
-                >
-                  <strong>
-                    @{item.profile?.nickname || "WHO"}
-                  </strong>
-
-                  <div
-                    style={{
-                      color:
-                        item.sanction_type === "BAN"
-                          ? C.red
-                          : C.pink,
-                      marginTop: 4,
-                    }}
-                  >
-                    {item.sanction_type === "BAN"
-                      ? "⛔ BANNATO"
-                      : "🔇 SILENZIATO"}
-                  </div>
-
-                  <button
-                    onClick={() =>
-                      removeRoomSanction(item)
-                    }
-                    style={{
-                      ...tinyButton,
-                      color: C.green,
-                      marginTop: 7,
-                    }}
-                  >
-                    {item.sanction_type === "BAN"
-                      ? "✓ SBANNA"
-                      : "✓ RIMUOVI MUTE"}
-                  </button>
-                </div>
-              ))}
-
-              {!activeRoom?.is_official && (
-                <button
-                  onClick={() =>
-                    deleteCommunityRoom(activeRoom)
-                  }
-                  style={{
-                    width: "100%",
-                    padding: 12,
-                    marginTop: 18,
-                    borderRadius: 12,
-                    border:
-                      "1px solid rgba(255,114,149,.3)",
-                    background: "rgba(255,50,90,.07)",
-                    color: C.red,
-                  }}
-                >
-                  ELIMINA GRUPPO
-                </button>
-              )}
-
-              <button
-                onClick={() => setRoomPanel(null)}
-                style={{
-                  ...card,
-                  width: "100%",
-                  padding: 11,
-                  marginTop: 8,
-                }}
-              >
-                CHIUDI
-              </button>
-            </div>
-          )}
-
-          {rooms.map((r) => {
-            const access =
-              roomAccessMap[r.id] || {};
-
-            const privateLocked =
-              r.is_private &&
-              isUuid(r.id) &&
-              !access.allowed;
-
-            const pending =
-              access.status === "PENDING";
-
-            const rejected =
-              access.status === "REJECTED";
-
-            const canLeave =
-              r.is_private &&
-              isUuid(r.id) &&
-              access.member &&
-              r.owner_id !== session.user.id;
-
-            return (
-              <div
-                key={r.id}
-                style={{
-                  ...card,
-                  padding: 14,
-                  marginBottom: 9,
-                }}
-              >
-                <button
-                  onClick={() => enterRoom(r)}
-                  style={{
-                    width: "100%",
-                    border: 0,
-                    background: "transparent",
-                    color: "#fff",
-                    textAlign: "left",
-                    opacity: privateLocked ? 0.82 : 1,
-                  }}
-                >
-                  <strong>
-                    {r.is_private ? "🔒 " : "✦ "}
-                    {r.name}
-                  </strong>
-
-                  {r.is_official && (
-                    <span
-                      style={{
-                        color: C.cyan,
-                        fontSize: 8,
-                        marginLeft: 7,
-                      }}
-                    >
-                      WHO
-                    </span>
-                  )}
-
-                  {r.owner_id === session.user.id && (
-                    <span
-                      style={{
-                        color: "#e8a0ff",
-                        fontSize: 8,
-                        marginLeft: 7,
-                      }}
-                    >
-                      ♛ OWNER
-                    </span>
-                  )}
-
-                  {r.is_private &&
-                    access.allowed &&
-                    r.owner_id !== session.user.id && (
-                      <span
-                        style={{
-                          color: C.green,
-                          fontSize: 8,
-                          marginLeft: 7,
-                        }}
-                      >
-                        ✓ ACCESSO
-                      </span>
-                    )}
-
-                  <div
-                    style={{
-                      color: C.muted,
-                      fontSize: 11,
-                      marginTop: 5,
-                    }}
-                  >
-                    {r.description}
-                  </div>
-                </button>
-
-                {privateLocked && (
-                  <button
-                    disabled={
-                      pending ||
-                      roomAccessBusy === r.id
-                    }
-                    onClick={() =>
-                      requestRoomAccess(r)
-                    }
-                    style={{
-                      ...purpleButton,
-                      width: "100%",
-                      padding: 10,
-                      marginTop: 9,
-                      opacity:
-                        pending ||
-                        roomAccessBusy === r.id
-                          ? 0.55
-                          : 1,
-                    }}
-                  >
-                    {roomAccessBusy === r.id
-                      ? "INVIO…"
-                      : pending
-                      ? "⏳ IN ATTESA"
-                      : rejected
-                      ? "🔒 RICHIEDI DI NUOVO"
-                      : "🔒 RICHIEDI ACCESSO"}
-                  </button>
-                )}
-
-                {canManageRoom(r) && !r.is_official && (
-                  <button
-                    onClick={() =>
-                      openRoomManagement(r)
-                    }
-                    style={{
-                      ...tinyButton,
-                      color: "#e5a2ff",
-                      marginTop: 8,
-                    }}
-                  >
-                    ⚙ GESTISCI
-                  </button>
-                )}
-
-                {canLeave && (
-                  <button
-                    onClick={() => leaveRoom(r)}
-                    style={{
-                      ...tinyButton,
-                      color: C.red,
-                      marginTop: 8,
-                      marginLeft: 6,
-                    }}
-                  >
-                    ESCI DAL GRUPPO
-                  </button>
-                )}
-              </div>
-            );
-          })}
+            </button>
+          ))}
         </section>
 
         <Nav />
       </main>
     );
   }
+
+  // =====================================================
+  // SHOP
+  // =====================================================
 
   if (page === "shop") {
     return (
@@ -3194,55 +1288,134 @@ export default function Home() {
               gap: 10,
             }}
           >
-            {shopItems.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  ...card,
-                  overflow: "hidden",
-                }}
-              >
-                <img
-                  src={item.image}
-                  alt=""
+            {shopItems.map((item) => {
+              const hasItem = owned.includes(item.id);
+              const active = isItemEquipped(item);
+
+              return (
+                <div
+                  key={item.id}
                   style={{
-                    width: "100%",
-                    height: 160,
-                    objectFit: "contain",
+                    ...card,
+                    overflow: "hidden",
+                    border: active
+                      ? "1px solid rgba(100,232,255,.75)"
+                      : card.border,
+                    boxShadow: active
+                      ? "0 0 22px rgba(181,76,255,.18)"
+                      : "none",
                   }}
-                />
-
-                <div style={{ padding: 12 }}>
-                  <strong>{item.name}</strong>
-
+                >
                   <div
                     style={{
-                      color: "#dc9aff",
-                      margin: "8px 0",
+                      height: 160,
+                      display: "grid",
+                      placeItems: "center",
+                      background:
+                        "radial-gradient(circle,rgba(181,76,255,.08),transparent 65%)",
                     }}
                   >
-                    ✦ {item.price}
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      style={{
+                        width: "100%",
+                        height: 150,
+                        objectFit: "contain",
+                      }}
+                    />
                   </div>
 
-                  <button
-                    disabled={owned.includes(item.id)}
-                    onClick={() => buyItem(item)}
-                    style={{
-                      ...purpleButton,
-                      width: "100%",
-                      padding: 10,
-                      opacity: owned.includes(item.id)
-                        ? 0.4
-                        : 1,
-                    }}
-                  >
-                    {owned.includes(item.id)
-                      ? "✓ POSSEDUTO"
-                      : "SBLOCCA"}
-                  </button>
+                  <div style={{ padding: 12 }}>
+                    <strong>{item.name}</strong>
+
+                    <div
+                      style={{
+                        color:
+                          item.rarity === "LIMITED"
+                            ? C.cyan
+                            : item.rarity === "LEGENDARY"
+                            ? "#efb4ff"
+                            : "#c68cff",
+                        fontSize: 9,
+                        fontWeight: 900,
+                        marginTop: 4,
+                      }}
+                    >
+                      {item.rarity}
+                    </div>
+
+                    <div
+                      style={{
+                        color: "#dc9aff",
+                        margin: "8px 0",
+                      }}
+                    >
+                      ✦ {item.price}
+                    </div>
+
+                    {!hasItem ? (
+                      <button
+                        onClick={() => buyItem(item)}
+                        style={{
+                          ...purpleButton,
+                          width: "100%",
+                          padding: 10,
+                          opacity:
+                            points < item.price ? 0.55 : 1,
+                        }}
+                      >
+                        SBLOCCA
+                      </button>
+                    ) : active ? (
+                      <button
+                        disabled={
+                          equipmentBusy ===
+                          `remove-${item.slot}`
+                        }
+                        onClick={() =>
+                          unequipSlot(item.slot)
+                        }
+                        style={{
+                          width: "100%",
+                          padding: 10,
+                          borderRadius: 12,
+                          border:
+                            "1px solid rgba(100,232,255,.45)",
+                          background:
+                            "rgba(100,232,255,.08)",
+                          color: C.cyan,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {equipmentBusy ===
+                        `remove-${item.slot}`
+                          ? "ATTENDI…"
+                          : "✓ EQUIPAGGIATO · RIMUOVI"}
+                      </button>
+                    ) : (
+                      <button
+                        disabled={
+                          equipmentBusy === item.id
+                        }
+                        onClick={() =>
+                          equipItem(item)
+                        }
+                        style={{
+                          ...purpleButton,
+                          width: "100%",
+                          padding: 10,
+                        }}
+                      >
+                        {equipmentBusy === item.id
+                          ? "ATTENDI…"
+                          : "EQUIPAGGIA"}
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -3251,7 +1424,15 @@ export default function Home() {
     );
   }
 
+  // =====================================================
+  // PROFILO + COLLEZIONE
+  // =====================================================
+
   if (page === "profile") {
+    const ownedItems = shopItems.filter((item) =>
+      owned.includes(item.id)
+    );
+
     return (
       <main style={background}>
         <section
@@ -3261,11 +1442,26 @@ export default function Home() {
             padding: 20,
           }}
         >
-          <div style={{ textAlign: "center" }}>
-            <Avatar
-              name={avatar}
-              size={130}
-            />
+          <div
+            style={{
+              textAlign: "center",
+              paddingTop: 25,
+              paddingBottom: 15,
+            }}
+          >
+            <div
+              style={{
+                minHeight: 185,
+                display: "grid",
+                placeItems: "center",
+              }}
+            >
+              <Avatar
+                name={avatar}
+                size={130}
+                equipment={equipped}
+              />
+            </div>
 
             <h1>@{nickname}</h1>
 
@@ -3286,7 +1482,7 @@ export default function Home() {
               display: "grid",
               gridTemplateColumns: "repeat(3,1fr)",
               gap: 8,
-              marginTop: 20,
+              marginTop: 10,
             }}
           >
             <div style={{ ...card, padding: 13 }}>
@@ -3302,6 +1498,221 @@ export default function Home() {
             <div style={{ ...card, padding: 13 }}>
               <small>LEVEL</small>
               <h2>{level}</h2>
+            </div>
+          </div>
+
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <strong>I MIEI ITEM</strong>
+
+              <span
+                style={{
+                  color: C.muted,
+                  fontSize: 10,
+                }}
+              >
+                {ownedItems.length}/6
+              </span>
+            </div>
+
+            {ownedItems.length === 0 ? (
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 11,
+                  marginTop: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                Non possiedi ancora nessun item.
+                Vai nel WHO Shop per sbloccare la tua
+                collezione.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(2,1fr)",
+                  gap: 8,
+                  marginTop: 12,
+                }}
+              >
+                {ownedItems.map((item) => {
+                  const active =
+                    isItemEquipped(item);
+
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        background:
+                          "rgba(255,255,255,.025)",
+                        border: active
+                          ? "1px solid rgba(100,232,255,.55)"
+                          : `1px solid ${C.border}`,
+                        borderRadius: 14,
+                        padding: 9,
+                        textAlign: "center",
+                      }}
+                    >
+                      <img
+                        src={item.image}
+                        alt=""
+                        style={{
+                          width: "100%",
+                          height: 90,
+                          objectFit: "contain",
+                        }}
+                      />
+
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 900,
+                          marginTop: 4,
+                        }}
+                      >
+                        {item.name}
+                      </div>
+
+                      <div
+                        style={{
+                          color: active
+                            ? C.cyan
+                            : C.muted,
+                          fontSize: 8,
+                          marginTop: 4,
+                        }}
+                      >
+                        {active
+                          ? "● EQUIPAGGIATO"
+                          : item.slot.toUpperCase()}
+                      </div>
+
+                      {active ? (
+                        <button
+                          disabled={
+                            equipmentBusy ===
+                            `remove-${item.slot}`
+                          }
+                          onClick={() =>
+                            unequipSlot(item.slot)
+                          }
+                          style={{
+                            width: "100%",
+                            padding: 8,
+                            marginTop: 8,
+                            borderRadius: 9,
+                            border:
+                              "1px solid rgba(255,114,149,.25)",
+                            background:
+                              "rgba(255,114,149,.06)",
+                            color: C.red,
+                            fontSize: 9,
+                            fontWeight: 900,
+                          }}
+                        >
+                          RIMUOVI
+                        </button>
+                      ) : (
+                        <button
+                          disabled={
+                            equipmentBusy === item.id
+                          }
+                          onClick={() =>
+                            equipItem(item)
+                          }
+                          style={{
+                            ...purpleButton,
+                            width: "100%",
+                            padding: 8,
+                            marginTop: 8,
+                            fontSize: 9,
+                          }}
+                        >
+                          EQUIPAGGIA
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
+            <strong>EQUIPAGGIAMENTO ATTIVO</strong>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2,1fr)",
+                gap: 7,
+                marginTop: 12,
+              }}
+            >
+              {[
+                ["head", "👑 TESTA"],
+                ["face", "◈ VISO"],
+                ["aura", "✦ AURA"],
+                ["frame", "◇ CORNICE"],
+              ].map(([slot, label]) => {
+                const item = shopItems.find(
+                  (x) => x.id === equipped[slot]
+                );
+
+                return (
+                  <div
+                    key={slot}
+                    style={{
+                      background: "#09070c",
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 11,
+                      padding: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: C.muted,
+                        fontSize: 8,
+                      }}
+                    >
+                      {label}
+                    </div>
+
+                    <strong
+                      style={{
+                        display: "block",
+                        fontSize: 9,
+                        marginTop: 4,
+                        color: item
+                          ? C.cyan
+                          : "#716777",
+                      }}
+                    >
+                      {item ? item.name : "VUOTO"}
+                    </strong>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -3346,12 +1757,15 @@ export default function Home() {
               ].map(([value, label]) => (
                 <button
                   key={value}
-                  onClick={() => {
+                  onClick={async () => {
                     setMessageColor(value);
-                    saveMessageStyle(
-                      value,
-                      messageFont
-                    );
+
+                    await supabase
+                      .from("profiles")
+                      .update({
+                        message_color: value,
+                      })
+                      .eq("id", session.user.id);
                   }}
                   style={{
                     padding: 10,
@@ -3382,12 +1796,15 @@ export default function Home() {
               ].map(([value, label]) => (
                 <button
                   key={value}
-                  onClick={() => {
+                  onClick={async () => {
                     setMessageFont(value);
-                    saveMessageStyle(
-                      messageColor,
-                      value
-                    );
+
+                    await supabase
+                      .from("profiles")
+                      .update({
+                        message_font: value,
+                      })
+                      .eq("id", session.user.id);
                   }}
                   style={{
                     padding: 11,
@@ -3396,50 +1813,6 @@ export default function Home() {
                     background: "#0c0910",
                     color: "#fff",
                     fontFamily: getMessageFont(value),
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div
-            style={{
-              ...card,
-              padding: 16,
-              marginTop: 10,
-            }}
-          >
-            <strong>PRIVACY MESSAGGI</strong>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3,1fr)",
-                gap: 6,
-                marginTop: 10,
-              }}
-            >
-              {[
-                ["everyone", "TUTTI"],
-                ["vibe", "VIBE"],
-                ["nobody", "NESSUNO"],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() =>
-                    saveDmSettings(value)
-                  }
-                  style={{
-                    padding: 10,
-                    borderRadius: 12,
-                    border: `1px solid ${C.border}`,
-                    background:
-                      dmPrivacy === value
-                        ? "rgba(181,76,255,.18)"
-                        : "#0c0910",
-                    color: "#fff",
                   }}
                 >
                   {label}
@@ -3487,7 +1860,8 @@ export default function Home() {
               borderRadius: 15,
               background: "rgba(120,30,55,.15)",
               color: "#ff9ab6",
-              border: "1px solid rgba(255,90,130,.3)",
+              border:
+                "1px solid rgba(255,90,130,.3)",
             }}
           >
             ESCI
@@ -3498,6 +1872,10 @@ export default function Home() {
       </main>
     );
   }
+
+  // =====================================================
+  // CHAT PUBBLICA
+  // =====================================================
 
   return (
     <main
@@ -3530,10 +1908,7 @@ export default function Home() {
           <Logo />
 
           <button
-            onClick={() => {
-              setRoomPanel(null);
-              setPage("rooms");
-            }}
+            onClick={() => setPage("rooms")}
             style={{
               ...card,
               padding: "8px 12px",
@@ -3545,802 +1920,330 @@ export default function Home() {
 
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 7,
-            marginBottom: 9,
+            display: "flex",
+            justifyContent: "space-between",
+            marginBottom: 8,
           }}
         >
-          <button
-            onClick={() => {
-              setChatMode("public");
-              setPrivateConversation(null);
-            }}
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              border: `1px solid ${C.border}`,
-              background:
-                chatMode === "public"
-                  ? "rgba(181,76,255,.17)"
-                  : "#0d0911",
-              color: "#fff",
-              fontWeight: 900,
-            }}
-          >
-            ✦ PUBBLICA
-          </button>
+          <div>
+            <small style={{ color: "#c879ef" }}>
+              CHAT PUBBLICA
+            </small>
 
-          <button
-            onClick={() => {
-              setChatMode("inbox");
-              setPrivateConversation(null);
-              loadPrivateData();
-            }}
-            style={{
-              padding: 10,
-              borderRadius: 12,
-              border: `1px solid ${C.border}`,
-              background:
-                chatMode !== "public"
-                  ? "rgba(181,76,255,.17)"
-                  : "#0d0911",
-              color: "#fff",
-              fontWeight: 900,
-            }}
-          >
-            ✉ PRIVATI
-            {incomingRequests.length +
-              totalUnreadPrivate >
-            0
-              ? ` · ${
-                  incomingRequests.length +
-                  totalUnreadPrivate
-                }`
-              : ""}
-          </button>
-        </div>
-
-        {chatMode === "inbox" &&
-          !privateConversation && (
             <div
               style={{
-                flex: 1,
-                overflowY: "auto",
+                fontFamily: displayFont,
+                fontSize: 19,
               }}
             >
-              <h2>Richieste</h2>
+              {activeRoom.name}
+            </div>
+          </div>
 
-              {incomingRequests.map((req) => (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <Avatar
+              name={avatar}
+              size={32}
+              equipment={equipped}
+            />
+
+            <div
+              style={{
+                color: C.muted,
+                fontSize: 9,
+              }}
+            >
+              ⚡ {vibe}
+            </div>
+          </div>
+        </div>
+
+        <div
+          ref={publicChatRef}
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            minHeight: 0,
+          }}
+        >
+          {messages.map((msg) => {
+            const mine =
+              msg.user_id === session.user.id;
+
+            const positive =
+              myVotes[msg.id] === "like";
+
+            const negative =
+              myVotes[msg.id] === "dislike";
+
+            const reported =
+              reportedMessages.includes(msg.id);
+
+            return (
+              <article
+                key={msg.id}
+                style={{
+                  background: mine
+                    ? "rgba(112,37,150,.10)"
+                    : "rgba(255,255,255,.018)",
+                  border:
+                    "1px solid rgba(190,100,255,.08)",
+                  borderRadius: 12,
+                  padding: 7,
+                  marginBottom: 5,
+                }}
+              >
                 <div
-                  key={req.id}
                   style={{
-                    ...card,
-                    padding: 13,
-                    marginBottom: 8,
+                    display: "flex",
+                    gap: 8,
                   }}
                 >
-                  <strong>
-                    ✉ Nuova richiesta privata
-                  </strong>
+                  <Avatar
+                    name={msg.avatar}
+                    size={32}
+                    equipment={
+                      mine ? equipped : null
+                    }
+                  />
 
                   <div
                     style={{
-                      display: "flex",
-                      gap: 6,
-                      marginTop: 10,
+                      flex: 1,
+                      minWidth: 0,
                     }}
                   >
-                    <button
-                      onClick={() =>
-                        acceptRequest(req)
-                      }
-                      style={{
-                        ...purpleButton,
-                        flex: 1,
-                        padding: 10,
-                      }}
-                    >
-                      ACCETTA
-                    </button>
+                    <strong>
+                      @{msg.nickname || "anonimo"}
+                    </strong>
 
-                    <button
-                      onClick={() =>
-                        declineRequest(req)
-                      }
-                      style={{
-                        ...card,
-                        flex: 1,
-                        padding: 10,
-                        color: C.red,
-                      }}
-                    >
-                      RIFIUTA
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <h2>Conversazioni</h2>
-
-              {conversations.map((conv) => {
-                const info =
-                  conversationDetails[conv.id];
-
-                return (
-                  <button
-                    key={conv.id}
-                    onClick={() =>
-                      openConversationFromList(conv)
-                    }
-                    style={{
-                      ...card,
-                      width: "100%",
-                      padding: 11,
-                      marginBottom: 7,
-                      display: "flex",
-                      gap: 10,
-                      textAlign: "left",
-                    }}
-                  >
-                    <Avatar
-                      name={info?.avatar || "Shadow"}
-                      size={45}
-                    />
-
-                    <div style={{ flex: 1 }}>
-                      <strong>
-                        @{info?.nickname || "WHO"}
-                      </strong>
-
+                    {msg.reply_to_nickname && (
                       <div
                         style={{
                           color: C.muted,
-                          fontSize: 10,
+                          fontSize: 9,
+                          marginTop: 3,
+                          paddingLeft: 6,
+                          borderLeft:
+                            "2px solid rgba(181,76,255,.5)",
                         }}
                       >
-                        {info?.lastMessage ||
-                          "Nuova conversazione"}
+                        ↩ @{msg.reply_to_nickname}
+                        {msg.reply_preview
+                          ? ` · ${msg.reply_preview}`
+                          : ""}
                       </div>
-                    </div>
-
-                    {info?.unread > 0 && (
-                      <strong
-                        style={{
-                          color: C.pink,
-                        }}
-                      >
-                        {info.unread}
-                      </strong>
                     )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
 
-        {chatMode === "private" &&
-          privateConversation && (
-            <>
-              <div
-                style={{
-                  ...card,
-                  padding: 9,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setChatMode("inbox");
-                    setPrivateConversation(null);
-                  }}
-                  style={{
-                    background: "transparent",
-                    border: 0,
-                    color: "#dda0ff",
-                  }}
-                >
-                  ‹
-                </button>
-
-                <Avatar
-                  name={privatePeer?.avatar}
-                  size={36}
-                />
-
-                <strong style={{ flex: 1 }}>
-                  @{privatePeer?.nickname}
-                </strong>
-
-                <button
-                  onClick={() =>
-                    blockUser(privatePeer?.id)
-                  }
-                  style={{
-                    border: 0,
-                    background: "transparent",
-                    color: C.red,
-                  }}
-                >
-                  ⊘ BLOCCA
-                </button>
-              </div>
-
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                }}
-              >
-                {privateMessages.map((m) => {
-                  const mine =
-                    m.sender_id === session.user.id;
-
-                  return (
                     <div
-                      key={m.id}
                       style={{
-                        display: "flex",
-                        justifyContent: mine
-                          ? "flex-end"
-                          : "flex-start",
-                        margin: 7,
+                        color: getMessageColor(
+                          msg.message_color
+                        ),
+                        fontFamily: getMessageFont(
+                          msg.message_font
+                        ),
+                        marginTop: 4,
+                        wordBreak: "break-word",
                       }}
                     >
-                      <div
+                      {msg.content}
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 4,
+                        flexWrap: "wrap",
+                        marginTop: 7,
+                      }}
+                    >
+                      <button
+                        onClick={() =>
+                          setReplyingTo(msg)
+                        }
+                        style={tinyButton}
+                      >
+                        ↩
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          voteMessage(msg, "like")
+                        }
                         style={{
-                          ...card,
-                          maxWidth: "82%",
-                          padding: 10,
+                          ...tinyButton,
+                          color: positive
+                            ? C.cyan
+                            : "#a999b1",
                         }}
                       >
-                        {m.content}
+                        ♡ {Number(msg.likes || 0)}
+                      </button>
 
+                      <button
+                        onClick={() =>
+                          voteMessage(
+                            msg,
+                            "dislike"
+                          )
+                        }
+                        style={{
+                          ...tinyButton,
+                          color: negative
+                            ? C.pink
+                            : "#a999b1",
+                        }}
+                      >
+                        ♢−{" "}
+                        {Number(
+                          msg.dislikes || 0
+                        )}
+                      </button>
+
+                      {!mine && (
                         <button
+                          disabled={reported}
                           onClick={() =>
-                            setPrivateReply({
-                              ...m,
-                              nickname: mine
-                                ? nickname
-                                : privatePeer?.nickname,
-                            })
+                            reportMessage(msg)
                           }
                           style={{
-                            display: "block",
-                            border: 0,
-                            background: "transparent",
-                            color: C.pink,
-                            marginTop: 5,
+                            ...tinyButton,
+                            marginLeft: "auto",
+                            color: C.red,
+                            opacity: reported
+                              ? 0.4
+                              : 1,
                           }}
                         >
-                          ↩ RISPONDI
+                          ⚑
                         </button>
-                      </div>
+                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
 
-                <div ref={privateBottomRef} />
-              </div>
+          <div ref={publicBottomRef} />
+        </div>
 
-              <ReplyBox
-                data={privateReply}
-                cancel={() =>
-                  setPrivateReply(null)
-                }
-              />
-
-              <div
+        {replyingTo && (
+          <div
+            style={{
+              background: "rgba(181,76,255,.08)",
+              borderLeft: "2px solid #c75cff",
+              borderRadius: 10,
+              padding: "7px 9px",
+              marginTop: 5,
+              marginBottom: 4,
+              display: "flex",
+            }}
+          >
+            <div style={{ flex: 1 }}>
+              <strong
                 style={{
-                  ...card,
-                  padding: 6,
-                  display: "flex",
+                  color: "#df9cff",
+                  fontSize: 10,
                 }}
               >
-                <input
-                  value={privateMessage}
-                  onChange={(e) =>
-                    setPrivateMessage(e.target.value)
-                  }
-                  placeholder="Messaggio privato..."
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: 0,
-                    color: "#fff",
-                    outline: 0,
-                    padding: 10,
-                  }}
-                />
-
-                <button
-                  onClick={sendPrivateMessage}
-                  style={{
-                    ...purpleButton,
-                    width: 45,
-                  }}
-                >
-                  ➤
-                </button>
-              </div>
-            </>
-          )}
-
-        {chatMode === "public" && (
-          <>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: 6,
-              }}
-            >
-              <div>
-                <small
-                  style={{
-                    color: "#c879ef",
-                  }}
-                >
-                  CHAT PUBBLICA
-                </small>
-
-                <div
-                  style={{
-                    fontFamily: displayFont,
-                    fontSize: 19,
-                  }}
-                >
-                  {activeRoom.is_private
-                    ? "🔒 "
-                    : ""}
-                  {activeRoom.name}
-                </div>
-
-                {myRoomRole && (
-                  <small
-                    style={{
-                      color: "#e8a0ff",
-                    }}
-                  >
-                    {myRoomRole === "FOUNDER"
-                      ? "♛ WHO FOUNDER"
-                      : myRoomRole === "OWNER"
-                      ? "♛ OWNER"
-                      : "◆ MOD"}
-                  </small>
-                )}
-              </div>
+                ↩ @{replyingTo.nickname}
+              </strong>
 
               <div
                 style={{
                   color: C.muted,
-                  fontSize: 9,
+                  fontSize: 10,
                 }}
               >
-                ⚡ VIBE {vibe}
+                {replyingTo.content}
               </div>
             </div>
 
-            {myRoomStatus?.banned && (
-              <div
-                style={{
-                  ...card,
-                  padding: 10,
-                  color: C.red,
-                  textAlign: "center",
-                  marginBottom: 6,
-                }}
-              >
-                ⛔ SEI STATO BANNATO DA QUESTA STANZA
-              </div>
-            )}
-
-            {!myRoomStatus?.banned &&
-              myRoomStatus?.muted && (
-                <div
-                  style={{
-                    ...card,
-                    padding: 10,
-                    color: C.pink,
-                    textAlign: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  🔇 SEI TEMPORANEAMENTE SILENZIATO
-                </div>
-              )}
-
-            <div
-              ref={publicChatRef}
-              onScroll={handlePublicScroll}
+            <button
+              onClick={() =>
+                setReplyingTo(null)
+              }
               style={{
-                flex: 1,
-                overflowY: "auto",
-                minHeight: 0,
+                border: 0,
+                background: "transparent",
+                color: "#aaa",
               }}
             >
-              {messages.map((msg) => {
-                const mine =
-                  msg.user_id === session.user.id;
-
-                const positive =
-                  myVotes[msg.id] === "like";
-
-                const negative =
-                  myVotes[msg.id] === "dislike";
-
-                const reported =
-                  reportedMessages.includes(msg.id);
-
-                return (
-                  <article
-                    key={msg.id}
-                    style={{
-                      background: mine
-                        ? "rgba(112,37,150,.10)"
-                        : "rgba(255,255,255,.018)",
-                      border:
-                        "1px solid rgba(190,100,255,.08)",
-                      borderRadius: 12,
-                      padding: 7,
-                      marginBottom: 5,
-                    }}
-                  >
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 8,
-                      }}
-                    >
-                      <Avatar
-                        name={msg.avatar}
-                        size={32}
-                      />
-
-                      <div
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                        }}
-                      >
-                        <strong>
-                          @{msg.nickname || "anonimo"}
-                        </strong>
-
-                        <div
-                          style={{
-                            color: getMessageColor(
-                              msg.message_color
-                            ),
-                            fontFamily: getMessageFont(
-                              msg.message_font
-                            ),
-                            marginTop: 4,
-                          }}
-                        >
-                          {renderMessageText(
-                            msg.content
-                          )}
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: 4,
-                            flexWrap: "wrap",
-                            marginTop: 7,
-                          }}
-                        >
-                          <button
-                            onClick={() =>
-                              setReplyingTo(msg)
-                            }
-                            style={tinyButton}
-                          >
-                            ↩
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              mentionUser(msg)
-                            }
-                            style={tinyButton}
-                          >
-                            @
-                          </button>
-
-                          {!mine && (
-                            <button
-                              onClick={() =>
-                                requestPrivate(msg)
-                              }
-                              style={{
-                                ...tinyButton,
-                                color: "#e6a6ff",
-                              }}
-                            >
-                              ✉ PVT
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() =>
-                              voteMessage(msg, "like")
-                            }
-                            style={{
-                              ...tinyButton,
-                              color: positive
-                                ? C.cyan
-                                : "#a999b1",
-                            }}
-                          >
-                            ♡ {Number(msg.likes || 0)}
-                          </button>
-
-                          <button
-                            onClick={() =>
-                              voteMessage(
-                                msg,
-                                "dislike"
-                              )
-                            }
-                            style={{
-                              ...tinyButton,
-                              color: negative
-                                ? C.pink
-                                : "#a999b1",
-                            }}
-                          >
-                            ♢−{" "}
-                            {Number(
-                              msg.dislikes || 0
-                            )}
-                          </button>
-
-                          {!mine &&
-                            roomCanModerate && (
-                              <button
-                                onClick={() =>
-                                  setModerationMessage(
-                                    moderationMessage?.id ===
-                                      msg.id
-                                      ? null
-                                      : msg
-                                  )
-                                }
-                                style={{
-                                  ...tinyButton,
-                                  color: "#ffad65",
-                                }}
-                              >
-                                ⚙ MOD
-                              </button>
-                            )}
-
-                          {!mine && (
-                            <button
-                              disabled={reported}
-                              onClick={() =>
-                                reportMessage(msg)
-                              }
-                              style={{
-                                ...tinyButton,
-                                marginLeft: "auto",
-                                color: C.red,
-                                opacity: reported
-                                  ? 0.4
-                                  : 1,
-                              }}
-                            >
-                              ⚑
-                            </button>
-                          )}
-                        </div>
-
-                        {moderationMessage?.id ===
-                          msg.id &&
-                          roomCanModerate && (
-                            <div
-                              style={{
-                                ...card,
-                                padding: 8,
-                                marginTop: 7,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  color: C.muted,
-                                  fontSize: 9,
-                                  marginBottom: 6,
-                                }}
-                              >
-                                MODERA @{msg.nickname}
-                              </div>
-
-                              <div
-                                style={{
-                                  display: "flex",
-                                  gap: 5,
-                                  flexWrap: "wrap",
-                                }}
-                              >
-                                <button
-                                  onClick={() =>
-                                    muteFromRoom(
-                                      msg,
-                                      10
-                                    )
-                                  }
-                                  style={tinyButton}
-                                >
-                                  🔇 10 MIN
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    muteFromRoom(
-                                      msg,
-                                      60
-                                    )
-                                  }
-                                  style={tinyButton}
-                                >
-                                  🔇 1H
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    muteFromRoom(
-                                      msg,
-                                      1440
-                                    )
-                                  }
-                                  style={tinyButton}
-                                >
-                                  🔇 24H
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    muteFromRoom(
-                                      msg,
-                                      10080
-                                    )
-                                  }
-                                  style={tinyButton}
-                                >
-                                  🔇 7G
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    banFromRoom(msg)
-                                  }
-                                  style={{
-                                    ...tinyButton,
-                                    color: C.red,
-                                  }}
-                                >
-                                  ⛔ BAN
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
-
-              <div ref={publicBottomRef} />
-            </div>
-
-            {showNewMessages && (
-              <button
-                onClick={() =>
-                  scrollPublicToBottom("smooth")
-                }
-                style={{
-                  ...purpleButton,
-                  alignSelf: "center",
-                  padding: "7px 12px",
-                  marginBottom: 5,
-                }}
-              >
-                ↓ NUOVI MESSAGGI
-              </button>
-            )}
-
-            <div style={{ paddingTop: 5 }}>
-              <ReplyBox
-                data={replyingTo}
-                cancel={() =>
-                  setReplyingTo(null)
-                }
-              />
-
-              <div
-                style={{
-                  ...card,
-                  padding: 5,
-                  display: "flex",
-                  gap: 5,
-                }}
-              >
-                <input
-                  disabled={
-                    myRoomStatus?.banned ||
-                    myRoomStatus?.muted
-                  }
-                  value={message}
-                  maxLength={500}
-                  onChange={(e) =>
-                    setMessage(e.target.value)
-                  }
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey
-                    ) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder={
-                    myRoomStatus?.banned
-                      ? "Sei bannato"
-                      : myRoomStatus?.muted
-                      ? "Sei silenziato"
-                      : "Scrivi qualcosa..."
-                  }
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    background: "transparent",
-                    border: 0,
-                    color:
-                      getMessageColor(
-                        messageColor
-                      ),
-                    fontFamily:
-                      getMessageFont(
-                        messageFont
-                      ),
-                    outline: 0,
-                    padding: "10px 9px",
-                  }}
-                />
-
-                <button
-                  onClick={sendMessage}
-                  disabled={
-                    sending ||
-                    !message.trim() ||
-                    myRoomStatus?.banned ||
-                    myRoomStatus?.muted
-                  }
-                  style={{
-                    ...purpleButton,
-                    width: 42,
-                    opacity:
-                      !message.trim() ||
-                      myRoomStatus?.banned ||
-                      myRoomStatus?.muted
-                        ? 0.4
-                        : 1,
-                  }}
-                >
-                  {sending ? "…" : "➤"}
-                </button>
-              </div>
-            </div>
-          </>
+              ✕
+            </button>
+          </div>
         )}
+
+        <div style={{ paddingTop: 5 }}>
+          <div
+            style={{
+              ...card,
+              padding: 5,
+              display: "flex",
+              gap: 5,
+            }}
+          >
+            <input
+              value={message}
+              maxLength={500}
+              onChange={(e) =>
+                setMessage(e.target.value)
+              }
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey
+                ) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="Scrivi qualcosa..."
+              style={{
+                flex: 1,
+                minWidth: 0,
+                background: "transparent",
+                border: 0,
+                color:
+                  getMessageColor(
+                    messageColor
+                  ),
+                fontFamily:
+                  getMessageFont(
+                    messageFont
+                  ),
+                outline: 0,
+                padding: "10px 9px",
+              }}
+            />
+
+            <button
+              onClick={sendMessage}
+              disabled={
+                sending || !message.trim()
+              }
+              style={{
+                ...purpleButton,
+                width: 42,
+                opacity:
+                  !message.trim() ? 0.4 : 1,
+              }}
+            >
+              {sending ? "…" : "➤"}
+            </button>
+          </div>
+        </div>
       </section>
 
       <Nav />
     </main>
   );
-          }
+                      }
