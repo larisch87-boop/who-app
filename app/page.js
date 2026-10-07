@@ -189,6 +189,19 @@ function getMessageFont(value) {
   return fonts[value] || fonts.standard;
 }
 
+function formatPrivateTime(value) {
+  if (!value) return "";
+
+  try {
+    return new Date(value).toLocaleTimeString("it-IT", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export default function Home() {
   const [loading, setLoading] = useState(true);
 
@@ -229,6 +242,7 @@ export default function Home() {
 
   const [requests, setRequests] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [conversationDetails, setConversationDetails] = useState({});
 
   const [privateConversation, setPrivateConversation] = useState(null);
   const [privatePeer, setPrivatePeer] = useState(null);
@@ -262,6 +276,13 @@ export default function Home() {
       ),
     [requests, session]
   );
+
+  const totalUnreadPrivate = useMemo(() => {
+    return Object.values(conversationDetails).reduce(
+      (sum, item) => sum + Number(item?.unread || 0),
+      0
+    );
+  }, [conversationDetails]);
 
   const background = {
     minHeight: "100dvh",
@@ -374,7 +395,7 @@ export default function Home() {
           schema: "public",
           table: "private_requests",
         },
-        loadPrivateData
+        () => loadPrivateData()
       )
       .on(
         "postgres_changes",
@@ -599,6 +620,7 @@ export default function Home() {
     setStarted(false);
     setMessages([]);
     setPrivateMessages([]);
+    setConversationDetails({});
   }
 
   async function selectAvatar(name) {
@@ -769,8 +791,7 @@ export default function Home() {
         dislikes: 0,
         reply_to_id: replyingTo?.id || null,
         reply_to_nickname: replyingTo?.nickname || null,
-        reply_preview:
-          replyingTo?.content?.slice(0, 100) || null,
+        reply_preview: replyingTo?.content?.slice(0, 100) || null,
         mentioned_user_id: mentionedUserId,
         mentioned_nickname: mentionedNickname,
         message_color: messageColor,
@@ -783,7 +804,6 @@ export default function Home() {
       setMessage("");
       setReplyingTo(null);
       publicAtBottomRef.current = true;
-
       await loadMessages(true);
     }
 
@@ -887,8 +907,9 @@ export default function Home() {
     let dislikes = Number(msg.dislikes || 0);
 
     if (oldVote === "like") likes = Math.max(0, likes - 1);
-    if (oldVote === "dislike")
+    if (oldVote === "dislike") {
       dislikes = Math.max(0, dislikes - 1);
+    }
 
     if (vote === "like") likes += 1;
     if (vote === "dislike") dislikes += 1;
@@ -921,9 +942,7 @@ export default function Home() {
 
     if (error) return;
 
-    setReportedMessages(
-      (data || []).map((x) => x.message_id)
-    );
+    setReportedMessages((data || []).map((x) => x.message_id));
   }
 
   async function reportMessage(msg) {
@@ -980,12 +999,9 @@ export default function Home() {
       return;
     }
 
-    const check = await supabase.rpc(
-      "can_private_message",
-      {
-        target_user: targetId,
-      }
-    );
+    const check = await supabase.rpc("can_private_message", {
+      target_user: targetId,
+    });
 
     const result = check.data;
 
@@ -1006,9 +1022,7 @@ export default function Home() {
     }
 
     const existingConversation = conversations.find(
-      (c) =>
-        c.user_one === targetId ||
-        c.user_two === targetId
+      (c) => c.user_one === targetId || c.user_two === targetId
     );
 
     if (existingConversation) {
@@ -1055,23 +1069,79 @@ export default function Home() {
 
     const uid = session.user.id;
 
-    const [requestResult, conversationResult] =
-      await Promise.all([
-        supabase
-          .from("private_requests")
-          .select("*")
-          .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-          .order("created_at", { ascending: false }),
+    const [requestResult, conversationResult] = await Promise.all([
+      supabase
+        .from("private_requests")
+        .select("*")
+        .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
+        .order("created_at", { ascending: false }),
 
-        supabase
-          .from("private_conversations")
-          .select("*")
-          .or(`user_one.eq.${uid},user_two.eq.${uid}`)
-          .order("updated_at", { ascending: false }),
-      ]);
+      supabase
+        .from("private_conversations")
+        .select("*")
+        .or(`user_one.eq.${uid},user_two.eq.${uid}`)
+        .order("updated_at", { ascending: false }),
+    ]);
 
-    setRequests(requestResult.data || []);
-    setConversations(conversationResult.data || []);
+    const reqs = requestResult.data || [];
+    const convs = conversationResult.data || [];
+
+    setRequests(reqs);
+    setConversations(convs);
+
+    const details = {};
+
+    await Promise.all(
+      convs.map(async (conv) => {
+        const peerId =
+          conv.user_one === uid ? conv.user_two : conv.user_one;
+
+        const [peerResult, lastMessageResult, unreadResult] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("id,nickname,avatar")
+              .eq("id", peerId)
+              .maybeSingle(),
+
+            supabase
+              .from("private_messages")
+              .select("id,content,sender_id,created_at,is_read")
+              .eq("conversation_id", conv.id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+
+            supabase
+              .from("private_messages")
+              .select("id", {
+                count: "exact",
+                head: true,
+              })
+              .eq("conversation_id", conv.id)
+              .neq("sender_id", uid)
+              .eq("is_read", false),
+          ]);
+
+        const peer = peerResult.data;
+        const lastMessage = lastMessageResult.data;
+
+        details[conv.id] = {
+          peerId,
+          nickname: peer?.nickname || "WHO",
+          avatar: peer?.avatar || "Shadow",
+          lastMessage: lastMessage?.content || "",
+          lastMessageAt:
+            lastMessage?.created_at ||
+            conv.updated_at ||
+            conv.created_at,
+          lastSenderId: lastMessage?.sender_id || null,
+          unread: unreadResult.count || 0,
+        };
+      })
+    );
+
+    setConversationDetails(details);
   }
 
   async function acceptRequest(req) {
@@ -1146,15 +1216,26 @@ export default function Home() {
 
     setChatMode("private");
     await loadPrivateMessages(conversation.id);
+    await loadPrivateData();
   }
 
   async function openConversationFromList(conv) {
+    const info = conversationDetails[conv.id];
+
+    if (info) {
+      await openConversation(
+        conv,
+        info.nickname,
+        info.avatar,
+        info.peerId
+      );
+      return;
+    }
+
     const uid = session.user.id;
 
     const peerId =
-      conv.user_one === uid
-        ? conv.user_two
-        : conv.user_one;
+      conv.user_one === uid ? conv.user_two : conv.user_one;
 
     const peer = await supabase
       .from("profiles")
@@ -1162,7 +1243,7 @@ export default function Home() {
       .eq("id", peerId)
       .maybeSingle();
 
-    openConversation(
+    await openConversation(
       conv,
       peer.data?.nickname || "WHO",
       peer.data?.avatar || "Shadow",
@@ -1171,7 +1252,7 @@ export default function Home() {
   }
 
   async function loadPrivateMessages(conversationId) {
-    if (!conversationId) return;
+    if (!conversationId || !session) return;
 
     const { data, error } = await supabase
       .from("private_messages")
@@ -1179,7 +1260,10 @@ export default function Home() {
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: true });
 
-    if (error) return;
+    if (error) {
+      console.error(error);
+      return;
+    }
 
     setPrivateMessages(data || []);
 
@@ -1203,10 +1287,8 @@ export default function Home() {
         sender_id: session.user.id,
         content: text.slice(0, 1000),
         reply_to_id: privateReply?.id || null,
-        reply_to_nickname:
-          privateReply?.nickname || null,
-        reply_preview:
-          privateReply?.content?.slice(0, 100) || null,
+        reply_to_nickname: privateReply?.nickname || null,
+        reply_preview: privateReply?.content?.slice(0, 100) || null,
       });
 
     if (error) {
@@ -1218,6 +1300,7 @@ export default function Home() {
     setPrivateReply(null);
 
     await loadPrivateMessages(privateConversation.id);
+    await loadPrivateData();
   }
 
   async function blockUser(userId) {
@@ -1397,8 +1480,7 @@ export default function Home() {
             style={{
               border: 0,
               background: "transparent",
-              color:
-                page === id ? "#edaaff" : "#776d7b",
+              color: page === id ? "#edaaff" : "#776d7b",
               fontFamily: font,
               fontWeight: 900,
               fontSize: 10,
@@ -1546,9 +1628,7 @@ export default function Home() {
             )}
 
             <button
-              onClick={
-                authMode === "login" ? login : register
-              }
+              onClick={authMode === "login" ? login : register}
               style={{
                 ...purpleButton,
                 width: "100%",
@@ -1556,17 +1636,13 @@ export default function Home() {
                 marginTop: 14,
               }}
             >
-              {authMode === "login"
-                ? "ACCEDI"
-                : "CREA ACCOUNT"}
+              {authMode === "login" ? "ACCEDI" : "CREA ACCOUNT"}
             </button>
 
             <button
               onClick={() => {
                 setAuthMode(
-                  authMode === "login"
-                    ? "register"
-                    : "login"
+                  authMode === "login" ? "register" : "login"
                 );
                 setAuthError("");
               }}
@@ -1634,16 +1710,12 @@ export default function Home() {
                 <div
                   style={{
                     color:
-                      avatar === a.name
-                        ? "#efaaff"
-                        : C.muted,
+                      avatar === a.name ? "#efaaff" : C.muted,
                     marginTop: 8,
                     fontWeight: 900,
                   }}
                 >
-                  {avatar === a.name
-                    ? "✓ SELEZIONATO"
-                    : "SCEGLI"}
+                  {avatar === a.name ? "✓ SELEZIONATO" : "SCEGLI"}
                 </div>
               </button>
             ))}
@@ -1797,9 +1869,7 @@ export default function Home() {
                       ...purpleButton,
                       width: "100%",
                       padding: 10,
-                      opacity: owned.includes(item.id)
-                        ? 0.4
-                        : 1,
+                      opacity: owned.includes(item.id) ? 0.4 : 1,
                     }}
                   >
                     {owned.includes(item.id)
@@ -2094,9 +2164,7 @@ export default function Home() {
           >
             <strong>REPUTAZIONE</strong>
 
-            <h3 style={{ color: C.green }}>
-              ✓ IN REGOLA
-            </h3>
+            <h3 style={{ color: C.green }}>✓ IN REGOLA</h3>
 
             <div
               style={{
@@ -2243,239 +2311,341 @@ export default function Home() {
             }}
           >
             ✉ PRIVATI
-            {incomingRequests.length > 0 &&
-              ` · ${incomingRequests.length}`}
+            {incomingRequests.length + totalUnreadPrivate > 0
+              ? ` · ${incomingRequests.length + totalUnreadPrivate}`
+              : ""}
           </button>
         </div>
 
-        {chatMode === "inbox" &&
-          !privateConversation && (
+        {chatMode === "inbox" && !privateConversation && (
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              paddingBottom: 10,
+            }}
+          >
+            <h2>Richieste</h2>
+
+            {incomingRequests.length === 0 && (
+              <div
+                style={{
+                  ...card,
+                  padding: 15,
+                  color: C.muted,
+                }}
+              >
+                Nessuna nuova richiesta.
+              </div>
+            )}
+
+            {incomingRequests.map((req) => (
+              <div
+                key={req.id}
+                style={{
+                  ...card,
+                  padding: 13,
+                  marginBottom: 8,
+                }}
+              >
+                <strong>✉ Nuova richiesta privata</strong>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 6,
+                    marginTop: 10,
+                  }}
+                >
+                  <button
+                    onClick={() => acceptRequest(req)}
+                    style={{
+                      ...purpleButton,
+                      flex: 1,
+                      padding: 10,
+                    }}
+                  >
+                    ACCETTA
+                  </button>
+
+                  <button
+                    onClick={() => declineRequest(req)}
+                    style={{
+                      flex: 1,
+                      padding: 10,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,100,140,.3)",
+                      background: "#160b10",
+                      color: "#ff9ab6",
+                    }}
+                  >
+                    RIFIUTA
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <h2 style={{ marginTop: 25 }}>Conversazioni</h2>
+
+            {conversations.length === 0 && (
+              <div
+                style={{
+                  ...card,
+                  padding: 15,
+                  color: C.muted,
+                }}
+              >
+                Nessuna conversazione privata.
+              </div>
+            )}
+
+            {conversations.map((conv) => {
+              const info = conversationDetails[conv.id];
+
+              return (
+                <button
+                  key={conv.id}
+                  onClick={() => openConversationFromList(conv)}
+                  style={{
+                    ...card,
+                    width: "100%",
+                    padding: 11,
+                    marginBottom: 7,
+                    textAlign: "left",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    position: "relative",
+                  }}
+                >
+                  <Avatar
+                    name={info?.avatar || "Shadow"}
+                    size={45}
+                  />
+
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 8,
+                      }}
+                    >
+                      <strong
+                        style={{
+                          color: "#fff",
+                          fontSize: 13,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        @{info?.nickname || "WHO"}
+                      </strong>
+
+                      <span
+                        style={{
+                          color: C.muted,
+                          fontSize: 8,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {formatPrivateTime(info?.lastMessageAt)}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        color:
+                          info?.unread > 0 ? "#f1c0ff" : C.muted,
+                        fontWeight: info?.unread > 0 ? 900 : 400,
+                        fontSize: 10,
+                        marginTop: 4,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {info?.lastMessage
+                        ? `${
+                            info.lastSenderId === session.user.id
+                              ? "Tu: "
+                              : ""
+                          }${info.lastMessage}`
+                        : "Nuova conversazione"}
+                    </div>
+                  </div>
+
+                  {info?.unread > 0 && (
+                    <div
+                      style={{
+                        minWidth: 20,
+                        height: 20,
+                        padding: "0 5px",
+                        borderRadius: 20,
+                        display: "grid",
+                        placeItems: "center",
+                        background:
+                          "linear-gradient(135deg,#d95cff,#7b2dff)",
+                        color: "#fff",
+                        fontSize: 9,
+                        fontWeight: 900,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {info.unread > 99 ? "99+" : info.unread}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {chatMode === "private" && privateConversation && (
+          <>
+            <div
+              style={{
+                ...card,
+                padding: 9,
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
+                marginBottom: 7,
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={async () => {
+                  setChatMode("inbox");
+                  setPrivateConversation(null);
+                  setPrivatePeer(null);
+                  setPrivateMessages([]);
+                  await loadPrivateData();
+                }}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  color: "#dda0ff",
+                  fontSize: 22,
+                }}
+              >
+                ‹
+              </button>
+
+              <Avatar name={privatePeer?.avatar} size={36} />
+
+              <div style={{ flex: 1 }}>
+                <strong>
+                  @{privatePeer?.nickname || "WHO"}
+                </strong>
+
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 9,
+                  }}
+                >
+                  CHAT PRIVATA
+                </div>
+              </div>
+
+              <button
+                onClick={() => blockUser(privatePeer?.id)}
+                style={{
+                  border: 0,
+                  background: "transparent",
+                  color: "#ff879f",
+                  fontSize: 9,
+                }}
+              >
+                ⊘ BLOCCA
+              </button>
+            </div>
+
             <div
               style={{
                 flex: 1,
                 overflowY: "auto",
-                paddingBottom: 10,
+                minHeight: 0,
+                padding: "4px 2px 8px",
               }}
             >
-              <h2>Richieste</h2>
-
-              {incomingRequests.length === 0 && (
+              {privateMessages.length === 0 && (
                 <div
                   style={{
-                    ...card,
-                    padding: 15,
                     color: C.muted,
+                    textAlign: "center",
+                    padding: 30,
+                    fontSize: 11,
                   }}
                 >
-                  Nessuna nuova richiesta.
+                  Inizia la conversazione privata.
                 </div>
               )}
 
-              {incomingRequests.map((req) => (
-                <div
-                  key={req.id}
-                  style={{
-                    ...card,
-                    padding: 13,
-                    marginBottom: 8,
-                  }}
-                >
-                  <strong>✉ Nuova richiesta privata</strong>
+              {privateMessages.map((m) => {
+                const mine = m.sender_id === session.user.id;
 
+                return (
                   <div
+                    key={m.id}
                     style={{
                       display: "flex",
-                      gap: 6,
-                      marginTop: 10,
+                      justifyContent: mine
+                        ? "flex-end"
+                        : "flex-start",
+                      marginBottom: 6,
                     }}
                   >
-                    <button
-                      onClick={() => acceptRequest(req)}
-                      style={{
-                        ...purpleButton,
-                        flex: 1,
-                        padding: 10,
-                      }}
-                    >
-                      ACCETTA
-                    </button>
-
-                    <button
-                      onClick={() => declineRequest(req)}
-                      style={{
-                        flex: 1,
-                        padding: 10,
-                        borderRadius: 12,
-                        border:
-                          "1px solid rgba(255,100,140,.3)",
-                        background: "#160b10",
-                        color: "#ff9ab6",
-                      }}
-                    >
-                      RIFIUTA
-                    </button>
-                  </div>
-                </div>
-              ))}
-
-              <h2 style={{ marginTop: 25 }}>
-                Conversazioni
-              </h2>
-
-              {conversations.length === 0 && (
-                <div
-                  style={{
-                    ...card,
-                    padding: 15,
-                    color: C.muted,
-                  }}
-                >
-                  Nessuna conversazione privata.
-                </div>
-              )}
-
-              {conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() =>
-                    openConversationFromList(conv)
-                  }
-                  style={{
-                    ...card,
-                    width: "100%",
-                    padding: 14,
-                    marginBottom: 8,
-                    textAlign: "left",
-                  }}
-                >
-                  ✉ Apri conversazione
-                </button>
-              ))}
-            </div>
-          )}
-
-        {chatMode === "private" &&
-          privateConversation && (
-            <>
-              <div
-                style={{
-                  ...card,
-                  padding: 9,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 9,
-                  marginBottom: 7,
-                  flexShrink: 0,
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setChatMode("inbox");
-                    setPrivateConversation(null);
-                  }}
-                  style={{
-                    border: 0,
-                    background: "transparent",
-                    color: "#dda0ff",
-                    fontSize: 22,
-                  }}
-                >
-                  ‹
-                </button>
-
-                <Avatar
-                  name={privatePeer?.avatar}
-                  size={36}
-                />
-
-                <div style={{ flex: 1 }}>
-                  <strong>
-                    @{privatePeer?.nickname || "WHO"}
-                  </strong>
-
-                  <div
-                    style={{
-                      color: C.muted,
-                      fontSize: 9,
-                    }}
-                  >
-                    CHAT PRIVATA
-                  </div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    blockUser(privatePeer?.id)
-                  }
-                  style={{
-                    border: 0,
-                    background: "transparent",
-                    color: "#ff879f",
-                    fontSize: 9,
-                  }}
-                >
-                  ⊘ BLOCCA
-                </button>
-              </div>
-
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                  minHeight: 0,
-                  padding: "4px 2px 8px",
-                }}
-              >
-                {privateMessages.map((m) => {
-                  const mine =
-                    m.sender_id === session.user.id;
-
-                  return (
                     <div
-                      key={m.id}
                       style={{
-                        display: "flex",
-                        justifyContent: mine
-                          ? "flex-end"
-                          : "flex-start",
-                        marginBottom: 6,
+                        maxWidth: "82%",
+                        padding: "9px 11px",
+                        borderRadius: mine
+                          ? "16px 16px 5px 16px"
+                          : "16px 16px 16px 5px",
+                        background: mine
+                          ? "linear-gradient(135deg,#702596,#45145f)"
+                          : "#17101f",
+                        border: `1px solid ${C.border}`,
+                        fontSize: 13,
                       }}
                     >
+                      {m.reply_to_nickname && (
+                        <div
+                          style={{
+                            padding: 6,
+                            borderLeft: "2px solid #d45fff",
+                            background: "rgba(0,0,0,.18)",
+                            marginBottom: 5,
+                            fontSize: 9,
+                            color: C.muted,
+                          }}
+                        >
+                          ↩ @{m.reply_to_nickname}
+                          <br />
+                          {m.reply_preview}
+                        </div>
+                      )}
+
+                      <div>{m.content}</div>
+
                       <div
                         style={{
-                          maxWidth: "82%",
-                          padding: "9px 11px",
-                          borderRadius: mine
-                            ? "16px 16px 5px 16px"
-                            : "16px 16px 16px 5px",
-                          background: mine
-                            ? "linear-gradient(135deg,#702596,#45145f)"
-                            : "#17101f",
-                          border: `1px solid ${C.border}`,
-                          fontSize: 13,
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: 10,
+                          marginTop: 5,
                         }}
                       >
-                        {m.reply_to_nickname && (
-                          <div
-                            style={{
-                              padding: 6,
-                              borderLeft:
-                                "2px solid #d45fff",
-                              background:
-                                "rgba(0,0,0,.18)",
-                              marginBottom: 5,
-                              fontSize: 9,
-                              color: C.muted,
-                            }}
-                          >
-                            ↩ @{m.reply_to_nickname}
-                            <br />
-                            {m.reply_preview}
-                          </div>
-                        )}
-
-                        <div>{m.content}</div>
-
                         <button
                           onClick={() =>
                             setPrivateReply({
@@ -2489,69 +2659,81 @@ export default function Home() {
                             border: 0,
                             background: "transparent",
                             color: "#c894dc",
-                            padding: "6px 0 0",
+                            padding: 0,
                             fontSize: 9,
                           }}
                         >
                           ↩ RISPONDI
                         </button>
+
+                        <span
+                          style={{
+                            color: "#8f8197",
+                            fontSize: 8,
+                          }}
+                        >
+                          {formatPrivateTime(m.created_at)}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                );
+              })}
 
-                <div ref={privateBottomRef} />
-              </div>
+              <div ref={privateBottomRef} />
+            </div>
 
-              <div style={{ flexShrink: 0 }}>
-                <ReplyBox
-                  data={privateReply}
-                  cancel={() => setPrivateReply(null)}
+            <div style={{ flexShrink: 0 }}>
+              <ReplyBox
+                data={privateReply}
+                cancel={() => setPrivateReply(null)}
+              />
+
+              <div
+                style={{
+                  ...card,
+                  padding: 6,
+                  display: "flex",
+                  gap: 6,
+                }}
+              >
+                <input
+                  value={privateMessage}
+                  maxLength={1000}
+                  onChange={(e) =>
+                    setPrivateMessage(e.target.value)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      sendPrivateMessage();
+                    }
+                  }}
+                  placeholder="Messaggio privato..."
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    background: "transparent",
+                    border: 0,
+                    outline: 0,
+                    color: "#fff",
+                    padding: 9,
+                  }}
                 />
 
-                <div
+                <button
+                  onClick={sendPrivateMessage}
                   style={{
-                    ...card,
-                    padding: 6,
-                    display: "flex",
-                    gap: 6,
+                    ...purpleButton,
+                    width: 43,
                   }}
                 >
-                  <input
-                    value={privateMessage}
-                    onChange={(e) =>
-                      setPrivateMessage(e.target.value)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        sendPrivateMessage();
-                      }
-                    }}
-                    placeholder="Messaggio privato..."
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      background: "transparent",
-                      border: 0,
-                      outline: 0,
-                      color: "#fff",
-                      padding: 9,
-                    }}
-                  />
-
-                  <button
-                    onClick={sendPrivateMessage}
-                    style={{
-                      ...purpleButton,
-                      width: 43,
-                    }}
-                  >
-                    ➤
-                  </button>
-                </div>
+                  ➤
+                </button>
               </div>
-            </>
-          )}
+            </div>
+          </>
+        )}
 
         {chatMode === "public" && (
           <>
@@ -2630,17 +2812,10 @@ export default function Home() {
                 )}
 
                 {messages.map((msg) => {
-                  const mine =
-                    msg.user_id === session.user.id;
-
-                  const positive =
-                    myVotes[msg.id] === "like";
-
-                  const negative =
-                    myVotes[msg.id] === "dislike";
-
-                  const reported =
-                    reportedMessages.includes(msg.id);
+                  const mine = msg.user_id === session.user.id;
+                  const positive = myVotes[msg.id] === "like";
+                  const negative = myVotes[msg.id] === "dislike";
+                  const reported = reportedMessages.includes(msg.id);
 
                   return (
                     <article
@@ -2664,10 +2839,7 @@ export default function Home() {
                         }}
                       >
                         <button
-                          onClick={() =>
-                            !mine &&
-                            requestPrivate(msg)
-                          }
+                          onClick={() => !mine && requestPrivate(msg)}
                           style={{
                             border: 0,
                             padding: 0,
@@ -2675,10 +2847,7 @@ export default function Home() {
                             flexShrink: 0,
                           }}
                         >
-                          <Avatar
-                            name={msg.avatar}
-                            size={30}
-                          />
+                          <Avatar name={msg.avatar} size={30} />
                         </button>
 
                         <div
@@ -2695,16 +2864,12 @@ export default function Home() {
                             }}
                           >
                             <button
-                              onClick={() =>
-                                mentionUser(msg)
-                              }
+                              onClick={() => mentionUser(msg)}
                               style={{
                                 border: 0,
                                 background: "transparent",
                                 padding: 0,
-                                color: mine
-                                  ? "#f0c7ff"
-                                  : "#fff",
+                                color: mine ? "#f0c7ff" : "#fff",
                                 fontWeight: 900,
                                 fontSize: 11,
                               }}
@@ -2729,8 +2894,7 @@ export default function Home() {
                               style={{
                                 marginTop: 3,
                                 padding: "3px 6px",
-                                borderLeft:
-                                  "2px solid #c95cff",
+                                borderLeft: "2px solid #c95cff",
                                 borderRadius: 5,
                                 background:
                                   "rgba(181,76,255,.05)",
@@ -2775,9 +2939,7 @@ export default function Home() {
                           >
                             <button
                               title="Rispondi"
-                              onClick={() =>
-                                setReplyingTo(msg)
-                              }
+                              onClick={() => setReplyingTo(msg)}
                               style={tinyButton}
                             >
                               ↩
@@ -2785,9 +2947,7 @@ export default function Home() {
 
                             <button
                               title="Menziona"
-                              onClick={() =>
-                                mentionUser(msg)
-                              }
+                              onClick={() => mentionUser(msg)}
                               style={tinyButton}
                             >
                               @
@@ -2796,9 +2956,7 @@ export default function Home() {
                             {!mine && (
                               <button
                                 title="Privato"
-                                onClick={() =>
-                                  requestPrivate(msg)
-                                }
+                                onClick={() => requestPrivate(msg)}
                                 style={{
                                   ...tinyButton,
                                   color: "#dda0ff",
@@ -2830,10 +2988,7 @@ export default function Home() {
                             <button
                               title="Reazione negativa"
                               onClick={() =>
-                                voteMessage(
-                                  msg,
-                                  "dislike"
-                                )
+                                voteMessage(msg, "dislike")
                               }
                               style={{
                                 ...tinyButton,
@@ -2845,28 +3000,21 @@ export default function Home() {
                                   : "transparent",
                               }}
                             >
-                              ◇−{" "}
-                              {Number(
-                                msg.dislikes || 0
-                              )}
+                              ◇− {Number(msg.dislikes || 0)}
                             </button>
 
                             {!mine && (
                               <button
                                 title="Segnala"
                                 disabled={reported}
-                                onClick={() =>
-                                  reportMessage(msg)
-                                }
+                                onClick={() => reportMessage(msg)}
                                 style={{
                                   ...tinyButton,
                                   marginLeft: "auto",
                                   color: reported
                                     ? "#5e5662"
                                     : "#aa7583",
-                                  opacity: reported
-                                    ? 0.45
-                                    : 1,
+                                  opacity: reported ? 0.45 : 1,
                                 }}
                               >
                                 ⚑
@@ -2895,8 +3043,7 @@ export default function Home() {
                     border:
                       "1px solid rgba(210,105,255,.55)",
                     borderRadius: 20,
-                    background:
-                      "rgba(38,16,48,.96)",
+                    background: "rgba(38,16,48,.96)",
                     color: "#f2c3ff",
                     padding: "7px 12px",
                     fontSize: 9,
@@ -2920,9 +3067,7 @@ export default function Home() {
             >
               <ReplyBox
                 data={replyingTo}
-                cancel={() =>
-                  setReplyingTo(null)
-                }
+                cancel={() => setReplyingTo(null)}
               />
 
               <div
@@ -2940,14 +3085,9 @@ export default function Home() {
                 <input
                   value={message}
                   maxLength={500}
-                  onChange={(e) =>
-                    setMessage(e.target.value)
-                  }
+                  onChange={(e) => setMessage(e.target.value)}
                   onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      !e.shiftKey
-                    ) {
+                    if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       sendMessage();
                     }
@@ -2968,16 +3108,13 @@ export default function Home() {
 
                 <button
                   onClick={sendMessage}
-                  disabled={
-                    sending || !message.trim()
-                  }
+                  disabled={sending || !message.trim()}
                   style={{
                     ...purpleButton,
                     width: 42,
                     height: 38,
                     flexShrink: 0,
-                    opacity:
-                      !message.trim() ? 0.4 : 1,
+                    opacity: !message.trim() ? 0.4 : 1,
                   }}
                 >
                   {sending ? "…" : "➤"}
@@ -2991,4 +3128,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                         }
+    }
