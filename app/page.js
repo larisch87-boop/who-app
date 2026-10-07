@@ -152,7 +152,11 @@ function internalEmail(nickname) {
 
 function avatarImage(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
-  return avatars.find((a) => a.name === name)?.image || "/shadow.png";
+
+  return (
+    avatars.find((a) => a.name === name)?.image ||
+    "/shadow.png"
+  );
 }
 
 function roomKey(room) {
@@ -171,7 +175,15 @@ function makeRoomKey(name) {
     .replace(/^-+|-+$/g, "")
     .slice(0, 35);
 
-  return `${base || "room"}-${Date.now().toString(36).slice(-6)}`;
+  return `${base || "room"}-${Date.now()
+    .toString(36)
+    .slice(-6)}`;
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    String(value || "")
+  );
 }
 
 function getMessageColor(value) {
@@ -234,24 +246,52 @@ export default function Home() {
   const [dmPrivacy, setDmPrivacy] = useState("vibe");
   const [dmMinVibe, setDmMinVibe] = useState(100);
 
-  const [messageColor, setMessageColor] = useState("purple");
-  const [messageFont, setMessageFont] = useState("standard");
+  const [messageColor, setMessageColor] =
+    useState("purple");
+  const [messageFont, setMessageFont] =
+    useState("standard");
 
   const [rooms, setRooms] = useState(roomsDefault);
-  const [activeRoom, setActiveRoom] = useState(roomsDefault[0]);
+  const [activeRoom, setActiveRoom] =
+    useState(roomsDefault[0]);
 
   const [roomPanel, setRoomPanel] = useState(null);
   const [roomName, setRoomName] = useState("");
-  const [roomDescription, setRoomDescription] = useState("");
+  const [roomDescription, setRoomDescription] =
+    useState("");
   const [roomPrivate, setRoomPrivate] = useState(false);
   const [roomBusy, setRoomBusy] = useState(false);
 
   const [roomModerators, setRoomModerators] = useState([]);
-  const [moderatorNickname, setModeratorNickname] = useState("");
+  const [moderatorNickname, setModeratorNickname] =
+    useState("");
   const [roomSanctions, setRoomSanctions] = useState([]);
 
-  const [moderationMessage, setModerationMessage] = useState(null);
-  const [roomCanModerate, setRoomCanModerate] = useState(false);
+  /*
+   * GRUPPI PRIVATI
+   *
+   * roomAccessMap:
+   * {
+   *   roomId: {
+   *      allowed: true/false,
+   *      member: true/false,
+   *      role: "MEMBER"/"MOD"/"OWNER",
+   *      status: "PENDING"/"APPROVED"/"REJECTED"/null
+   *   }
+   * }
+   */
+
+  const [roomAccessMap, setRoomAccessMap] = useState({});
+  const [roomJoinRequests, setRoomJoinRequests] =
+    useState([]);
+  const [roomMembers, setRoomMembers] = useState([]);
+  const [roomAccessBusy, setRoomAccessBusy] =
+    useState(null);
+
+  const [moderationMessage, setModerationMessage] =
+    useState(null);
+  const [roomCanModerate, setRoomCanModerate] =
+    useState(false);
   const [myRoomRole, setMyRoomRole] = useState(null);
 
   const [myRoomStatus, setMyRoomStatus] = useState({
@@ -266,15 +306,18 @@ export default function Home() {
   const [sending, setSending] = useState(false);
 
   const [myVotes, setMyVotes] = useState({});
-  const [reportedMessages, setReportedMessages] = useState([]);
+  const [reportedMessages, setReportedMessages] =
+    useState([]);
 
   const [chatMode, setChatMode] = useState("public");
 
   const [requests, setRequests] = useState([]);
   const [conversations, setConversations] = useState([]);
-  const [conversationDetails, setConversationDetails] = useState({});
+  const [conversationDetails, setConversationDetails] =
+    useState({});
 
-  const [privateConversation, setPrivateConversation] = useState(null);
+  const [privateConversation, setPrivateConversation] =
+    useState(null);
   const [privatePeer, setPrivatePeer] = useState(null);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateMessage, setPrivateMessage] = useState("");
@@ -283,22 +326,27 @@ export default function Home() {
   const [blocked, setBlocked] = useState([]);
   const [owned, setOwned] = useState([]);
 
-  const [showNewMessages, setShowNewMessages] = useState(false);
+  const [showNewMessages, setShowNewMessages] =
+    useState(false);
 
   const publicChatRef = useRef(null);
   const publicBottomRef = useRef(null);
   const privateBottomRef = useRef(null);
+
   const publicAtBottomRef = useRef(true);
   const firstPublicLoadRef = useRef(true);
-
-  // IMPORTANTE: tiene traccia dell'account realmente attivo.
   const lastUserIdRef = useRef(null);
 
   const isFounder =
-    String(profile?.role || "").toUpperCase() === "FOUNDER";
+    String(profile?.role || "").toUpperCase() ===
+    "FOUNDER";
 
   const currentRoom = roomKey(activeRoom);
-  const level = Math.max(1, Math.floor(points / 250) + 1);
+
+  const level = Math.max(
+    1,
+    Math.floor(points / 250) + 1
+  );
 
   const incomingRequests = useMemo(
     () =>
@@ -348,7 +396,8 @@ export default function Home() {
 
   const purpleButton = {
     border: "1px solid rgba(220,110,255,.55)",
-    background: "linear-gradient(135deg,#9c38cc,#5b1a7d)",
+    background:
+      "linear-gradient(135deg,#9c38cc,#5b1a7d)",
     color: "#fff",
     borderRadius: 14,
     fontWeight: 900,
@@ -389,6 +438,16 @@ export default function Home() {
     setModeratorNickname("");
     setRoomSanctions([]);
 
+    /*
+     * IMPORTANTISSIMO:
+     * cancelliamo anche tutti i dati di accesso
+     * quando cambia account.
+     */
+    setRoomAccessMap({});
+    setRoomJoinRequests([]);
+    setRoomMembers([]);
+    setRoomAccessBusy(null);
+
     setModerationMessage(null);
     setRoomCanModerate(false);
     setMyRoomRole(null);
@@ -426,7 +485,7 @@ export default function Home() {
   }
 
   /* ======================================================
-     AUTH CORRETTO
+     AUTH
      ====================================================== */
 
   useEffect(() => {
@@ -439,33 +498,40 @@ export default function Home() {
 
       const current = data?.session || null;
 
-      lastUserIdRef.current = current?.user?.id || null;
+      lastUserIdRef.current =
+        current?.user?.id || null;
+
       setSession(current);
       setLoading(false);
     }
 
     startAuth();
 
-    const { data: authData } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        const previousUserId = lastUserIdRef.current;
-        const newUserId = newSession?.user?.id || null;
+    const { data: authData } =
+      supabase.auth.onAuthStateChange(
+        (_event, newSession) => {
+          const previousUserId =
+            lastUserIdRef.current;
 
-        if (previousUserId !== newUserId) {
-          resetAccountState();
+          const newUserId =
+            newSession?.user?.id || null;
+
+          if (previousUserId !== newUserId) {
+            resetAccountState();
+          }
+
+          lastUserIdRef.current = newUserId;
+
+          setSession(newSession);
+
+          if (!newSession) {
+            setProfile(null);
+            setStarted(false);
+          }
+
+          setLoading(false);
         }
-
-        lastUserIdRef.current = newUserId;
-        setSession(newSession);
-
-        if (!newSession) {
-          setProfile(null);
-          setStarted(false);
-        }
-
-        setLoading(false);
-      }
-    );
+      );
 
     return () => {
       mounted = false;
@@ -513,8 +579,8 @@ export default function Home() {
 
     firstPublicLoadRef.current = true;
     publicAtBottomRef.current = true;
-    setShowNewMessages(false);
 
+    setShowNewMessages(false);
     setModerationMessage(null);
     setRoomCanModerate(false);
     setMyRoomRole(null);
@@ -548,8 +614,14 @@ export default function Home() {
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [session?.user?.id, started, currentRoom, activeRoom?.id]);
+    return () =>
+      supabase.removeChannel(channel);
+  }, [
+    session?.user?.id,
+    started,
+    currentRoom,
+    activeRoom?.id,
+  ]);
 
   useEffect(() => {
     if (!session) return;
@@ -576,14 +648,20 @@ export default function Home() {
           await loadPrivateData();
 
           if (privateConversation) {
-            await loadPrivateMessages(privateConversation.id);
+            await loadPrivateMessages(
+              privateConversation.id
+            );
           }
         }
       )
       .subscribe();
 
-    return () => supabase.removeChannel(channel);
-  }, [session?.user?.id, privateConversation?.id]);
+    return () =>
+      supabase.removeChannel(channel);
+  }, [
+    session?.user?.id,
+    privateConversation?.id,
+  ]);
 
   useEffect(() => {
     if (
@@ -597,9 +675,16 @@ export default function Home() {
         });
       }, 80);
     }
-  }, [privateMessages.length, chatMode, privateConversation?.id]);
+  }, [
+    privateMessages.length,
+    chatMode,
+    privateConversation?.id,
+  ]);
 
-  async function loadProfile(user, preferredNickname = "") {
+  async function loadProfile(
+    user,
+    preferredNickname = ""
+  ) {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -613,13 +698,19 @@ export default function Home() {
 
     const preferred =
       cleanNickname(preferredNickname) ||
-      cleanNickname(user.user_metadata?.username) ||
-      cleanNickname(user.user_metadata?.nickname);
+      cleanNickname(
+        user.user_metadata?.username
+      ) ||
+      cleanNickname(
+        user.user_metadata?.nickname
+      );
 
     if (!data) {
       const username =
         preferred ||
-        cleanNickname(user.email?.split("@")[0]) ||
+        cleanNickname(
+          user.email?.split("@")[0]
+        ) ||
         `who_${user.id.slice(0, 8)}`;
 
       const created = await supabase
@@ -644,25 +735,35 @@ export default function Home() {
 
     let finalProfile = data;
 
-    const currentNickname = String(data.nickname || "");
-    const looksAutomatic = /^who_[a-z0-9]{6,}$/i.test(currentNickname);
+    const currentNickname =
+      String(data.nickname || "");
+
+    const looksAutomatic =
+      /^who_[a-z0-9]{6,}$/i.test(
+        currentNickname
+      );
 
     if (
       preferred &&
       looksAutomatic &&
-      cleanNickname(currentNickname) !== preferred
+      cleanNickname(currentNickname) !==
+        preferred
     ) {
       const repaired = await supabase
         .from("profiles")
         .update({
           nickname: preferred,
-          updated_at: new Date().toISOString(),
+          updated_at:
+            new Date().toISOString(),
         })
         .eq("id", user.id)
         .select()
         .single();
 
-      if (!repaired.error && repaired.data) {
+      if (
+        !repaired.error &&
+        repaired.data
+      ) {
         finalProfile = repaired.data;
       }
     }
@@ -673,39 +774,64 @@ export default function Home() {
 
   function applyProfile(data) {
     setProfile(data);
-    setNickname(data.nickname || data.username || "");
+    setNickname(
+      data.nickname ||
+        data.username ||
+        ""
+    );
     setAvatar(data.avatar || "Shadow");
-    setPoints(Number(data.who_points ?? 500));
+    setPoints(
+      Number(data.who_points ?? 500)
+    );
     setVibe(Number(data.vibe ?? 100));
-    setReputation(Number(data.reputation ?? 100));
-    setDmPrivacy(data.dm_privacy || "vibe");
-    setDmMinVibe(Number(data.dm_min_vibe ?? 100));
-    setMessageColor(data.message_color || "purple");
-    setMessageFont(data.message_font || "standard");
+    setReputation(
+      Number(data.reputation ?? 100)
+    );
+    setDmPrivacy(
+      data.dm_privacy || "vibe"
+    );
+    setDmMinVibe(
+      Number(data.dm_min_vibe ?? 100)
+    );
+    setMessageColor(
+      data.message_color || "purple"
+    );
+    setMessageFont(
+      data.message_font || "standard"
+    );
   }
 
   async function register() {
-    const username = cleanNickname(nickname);
+    const username =
+      cleanNickname(nickname);
 
     if (username.length < 3) {
-      setAuthError("Nickname minimo 3 caratteri.");
+      setAuthError(
+        "Nickname minimo 3 caratteri."
+      );
       return;
     }
 
     if (password.length < 8) {
-      setAuthError("Password minimo 8 caratteri.");
+      setAuthError(
+        "Password minimo 8 caratteri."
+      );
       return;
     }
 
     setAuthError("");
 
-    const { data, error } = await supabase.auth.signUp({
-      email: internalEmail(username),
-      password,
-      options: {
-        data: { username, nickname: username },
-      },
-    });
+    const { data, error } =
+      await supabase.auth.signUp({
+        email: internalEmail(username),
+        password,
+        options: {
+          data: {
+            username,
+            nickname: username,
+          },
+        },
+      });
 
     if (error) {
       setAuthError(error.message);
@@ -727,44 +853,59 @@ export default function Home() {
           .from("profiles")
           .update({
             nickname: username,
-            updated_at: new Date().toISOString(),
+            updated_at:
+              new Date().toISOString(),
           })
           .eq("id", data.user.id);
       } else {
-        await supabase.from("profiles").insert({
-          id: data.user.id,
-          nickname: username,
-          avatar: "Shadow",
-          message_color: "purple",
-          message_font: "standard",
-        });
+        await supabase
+          .from("profiles")
+          .insert({
+            id: data.user.id,
+            nickname: username,
+            avatar: "Shadow",
+            message_color: "purple",
+            message_font: "standard",
+          });
       }
 
-      await loadProfile(data.user, username);
+      await loadProfile(
+        data.user,
+        username
+      );
+
       setStarted("identity");
     } else {
       setAuthMode("login");
-      setAuthError("Account creato. Ora accedi.");
+      setAuthError(
+        "Account creato. Ora accedi."
+      );
     }
   }
 
   async function login() {
-    const username = cleanNickname(nickname);
+    const username =
+      cleanNickname(nickname);
 
     if (!username) {
-      setAuthError("Inserisci il nickname.");
+      setAuthError(
+        "Inserisci il nickname."
+      );
       return;
     }
 
     setAuthError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: internalEmail(username),
-      password,
-    });
+    const { error } =
+      await supabase.auth.signInWithPassword({
+        email: internalEmail(username),
+        password,
+      });
 
     if (error) {
-      setAuthError("Nickname o password non corretti.");
+      setAuthError(
+        "Nickname o password non corretti."
+      );
       return;
     }
 
@@ -791,65 +932,532 @@ export default function Home() {
     setPoints(500);
     setVibe(100);
     setReputation(100);
+
     setDmPrivacy("vibe");
     setDmMinVibe(100);
+
     setMessageColor("purple");
     setMessageFont("standard");
   }
 
   async function selectAvatar(name) {
     if (!session) return;
-    if (name === "UNKNOWN" && !isFounder) return;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        avatar: name,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
+    if (
+      name === "UNKNOWN" &&
+      !isFounder
+    )
+      return;
 
-    if (!error && data) applyProfile(data);
+    const { data, error } =
+      await supabase
+        .from("profiles")
+        .update({
+          avatar: name,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", session.user.id)
+        .select()
+        .single();
+
+    if (!error && data) {
+      applyProfile(data);
+    }
   }
 
-  async function saveMessageStyle(color, fontStyle) {
+  async function saveMessageStyle(
+    color,
+    fontStyle
+  ) {
     if (!session) return;
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        message_color: color,
-        message_font: fontStyle,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
+    const { data, error } =
+      await supabase
+        .from("profiles")
+        .update({
+          message_color: color,
+          message_font: fontStyle,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", session.user.id)
+        .select()
+        .single();
 
-    if (error) return alert(error.message);
+    if (error) {
+      return alert(error.message);
+    }
+
     applyProfile(data);
   }
 
-  async function saveDmSettings(mode, minimum = dmMinVibe) {
+  async function saveDmSettings(
+    mode,
+    minimum = dmMinVibe
+  ) {
     if (!session) return;
 
-    const min = Math.max(0, Number(minimum) || 0);
+    const min = Math.max(
+      0,
+      Number(minimum) || 0
+    );
 
-    const { data, error } = await supabase
-      .from("profiles")
-      .update({
-        dm_privacy: mode,
-        dm_min_vibe: min,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", session.user.id)
-      .select()
-      .single();
+    const { data, error } =
+      await supabase
+        .from("profiles")
+        .update({
+          dm_privacy: mode,
+          dm_min_vibe: min,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq("id", session.user.id)
+        .select()
+        .single();
 
-    if (error) return alert(error.message);
+    if (error) {
+      return alert(error.message);
+    }
+
     applyProfile(data);
+  }
+
+  /* ======================================================
+     GRUPPI PRIVATI — ACCESSO
+     ====================================================== */
+
+  async function loadRoomAccess(
+    roomList
+  ) {
+    if (!session) return;
+
+    const uid = session.user.id;
+
+    const dbRooms = (
+      roomList || []
+    ).filter((r) => isUuid(r.id));
+
+    const privateRooms =
+      dbRooms.filter(
+        (r) => r.is_private
+      );
+
+    const { data: memberships } =
+      await supabase
+        .from("room_members")
+        .select("room_id,role")
+        .eq("user_id", uid);
+
+    const { data: joinRequests } =
+      await supabase
+        .from("room_join_requests")
+        .select("room_id,status")
+        .eq("user_id", uid);
+
+    const membershipMap =
+      new Map(
+        (memberships || []).map(
+          (m) => [
+            m.room_id,
+            m.role,
+          ]
+        )
+      );
+
+    const requestMap =
+      new Map(
+        (joinRequests || []).map(
+          (r) => [
+            r.room_id,
+            r.status,
+          ]
+        )
+      );
+
+    const accessResults =
+      await Promise.all(
+        privateRooms.map(
+          async (room) => {
+            const { data } =
+              await supabase.rpc(
+                "can_access_room",
+                {
+                  p_room_id:
+                    room.id,
+                  p_user_id: uid,
+                }
+              );
+
+            return [
+              room.id,
+              Boolean(data),
+            ];
+          }
+        )
+      );
+
+    const allowedMap =
+      new Map(accessResults);
+
+    const map = {};
+
+    for (const room of roomList || []) {
+      const role =
+        membershipMap.get(
+          room.id
+        ) || null;
+
+      if (
+        !room.is_private ||
+        !isUuid(room.id)
+      ) {
+        map[room.id] = {
+          allowed: true,
+          member:
+            Boolean(role),
+          role,
+          status:
+            requestMap.get(
+              room.id
+            ) || null,
+        };
+
+        continue;
+      }
+
+      map[room.id] = {
+        allowed:
+          allowedMap.get(
+            room.id
+          ) === true,
+        member:
+          Boolean(role),
+        role,
+        status:
+          requestMap.get(
+            room.id
+          ) || null,
+      };
+    }
+
+    setRoomAccessMap(map);
+  }
+
+  async function requestRoomAccess(
+    room
+  ) {
+    if (
+      !session ||
+      !room ||
+      !isUuid(room.id)
+    )
+      return;
+
+    setRoomAccessBusy(room.id);
+
+    const { data, error } =
+      await supabase.rpc(
+        "request_room_access",
+        {
+          p_room_id: room.id,
+        }
+      );
+
+    setRoomAccessBusy(null);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setRoomAccessMap(
+      (old) => ({
+        ...old,
+        [room.id]: {
+          ...(old[room.id] || {}),
+          allowed:
+            data?.status ===
+            "ALREADY_MEMBER",
+          status:
+            data?.status ===
+            "ALREADY_MEMBER"
+              ? "APPROVED"
+              : data?.status ||
+                "PENDING",
+        },
+      })
+    );
+
+    if (
+      data?.status ===
+      "ALREADY_MEMBER"
+    ) {
+      await loadRooms();
+      return;
+    }
+
+    alert(
+      "Richiesta inviata all'OWNER del gruppo."
+    );
+
+    await loadRooms();
+  }
+
+  async function enterRoom(room) {
+    if (!room) return;
+
+    if (
+      room.is_private &&
+      isUuid(room.id)
+    ) {
+      const { data, error } =
+        await supabase.rpc(
+          "can_access_room",
+          {
+            p_room_id:
+              room.id,
+            p_user_id:
+              session.user.id,
+          }
+        );
+
+      if (
+        error ||
+        data !== true
+      ) {
+        const access =
+          roomAccessMap[
+            room.id
+          ];
+
+        if (
+          access?.status ===
+          "PENDING"
+        ) {
+          alert(
+            "La tua richiesta è ancora in attesa di approvazione."
+          );
+        } else {
+          alert(
+            "Questo gruppo è privato. Devi richiedere l'accesso."
+          );
+        }
+
+        return;
+      }
+    }
+
+    setRoomPanel(null);
+    setModerationMessage(null);
+    setActiveRoom(room);
+    setPage("chat");
+    setChatMode("public");
+
+    firstPublicLoadRef.current =
+      true;
+  }
+
+  async function loadRoomJoinRequests(
+    room = activeRoom
+  ) {
+    if (
+      !room ||
+      !isUuid(room.id) ||
+      !canManageRoom(room)
+    ) {
+      setRoomJoinRequests([]);
+      return;
+    }
+
+    const { data, error } =
+      await supabase.rpc(
+        "get_room_join_requests",
+        {
+          p_room_id: room.id,
+        }
+      );
+
+    if (error) {
+      console.error(error);
+      setRoomJoinRequests([]);
+      return;
+    }
+
+    setRoomJoinRequests(
+      data || []
+    );
+  }
+
+  async function loadRoomMembers(
+    room = activeRoom
+  ) {
+    if (
+      !room ||
+      !isUuid(room.id) ||
+      !canManageRoom(room)
+    ) {
+      setRoomMembers([]);
+      return;
+    }
+
+    const { data, error } =
+      await supabase.rpc(
+        "get_room_members",
+        {
+          p_room_id: room.id,
+        }
+      );
+
+    if (error) {
+      console.error(error);
+      setRoomMembers([]);
+      return;
+    }
+
+    setRoomMembers(
+      data || []
+    );
+  }
+
+  async function approveRoomRequest(
+    request
+  ) {
+    if (!request) return;
+
+    const { error } =
+      await supabase.rpc(
+        "approve_room_request",
+        {
+          p_request_id:
+            request.request_id,
+        }
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await Promise.all([
+      loadRoomJoinRequests(
+        activeRoom
+      ),
+      loadRoomMembers(
+        activeRoom
+      ),
+    ]);
+  }
+
+  async function rejectRoomRequest(
+    request
+  ) {
+    if (!request) return;
+
+    const { error } =
+      await supabase.rpc(
+        "reject_room_request",
+        {
+          p_request_id:
+            request.request_id,
+        }
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadRoomJoinRequests(
+      activeRoom
+    );
+  }
+
+  async function removeRoomMember(
+    member
+  ) {
+    if (
+      !member ||
+      !activeRoom
+    )
+      return;
+
+    if (
+      member.member_role ===
+      "OWNER"
+    )
+      return;
+
+    if (
+      !confirm(
+        `Rimuovere @${
+          member.nickname ||
+          "WHO"
+        } dal gruppo?`
+      )
+    ) {
+      return;
+    }
+
+    const { error } =
+      await supabase.rpc(
+        "remove_room_member",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            member.user_id,
+        }
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    await loadRoomMembers(
+      activeRoom
+    );
+  }
+
+  async function leaveRoom(
+    room
+  ) {
+    if (
+      !room ||
+      !isUuid(room.id)
+    )
+      return;
+
+    if (
+      !confirm(
+        `Vuoi abbandonare "${room.name}"?`
+      )
+    ) {
+      return;
+    }
+
+    const { error } =
+      await supabase.rpc(
+        "leave_room",
+        {
+          p_room_id:
+            room.id,
+        }
+      );
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setActiveRoom(
+      roomsDefault[0]
+    );
+    setRoomPanel(null);
+    setPage("rooms");
+
+    await loadRooms();
   }
 
   /* ======================================================
@@ -857,39 +1465,57 @@ export default function Home() {
      ====================================================== */
 
   function canManageRoom(room) {
-    if (!room || !session) return false;
+    if (!room || !session) {
+      return false;
+    }
 
-    return (
+    return Boolean(
       !room.is_official &&
-      room.owner_id === session.user.id
+        room.owner_id ===
+          session.user.id
     );
   }
 
   async function createRoom() {
-    if (!session || roomBusy) return;
+    if (
+      !session ||
+      roomBusy
+    )
+      return;
 
-    const name = roomName.trim();
+    const name =
+      roomName.trim();
 
     if (name.length < 3) {
-      alert("Nome gruppo minimo 3 caratteri.");
+      alert(
+        "Nome gruppo minimo 3 caratteri."
+      );
       return;
     }
 
     setRoomBusy(true);
 
-    const { data, error } = await supabase
-      .from("rooms")
-      .insert({
-        room_key: makeRoomKey(name),
-        name: name.slice(0, 40),
-        description: roomDescription.trim().slice(0, 160),
-        is_private: roomPrivate,
-        is_official: false,
-        is_active: true,
-        owner_id: session.user.id,
-      })
-      .select()
-      .single();
+    const { data, error } =
+      await supabase
+        .from("rooms")
+        .insert({
+          room_key:
+            makeRoomKey(name),
+          name:
+            name.slice(0, 40),
+          description:
+            roomDescription
+              .trim()
+              .slice(0, 160),
+          is_private:
+            roomPrivate,
+          is_official: false,
+          is_active: true,
+          owner_id:
+            session.user.id,
+        })
+        .select()
+        .single();
 
     setRoomBusy(false);
 
@@ -909,29 +1535,54 @@ export default function Home() {
       setActiveRoom(data);
       setPage("chat");
       setChatMode("public");
-      firstPublicLoadRef.current = true;
+
+      firstPublicLoadRef.current =
+        true;
     }
   }
 
   async function updateRoom() {
-    if (!activeRoom || !canManageRoom(activeRoom)) return;
+    if (
+      !activeRoom ||
+      !canManageRoom(
+        activeRoom
+      )
+    )
+      return;
 
-    if (roomName.trim().length < 3) {
-      alert("Nome gruppo minimo 3 caratteri.");
+    if (
+      roomName.trim()
+        .length < 3
+    ) {
+      alert(
+        "Nome gruppo minimo 3 caratteri."
+      );
       return;
     }
 
-    const { data, error } = await supabase
-      .from("rooms")
-      .update({
-        name: roomName.trim().slice(0, 40),
-        description: roomDescription.trim().slice(0, 160),
-        is_private: roomPrivate,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", activeRoom.id)
-      .select()
-      .single();
+    const { data, error } =
+      await supabase
+        .from("rooms")
+        .update({
+          name:
+            roomName
+              .trim()
+              .slice(0, 40),
+          description:
+            roomDescription
+              .trim()
+              .slice(0, 160),
+          is_private:
+            roomPrivate,
+          updated_at:
+            new Date().toISOString(),
+        })
+        .eq(
+          "id",
+          activeRoom.id
+        )
+        .select()
+        .single();
 
     if (error) {
       alert(error.message);
@@ -939,49 +1590,88 @@ export default function Home() {
     }
 
     setActiveRoom(data);
+
     await loadRooms();
-    alert("Gruppo aggiornato.");
+
+    alert(
+      "Gruppo aggiornato."
+    );
   }
 
-  async function openRoomManagement(room) {
-    if (!canManageRoom(room)) {
+  async function openRoomManagement(
+    room
+  ) {
+    if (
+      !canManageRoom(room)
+    ) {
       setRoomPanel(null);
       return;
     }
 
     setActiveRoom(room);
-    setRoomName(room.name || "");
-    setRoomDescription(room.description || "");
-    setRoomPrivate(Boolean(room.is_private));
+    setRoomName(
+      room.name || ""
+    );
+    setRoomDescription(
+      room.description || ""
+    );
+    setRoomPrivate(
+      Boolean(
+        room.is_private
+      )
+    );
+
     setRoomPanel("manage");
 
     await Promise.all([
       loadRoomModerators(room),
       loadRoomSanctions(room),
+      loadRoomJoinRequests(room),
+      loadRoomMembers(room),
     ]);
   }
 
-  async function loadRoomModerators(room = activeRoom) {
-    if (!room?.id || String(room.id).startsWith("who-")) {
+  async function loadRoomModerators(
+    room = activeRoom
+  ) {
+    if (
+      !room?.id ||
+      !isUuid(room.id)
+    ) {
       setRoomModerators([]);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("room_moderators")
-      .select("*")
-      .eq("room_id", room.id);
+    const { data, error } =
+      await supabase
+        .from(
+          "room_moderators"
+        )
+        .select("*")
+        .eq(
+          "room_id",
+          room.id
+        );
 
     if (error) return;
 
     const result = [];
 
-    for (const mod of data || []) {
-      const p = await supabase
-        .from("profiles")
-        .select("id,nickname,avatar")
-        .eq("id", mod.user_id)
-        .maybeSingle();
+    for (
+      const mod of
+      data || []
+    ) {
+      const p =
+        await supabase
+          .from("profiles")
+          .select(
+            "id,nickname,avatar"
+          )
+          .eq(
+            "id",
+            mod.user_id
+          )
+          .maybeSingle();
 
       result.push({
         ...mod,
@@ -989,72 +1679,155 @@ export default function Home() {
       });
     }
 
-    setRoomModerators(result);
+    setRoomModerators(
+      result
+    );
   }
 
   async function addRoomModerator() {
-    if (!canManageRoom(activeRoom)) return;
+    if (
+      !canManageRoom(
+        activeRoom
+      )
+    )
+      return;
 
-    const nick = cleanNickname(
-      moderatorNickname.replace(/^@/, "")
-    );
+    const nick =
+      cleanNickname(
+        moderatorNickname.replace(
+          /^@/,
+          ""
+        )
+      );
 
-    if (!nick || !activeRoom?.id) return;
+    if (
+      !nick ||
+      !activeRoom?.id
+    )
+      return;
 
-    const { error } = await supabase.rpc("add_room_moderator", {
-      p_room_id: activeRoom.id,
-      p_nickname: nick,
-    });
+    const { error } =
+      await supabase.rpc(
+        "add_room_moderator",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_nickname:
+            nick,
+        }
+      );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModeratorNickname("");
-    await loadRoomModerators(activeRoom);
-    alert(`@${nick} è ora MOD.`);
-  }
-
-  async function removeRoomModerator(userId) {
-    if (!canManageRoom(activeRoom)) return;
-    if (!confirm("Rimuovere questo moderatore?")) return;
-
-    const { error } = await supabase.rpc(
-      "remove_room_moderator",
-      {
-        p_room_id: activeRoom.id,
-        p_user_id: userId,
-      }
+    setModeratorNickname(
+      ""
     );
 
-    if (error) return alert(error.message);
+    await loadRoomModerators(
+      activeRoom
+    );
 
-    await loadRoomModerators(activeRoom);
+    /*
+     * Ricarichiamo anche i membri.
+     */
+    await loadRoomMembers(
+      activeRoom
+    );
+
+    alert(
+      `@${nick} è ora MOD.`
+    );
   }
 
-  async function loadRoomSanctions(room = activeRoom) {
-    if (!room?.id || String(room.id).startsWith("who-")) {
+  async function removeRoomModerator(
+    userId
+  ) {
+    if (
+      !canManageRoom(
+        activeRoom
+      )
+    )
+      return;
+
+    if (
+      !confirm(
+        "Rimuovere questo moderatore?"
+      )
+    )
+      return;
+
+    const { error } =
+      await supabase.rpc(
+        "remove_room_moderator",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            userId,
+        }
+      );
+
+    if (error) {
+      return alert(
+        error.message
+      );
+    }
+
+    await loadRoomModerators(
+      activeRoom
+    );
+  }
+
+  async function loadRoomSanctions(
+    room = activeRoom
+  ) {
+    if (
+      !room?.id ||
+      !isUuid(room.id)
+    ) {
       setRoomSanctions([]);
       return;
     }
 
-    const { data, error } = await supabase
-      .from("room_sanctions")
-      .select("*")
-      .eq("room_id", room.id)
-      .order("created_at", { ascending: false });
+    const { data, error } =
+      await supabase
+        .from(
+          "room_sanctions"
+        )
+        .select("*")
+        .eq(
+          "room_id",
+          room.id
+        )
+        .order(
+          "created_at",
+          {
+            ascending: false,
+          }
+        );
 
     if (error) return;
 
     const result = [];
 
-    for (const item of data || []) {
-      const p = await supabase
-        .from("profiles")
-        .select("id,nickname,avatar")
-        .eq("id", item.user_id)
-        .maybeSingle();
+    for (
+      const item of
+      data || []
+    ) {
+      const p =
+        await supabase
+          .from("profiles")
+          .select(
+            "id,nickname,avatar"
+          )
+          .eq(
+            "id",
+            item.user_id
+          )
+          .maybeSingle();
 
       result.push({
         ...item,
@@ -1062,13 +1835,21 @@ export default function Home() {
       });
     }
 
-    setRoomSanctions(result);
+    setRoomSanctions(
+      result
+    );
   }
 
   async function loadCurrentRoomPermissions() {
-    if (!session || !activeRoom) return;
+    if (
+      !session ||
+      !activeRoom
+    )
+      return;
 
-    setRoomCanModerate(false);
+    setRoomCanModerate(
+      false
+    );
     setMyRoomRole(null);
 
     setMyRoomStatus({
@@ -1077,94 +1858,195 @@ export default function Home() {
       mute_until: null,
     });
 
-    if (!activeRoom.id || String(activeRoom.id).startsWith("who-")) {
-      setRoomCanModerate(isFounder);
-      setMyRoomRole(isFounder ? "FOUNDER" : null);
+    if (
+      !activeRoom.id ||
+      !isUuid(
+        activeRoom.id
+      )
+    ) {
+      setRoomCanModerate(
+        isFounder
+      );
+
+      setMyRoomRole(
+        isFounder
+          ? "FOUNDER"
+          : null
+      );
+
       return;
     }
 
-    const [moderateResult, modResult, statusResult] =
-      await Promise.all([
-        supabase.rpc("can_moderate_room", {
-          p_room_id: activeRoom.id,
-          p_user_id: session.user.id,
-        }),
+    const [
+      moderateResult,
+      modResult,
+      statusResult,
+    ] = await Promise.all([
+      supabase.rpc(
+        "can_moderate_room",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            session.user.id,
+        }
+      ),
 
-        supabase
-          .from("room_moderators")
-          .select("user_id")
-          .eq("room_id", activeRoom.id)
-          .eq("user_id", session.user.id)
-          .maybeSingle(),
+      supabase
+        .from(
+          "room_moderators"
+        )
+        .select("user_id")
+        .eq(
+          "room_id",
+          activeRoom.id
+        )
+        .eq(
+          "user_id",
+          session.user.id
+        )
+        .maybeSingle(),
 
-        supabase.rpc("get_my_room_status", {
-          p_room_id: activeRoom.id,
-        }),
-      ]);
+      supabase.rpc(
+        "get_my_room_status",
+        {
+          p_room_id:
+            activeRoom.id,
+        }
+      ),
+    ]);
 
     setRoomCanModerate(
-      isFounder || Boolean(moderateResult.data)
+      isFounder ||
+        Boolean(
+          moderateResult.data
+        )
     );
 
     if (isFounder) {
-      setMyRoomRole("FOUNDER");
-    } else if (activeRoom.owner_id === session.user.id) {
-      setMyRoomRole("OWNER");
-    } else if (modResult.data) {
-      setMyRoomRole("MOD");
+      setMyRoomRole(
+        "FOUNDER"
+      );
+    } else if (
+      activeRoom.owner_id ===
+      session.user.id
+    ) {
+      setMyRoomRole(
+        "OWNER"
+      );
+    } else if (
+      modResult.data
+    ) {
+      setMyRoomRole(
+        "MOD"
+      );
     } else {
-      setMyRoomRole(null);
+      setMyRoomRole(
+        null
+      );
     }
 
-    if (statusResult.data) {
+    if (
+      statusResult.data
+    ) {
       setMyRoomStatus({
-        banned: Boolean(statusResult.data.banned),
-        muted: Boolean(statusResult.data.muted),
-        mute_until: statusResult.data.mute_until || null,
+        banned:
+          Boolean(
+            statusResult.data
+              .banned
+          ),
+        muted:
+          Boolean(
+            statusResult.data
+              .muted
+          ),
+        mute_until:
+          statusResult.data
+            .mute_until ||
+          null,
       });
     }
   }
 
-  async function banFromRoom(msg) {
-    if (!msg?.user_id || !activeRoom?.id) return;
-    if (!roomCanModerate) return;
+  async function banFromRoom(
+    msg
+  ) {
+    if (
+      !msg?.user_id ||
+      !activeRoom?.id ||
+      !roomCanModerate
+    )
+      return;
 
-    if (!confirm(`Bannare @${msg.nickname} da questa stanza?`)) {
+    if (
+      !confirm(
+        `Bannare @${msg.nickname} da questa stanza?`
+      )
+    ) {
       return;
     }
 
-    const { error } = await supabase.rpc("ban_room_user", {
-      p_room_id: activeRoom.id,
-      p_user_id: msg.user_id,
-      p_reason: "Moderazione WHO",
-    });
+    const { error } =
+      await supabase.rpc(
+        "ban_room_user",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            msg.user_id,
+          p_reason:
+            "Moderazione WHO",
+        }
+      );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModerationMessage(null);
-    alert(`@${msg.nickname} è stato bannato.`);
+    setModerationMessage(
+      null
+    );
+
+    alert(
+      `@${msg.nickname} è stato bannato.`
+    );
   }
 
-  async function muteFromRoom(msg, minutes) {
-    if (!msg?.user_id || !activeRoom?.id) return;
-    if (!roomCanModerate) return;
+  async function muteFromRoom(
+    msg,
+    minutes
+  ) {
+    if (
+      !msg?.user_id ||
+      !activeRoom?.id ||
+      !roomCanModerate
+    )
+      return;
 
-    const { error } = await supabase.rpc("mute_room_user", {
-      p_room_id: activeRoom.id,
-      p_user_id: msg.user_id,
-      p_minutes: minutes,
-      p_reason: "Moderazione WHO",
-    });
+    const { error } =
+      await supabase.rpc(
+        "mute_room_user",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            msg.user_id,
+          p_minutes:
+            minutes,
+          p_reason:
+            "Moderazione WHO",
+        }
+      );
 
     if (error) {
       alert(error.message);
       return;
     }
 
-    setModerationMessage(null);
+    setModerationMessage(
+      null
+    );
 
     const labels = {
       10: "10 minuti",
@@ -1173,44 +2055,81 @@ export default function Home() {
       10080: "7 giorni",
     };
 
-    alert(`@${msg.nickname} silenziato per ${labels[minutes]}.`);
-  }
-
-  async function removeRoomSanction(item) {
-    if (!roomCanModerate && !canManageRoom(activeRoom)) return;
-
-    const { error } = await supabase.rpc(
-      "remove_room_sanction",
-      {
-        p_room_id: activeRoom.id,
-        p_user_id: item.user_id,
-        p_type: item.sanction_type,
-      }
+    alert(
+      `@${msg.nickname} silenziato per ${labels[minutes]}.`
     );
-
-    if (error) return alert(error.message);
-
-    await loadRoomSanctions(activeRoom);
   }
 
-  async function deleteCommunityRoom(room) {
-    if (!canManageRoom(room)) return;
+  async function removeRoomSanction(
+    item
+  ) {
+    if (
+      !roomCanModerate &&
+      !canManageRoom(
+        activeRoom
+      )
+    )
+      return;
 
-    if (!confirm(`Eliminare il gruppo "${room.name}"?`)) {
+    const { error } =
+      await supabase.rpc(
+        "remove_room_sanction",
+        {
+          p_room_id:
+            activeRoom.id,
+          p_user_id:
+            item.user_id,
+          p_type:
+            item.sanction_type,
+        }
+      );
+
+    if (error) {
+      return alert(
+        error.message
+      );
+    }
+
+    await loadRoomSanctions(
+      activeRoom
+    );
+  }
+
+  async function deleteCommunityRoom(
+    room
+  ) {
+    if (
+      !canManageRoom(room)
+    )
+      return;
+
+    if (
+      !confirm(
+        `Eliminare il gruppo "${room.name}"?`
+      )
+    ) {
       return;
     }
 
-    const { error } = await supabase
-      .from("rooms")
-      .delete()
-      .eq("id", room.id);
+    const { error } =
+      await supabase
+        .from("rooms")
+        .delete()
+        .eq("id", room.id);
 
-    if (error) return alert(error.message);
+    if (error) {
+      return alert(
+        error.message
+      );
+    }
 
     setRoomPanel(null);
-    setActiveRoom(roomsDefault[0]);
+    setActiveRoom(
+      roomsDefault[0]
+    );
+
     await loadRooms();
-}
+             }
     /* ======================================================
      CHAT PUBBLICA
      ====================================================== */
@@ -1248,7 +2167,11 @@ export default function Home() {
       .eq("room", currentRoom)
       .order("id", { ascending: true });
 
-    if (error) return;
+    if (error) {
+      console.error(error);
+      setMessages([]);
+      return;
+    }
 
     const next = data || [];
 
@@ -1261,6 +2184,7 @@ export default function Home() {
       ) {
         setShowNewMessages(true);
       }
+
       return next;
     });
 
@@ -1344,7 +2268,9 @@ export default function Home() {
 
     setMessage((old) => {
       const mention = `@${msg.nickname} `;
+
       if (old.includes(mention)) return old;
+
       return `${old}${old ? " " : ""}${mention}`;
     });
   }
@@ -1356,7 +2282,10 @@ export default function Home() {
       /^@[a-zA-Z0-9_]+$/.test(part) ? (
         <span
           key={index}
-          style={{ color: C.cyan, fontWeight: 900 }}
+          style={{
+            color: C.cyan,
+            fontWeight: 900,
+          }}
         >
           {part}
         </span>
@@ -1387,6 +2316,7 @@ export default function Home() {
     if (!session) return;
 
     const oldVote = myVotes[msg.id];
+
     if (oldVote === vote) return;
 
     const existing = await supabase
@@ -1407,11 +2337,13 @@ export default function Home() {
 
       error = r.error;
     } else {
-      const r = await supabase.from("message_votes").insert({
-        user_id: session.user.id,
-        message_id: msg.id,
-        vote,
-      });
+      const r = await supabase
+        .from("message_votes")
+        .insert({
+          user_id: session.user.id,
+          message_id: msg.id,
+          vote,
+        });
 
       error = r.error;
     }
@@ -1421,8 +2353,13 @@ export default function Home() {
     let likes = Number(msg.likes || 0);
     let dislikes = Number(msg.dislikes || 0);
 
-    if (oldVote === "like") likes = Math.max(0, likes - 1);
-    if (oldVote === "dislike") dislikes = Math.max(0, dislikes - 1);
+    if (oldVote === "like") {
+      likes = Math.max(0, likes - 1);
+    }
+
+    if (oldVote === "dislike") {
+      dislikes = Math.max(0, dislikes - 1);
+    }
 
     if (vote === "like") likes += 1;
     if (vote === "dislike") dislikes += 1;
@@ -1448,7 +2385,9 @@ export default function Home() {
       .select("message_id")
       .eq("user_id", session.user.id);
 
-    setReportedMessages((data || []).map((x) => x.message_id));
+    setReportedMessages(
+      (data || []).map((x) => x.message_id)
+    );
   }
 
   async function reportMessage(msg) {
@@ -1457,7 +2396,11 @@ export default function Home() {
       return;
     }
 
-    if (!confirm(`Segnalare @${msg.nickname || "anonimo"}?`)) {
+    if (
+      !confirm(
+        `Segnalare @${msg.nickname || "anonimo"}?`
+      )
+    ) {
       return;
     }
 
@@ -1472,6 +2415,7 @@ export default function Home() {
     if (error) return alert(error.message);
 
     setReportedMessages((old) => [...old, msg.id]);
+
     alert("Segnalazione inviata.");
   }
 
@@ -1515,11 +2459,14 @@ export default function Home() {
       } else {
         alert("Non puoi contattare questo utente.");
       }
+
       return;
     }
 
     const existingConversation = conversations.find(
-      (c) => c.user_one === targetId || c.user_two === targetId
+      (c) =>
+        c.user_one === targetId ||
+        c.user_two === targetId
     );
 
     if (existingConversation) {
@@ -1555,6 +2502,7 @@ export default function Home() {
     if (error) return alert(error.message);
 
     alert("Richiesta privata inviata.");
+
     await loadPrivateData();
   }
 
@@ -1563,19 +2511,20 @@ export default function Home() {
 
     const uid = session.user.id;
 
-    const [requestResult, conversationResult] = await Promise.all([
-      supabase
-        .from("private_requests")
-        .select("*")
-        .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-        .order("created_at", { ascending: false }),
+    const [requestResult, conversationResult] =
+      await Promise.all([
+        supabase
+          .from("private_requests")
+          .select("*")
+          .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
+          .order("created_at", { ascending: false }),
 
-      supabase
-        .from("private_conversations")
-        .select("*")
-        .or(`user_one.eq.${uid},user_two.eq.${uid}`)
-        .order("updated_at", { ascending: false }),
-    ]);
+        supabase
+          .from("private_conversations")
+          .select("*")
+          .or(`user_one.eq.${uid},user_two.eq.${uid}`)
+          .order("updated_at", { ascending: false }),
+      ]);
 
     const reqs = requestResult.data || [];
     const convs = conversationResult.data || [];
@@ -1588,7 +2537,9 @@ export default function Home() {
     await Promise.all(
       convs.map(async (conv) => {
         const peerId =
-          conv.user_one === uid ? conv.user_two : conv.user_one;
+          conv.user_one === uid
+            ? conv.user_two
+            : conv.user_one;
 
         const [peerResult, lastResult, unreadResult] =
           await Promise.all([
@@ -1600,7 +2551,9 @@ export default function Home() {
 
             supabase
               .from("private_messages")
-              .select("id,content,sender_id,created_at,is_read")
+              .select(
+                "id,content,sender_id,created_at,is_read"
+              )
               .eq("conversation_id", conv.id)
               .order("created_at", { ascending: false })
               .limit(1)
@@ -1608,7 +2561,10 @@ export default function Home() {
 
             supabase
               .from("private_messages")
-              .select("id", { count: "exact", head: true })
+              .select("id", {
+                count: "exact",
+                head: true,
+              })
               .eq("conversation_id", conv.id)
               .neq("sender_id", uid)
               .eq("is_read", false),
@@ -1635,7 +2591,9 @@ export default function Home() {
   async function acceptRequest(req) {
     const { data, error } = await supabase.rpc(
       "accept_private_request",
-      { request_id: req.id }
+      {
+        request_id: req.id,
+      }
     );
 
     if (error) return alert(error.message);
@@ -1741,7 +2699,8 @@ export default function Home() {
         content: text.slice(0, 1000),
         reply_to_id: privateReply?.id || null,
         reply_to_nickname: privateReply?.nickname || null,
-        reply_preview: privateReply?.content?.slice(0, 100) || null,
+        reply_preview:
+          privateReply?.content?.slice(0, 100) || null,
       });
 
     if (error) return alert(error.message);
@@ -1777,6 +2736,7 @@ export default function Home() {
     setPrivateMessages([]);
 
     await loadBlocks();
+
     alert("Utente bloccato.");
   }
 
@@ -1791,22 +2751,35 @@ export default function Home() {
     setBlocked((data || []).map((x) => x.blocked_id));
   }
 
+  /* ======================================================
+     STANZE + ACCESSI PRIVATI
+     ====================================================== */
+
   async function loadRooms() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("rooms")
       .select("*")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error(error);
+      return;
+    }
 
     const db = data || [];
 
     const official = db.filter((r) => r.is_official);
     const community = db.filter((r) => !r.is_official);
 
-    setRooms([
+    const combined = [
       ...(official.length ? official : roomsDefault),
       ...community,
-    ]);
+    ];
+
+    setRooms(combined);
+
+    await loadRoomAccess(combined);
   }
 
   async function loadInventory() {
@@ -1832,12 +2805,16 @@ export default function Home() {
 
     const update = await supabase
       .from("profiles")
-      .update({ who_points: newPoints })
+      .update({
+        who_points: newPoints,
+      })
       .eq("id", session.user.id)
       .select()
       .single();
 
-    if (update.error) return alert(update.error.message);
+    if (update.error) {
+      return alert(update.error.message);
+    }
 
     const inventory = await supabase
       .from("user_inventory")
@@ -1846,7 +2823,9 @@ export default function Home() {
         item_id: item.id,
       });
 
-    if (inventory.error) return alert(inventory.error.message);
+    if (inventory.error) {
+      return alert(inventory.error.message);
+    }
 
     setPoints(newPoints);
     setOwned((old) => [...old, item.id]);
@@ -1926,7 +2905,10 @@ export default function Home() {
             style={{
               border: 0,
               background: "transparent",
-              color: page === id ? "#edaaff" : "#776d7b",
+              color:
+                page === id
+                  ? "#edaaff"
+                  : "#776d7b",
               fontWeight: 900,
               fontSize: 10,
             }}
@@ -1954,11 +2936,21 @@ export default function Home() {
         }}
       >
         <div style={{ flex: 1 }}>
-          <strong style={{ color: "#df9cff", fontSize: 10 }}>
+          <strong
+            style={{
+              color: "#df9cff",
+              fontSize: 10,
+            }}
+          >
             ↩ @{data.nickname}
           </strong>
 
-          <div style={{ color: C.muted, fontSize: 10 }}>
+          <div
+            style={{
+              color: C.muted,
+              fontSize: 10,
+            }}
+          >
             {data.content}
           </div>
         </div>
@@ -2001,8 +2993,14 @@ export default function Home() {
             padding: "80px 20px",
           }}
         >
-          <div style={{ textAlign: "center", marginBottom: 30 }}>
+          <div
+            style={{
+              textAlign: "center",
+              marginBottom: 30,
+            }}
+          >
             <Logo />
+
             <div style={{ color: C.muted }}>
               Nessun nome. Nessun giudizio. Solo WHO.
             </div>
@@ -2029,17 +3027,29 @@ export default function Home() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
-              style={{ ...input, marginTop: 9 }}
+              style={{
+                ...input,
+                marginTop: 9,
+              }}
             />
 
             {authError && (
-              <div style={{ color: "#ff9ab6", marginTop: 10 }}>
+              <div
+                style={{
+                  color: "#ff9ab6",
+                  marginTop: 10,
+                }}
+              >
                 {authError}
               </div>
             )}
 
             <button
-              onClick={authMode === "login" ? login : register}
+              onClick={
+                authMode === "login"
+                  ? login
+                  : register
+              }
               style={{
                 ...purpleButton,
                 width: "100%",
@@ -2047,13 +3057,17 @@ export default function Home() {
                 marginTop: 14,
               }}
             >
-              {authMode === "login" ? "ACCEDI" : "CREA ACCOUNT"}
+              {authMode === "login"
+                ? "ACCEDI"
+                : "CREA ACCOUNT"}
             </button>
 
             <button
               onClick={() =>
                 setAuthMode(
-                  authMode === "login" ? "register" : "login"
+                  authMode === "login"
+                    ? "register"
+                    : "login"
                 )
               }
               style={{
@@ -2101,7 +3115,10 @@ export default function Home() {
               <button
                 key={a.name}
                 onClick={() => selectAvatar(a.name)}
-                style={{ ...card, padding: 13 }}
+                style={{
+                  ...card,
+                  padding: 13,
+                }}
               >
                 <img
                   src={a.image}
@@ -2117,12 +3134,16 @@ export default function Home() {
                 <div
                   style={{
                     color:
-                      avatar === a.name ? "#efaaff" : C.muted,
+                      avatar === a.name
+                        ? "#efaaff"
+                        : C.muted,
                     marginTop: 8,
                     fontWeight: 900,
                   }}
                 >
-                  {avatar === a.name ? "✓ SELEZIONATO" : "SCEGLI"}
+                  {avatar === a.name
+                    ? "✓ SELEZIONATO"
+                    : "SCEGLI"}
                 </div>
               </button>
             ))}
@@ -2143,6 +3164,10 @@ export default function Home() {
       </main>
     );
   }
+
+  /* ======================================================
+     PAGINA STANZE
+     ====================================================== */
 
   if (page === "rooms") {
     const showManagement =
@@ -2165,7 +3190,12 @@ export default function Home() {
               alignItems: "center",
             }}
           >
-            <h1 style={{ fontFamily: displayFont, fontSize: 35 }}>
+            <h1
+              style={{
+                fontFamily: displayFont,
+                fontSize: 35,
+              }}
+            >
               Stanze
             </h1>
 
@@ -2186,14 +3216,25 @@ export default function Home() {
           </div>
 
           {roomPanel === "create" && (
-            <div style={{ ...card, padding: 16, marginBottom: 15 }}>
+            <div
+              style={{
+                ...card,
+                padding: 16,
+                marginBottom: 15,
+              }}
+            >
               <strong>CREA GRUPPO</strong>
 
               <input
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
+                onChange={(e) =>
+                  setRoomName(e.target.value)
+                }
                 placeholder="Nome gruppo"
-                style={{ ...input, marginTop: 12 }}
+                style={{
+                  ...input,
+                  marginTop: 12,
+                }}
               />
 
               <textarea
@@ -2210,7 +3251,9 @@ export default function Home() {
               />
 
               <button
-                onClick={() => setRoomPrivate(!roomPrivate)}
+                onClick={() =>
+                  setRoomPrivate(!roomPrivate)
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2218,7 +3261,9 @@ export default function Home() {
                   marginTop: 8,
                 }}
               >
-                {roomPrivate ? "🔒 PRIVATO" : "🌐 PUBBLICO"}
+                {roomPrivate
+                  ? "🔒 PRIVATO"
+                  : "🌐 PUBBLICO"}
               </button>
 
               <button
@@ -2231,7 +3276,9 @@ export default function Home() {
                   marginTop: 9,
                 }}
               >
-                {roomBusy ? "CREAZIONE…" : "CREA GRUPPO"}
+                {roomBusy
+                  ? "CREAZIONE…"
+                  : "CREA GRUPPO"}
               </button>
 
               <button
@@ -2249,13 +3296,24 @@ export default function Home() {
           )}
 
           {showManagement && (
-            <div style={{ ...card, padding: 16, marginBottom: 15 }}>
+            <div
+              style={{
+                ...card,
+                padding: 16,
+                marginBottom: 15,
+              }}
+            >
               <strong>⚙ GESTIONE GRUPPO</strong>
 
               <input
                 value={roomName}
-                onChange={(e) => setRoomName(e.target.value)}
-                style={{ ...input, marginTop: 12 }}
+                onChange={(e) =>
+                  setRoomName(e.target.value)
+                }
+                style={{
+                  ...input,
+                  marginTop: 12,
+                }}
               />
 
               <textarea
@@ -2271,7 +3329,9 @@ export default function Home() {
               />
 
               <button
-                onClick={() => setRoomPrivate(!roomPrivate)}
+                onClick={() =>
+                  setRoomPrivate(!roomPrivate)
+                }
                 style={{
                   ...card,
                   width: "100%",
@@ -2279,7 +3339,9 @@ export default function Home() {
                   marginTop: 8,
                 }}
               >
-                {roomPrivate ? "🔒 PRIVATO" : "🌐 PUBBLICO"}
+                {roomPrivate
+                  ? "🔒 PRIVATO"
+                  : "🌐 PUBBLICO"}
               </button>
 
               <button
@@ -2294,9 +3356,155 @@ export default function Home() {
                 SALVA MODIFICHE
               </button>
 
-              <h3>◆ MODERATORI</h3>
+              {activeRoom?.is_private && (
+                <>
+                  <h3 style={{ marginTop: 22 }}>
+                    🔐 RICHIESTE DI ACCESSO
+                  </h3>
 
-              <div style={{ display: "flex", gap: 6 }}>
+                  {roomJoinRequests.length === 0 && (
+                    <div
+                      style={{
+                        color: C.muted,
+                        fontSize: 11,
+                      }}
+                    >
+                      Nessuna richiesta in attesa.
+                    </div>
+                  )}
+
+                  {roomJoinRequests.map((req) => (
+                    <div
+                      key={req.request_id}
+                      style={{
+                        ...card,
+                        padding: 10,
+                        marginTop: 7,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                      }}
+                    >
+                      <Avatar
+                        name={req.avatar || "Shadow"}
+                        size={36}
+                      />
+
+                      <div style={{ flex: 1 }}>
+                        <strong>
+                          @{req.nickname || "WHO"}
+                        </strong>
+
+                        <div
+                          style={{
+                            color: "#e8a0ff",
+                            fontSize: 9,
+                            marginTop: 2,
+                          }}
+                        >
+                          VUOLE ENTRARE
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() =>
+                          approveRoomRequest(req)
+                        }
+                        style={{
+                          ...tinyButton,
+                          color: C.green,
+                        }}
+                      >
+                        ✓ ACCETTA
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          rejectRoomRequest(req)
+                        }
+                        style={{
+                          ...tinyButton,
+                          color: C.red,
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+
+                  <h3 style={{ marginTop: 22 }}>
+                    👥 MEMBRI
+                  </h3>
+
+                  {roomMembers.map((member) => (
+                    <div
+                      key={member.user_id}
+                      style={{
+                        ...card,
+                        padding: 10,
+                        marginTop: 7,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                      }}
+                    >
+                      <Avatar
+                        name={member.avatar || "Shadow"}
+                        size={35}
+                      />
+
+                      <div style={{ flex: 1 }}>
+                        <strong>
+                          @{member.nickname || "WHO"}
+                        </strong>
+
+                        <div
+                          style={{
+                            color:
+                              member.member_role === "OWNER"
+                                ? "#e8a0ff"
+                                : member.member_role === "MOD"
+                                ? C.cyan
+                                : C.muted,
+                            fontSize: 9,
+                          }}
+                        >
+                          {member.member_role === "OWNER"
+                            ? "♛ OWNER"
+                            : member.member_role === "MOD"
+                            ? "◆ MOD"
+                            : "MEMBRO"}
+                        </div>
+                      </div>
+
+                      {member.member_role !== "OWNER" && (
+                        <button
+                          onClick={() =>
+                            removeRoomMember(member)
+                          }
+                          style={{
+                            ...tinyButton,
+                            color: C.red,
+                          }}
+                        >
+                          RIMUOVI
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </>
+              )}
+
+              <h3 style={{ marginTop: 22 }}>
+                ◆ MODERATORI
+              </h3>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 6,
+                }}
+              >
                 <input
                   value={moderatorNickname}
                   onChange={(e) =>
@@ -2308,7 +3516,10 @@ export default function Home() {
 
                 <button
                   onClick={addRoomModerator}
-                  style={{ ...purpleButton, padding: "0 15px" }}
+                  style={{
+                    ...purpleButton,
+                    padding: "0 15px",
+                  }}
                 >
                   ＋
                 </button>
@@ -2327,7 +3538,9 @@ export default function Home() {
                   }}
                 >
                   <Avatar
-                    name={mod.profile?.avatar || "Shadow"}
+                    name={
+                      mod.profile?.avatar || "Shadow"
+                    }
                     size={32}
                   />
 
@@ -2339,17 +3552,27 @@ export default function Home() {
                     onClick={() =>
                       removeRoomModerator(mod.user_id)
                     }
-                    style={{ ...tinyButton, color: C.red }}
+                    style={{
+                      ...tinyButton,
+                      color: C.red,
+                    }}
                   >
                     RIMUOVI
                   </button>
                 </div>
               ))}
 
-              <h3>⛔ SANZIONI</h3>
+              <h3 style={{ marginTop: 22 }}>
+                ⛔ SANZIONI
+              </h3>
 
               {roomSanctions.length === 0 && (
-                <div style={{ color: C.muted, fontSize: 11 }}>
+                <div
+                  style={{
+                    color: C.muted,
+                    fontSize: 11,
+                  }}
+                >
                   Nessuna sanzione attiva.
                 </div>
               )}
@@ -2382,7 +3605,9 @@ export default function Home() {
                   </div>
 
                   <button
-                    onClick={() => removeRoomSanction(item)}
+                    onClick={() =>
+                      removeRoomSanction(item)
+                    }
                     style={{
                       ...tinyButton,
                       color: C.green,
@@ -2430,92 +3655,173 @@ export default function Home() {
             </div>
           )}
 
-          {rooms.map((r) => (
-            <div
-              key={r.id}
-              style={{
-                ...card,
-                padding: 14,
-                marginBottom: 9,
-              }}
-            >
-              <button
-                onClick={() => {
-                  setRoomPanel(null);
-                  setModerationMessage(null);
-                  setActiveRoom(r);
-                  setPage("chat");
-                  setChatMode("public");
-                  firstPublicLoadRef.current = true;
-                }}
+          {rooms.map((r) => {
+            const access =
+              roomAccessMap[r.id] || {};
+
+            const privateLocked =
+              r.is_private &&
+              isUuid(r.id) &&
+              !access.allowed;
+
+            const pending =
+              access.status === "PENDING";
+
+            const rejected =
+              access.status === "REJECTED";
+
+            const canLeave =
+              r.is_private &&
+              isUuid(r.id) &&
+              access.member &&
+              r.owner_id !== session.user.id;
+
+            return (
+              <div
+                key={r.id}
                 style={{
-                  width: "100%",
-                  border: 0,
-                  background: "transparent",
-                  color: "#fff",
-                  textAlign: "left",
+                  ...card,
+                  padding: 14,
+                  marginBottom: 9,
                 }}
               >
-                <strong>
-                  {r.is_private ? "🔒 " : "✦ "}
-                  {r.name}
-                </strong>
-
-                {r.is_official && (
-                  <span
-                    style={{
-                      color: C.cyan,
-                      fontSize: 8,
-                      marginLeft: 7,
-                    }}
-                  >
-                    WHO
-                  </span>
-                )}
-
-                {r.owner_id === session.user.id && (
-                  <span
-                    style={{
-                      color: "#e8a0ff",
-                      fontSize: 8,
-                      marginLeft: 7,
-                    }}
-                  >
-                    ♛ OWNER
-                  </span>
-                )}
-
-                <div
-                  style={{
-                    color: C.muted,
-                    fontSize: 11,
-                    marginTop: 5,
-                  }}
-                >
-                  {r.description}
-                </div>
-              </button>
-
-              {canManageRoom(r) && !r.is_official && (
                 <button
-                  onClick={() => openRoomManagement(r)}
+                  onClick={() => enterRoom(r)}
                   style={{
-                    ...tinyButton,
-                    color: "#e5a2ff",
-                    marginTop: 8,
+                    width: "100%",
+                    border: 0,
+                    background: "transparent",
+                    color: "#fff",
+                    textAlign: "left",
+                    opacity: privateLocked ? 0.82 : 1,
                   }}
                 >
-                  ⚙ GESTISCI
+                  <strong>
+                    {r.is_private ? "🔒 " : "✦ "}
+                    {r.name}
+                  </strong>
+
+                  {r.is_official && (
+                    <span
+                      style={{
+                        color: C.cyan,
+                        fontSize: 8,
+                        marginLeft: 7,
+                      }}
+                    >
+                      WHO
+                    </span>
+                  )}
+
+                  {r.owner_id === session.user.id && (
+                    <span
+                      style={{
+                        color: "#e8a0ff",
+                        fontSize: 8,
+                        marginLeft: 7,
+                      }}
+                    >
+                      ♛ OWNER
+                    </span>
+                  )}
+
+                  {r.is_private &&
+                    access.allowed &&
+                    r.owner_id !== session.user.id && (
+                      <span
+                        style={{
+                          color: C.green,
+                          fontSize: 8,
+                          marginLeft: 7,
+                        }}
+                      >
+                        ✓ ACCESSO
+                      </span>
+                    )}
+
+                  <div
+                    style={{
+                      color: C.muted,
+                      fontSize: 11,
+                      marginTop: 5,
+                    }}
+                  >
+                    {r.description}
+                  </div>
                 </button>
-              )}
-            </div>
-          ))}
+
+                {privateLocked && (
+                  <button
+                    disabled={
+                      pending ||
+                      roomAccessBusy === r.id
+                    }
+                    onClick={() =>
+                      requestRoomAccess(r)
+                    }
+                    style={{
+                      ...purpleButton,
+                      width: "100%",
+                      padding: 10,
+                      marginTop: 9,
+                      opacity:
+                        pending ||
+                        roomAccessBusy === r.id
+                          ? 0.55
+                          : 1,
+                    }}
+                  >
+                    {roomAccessBusy === r.id
+                      ? "INVIO…"
+                      : pending
+                      ? "⏳ IN ATTESA"
+                      : rejected
+                      ? "🔒 RICHIEDI DI NUOVO"
+                      : "🔒 RICHIEDI ACCESSO"}
+                  </button>
+                )}
+
+                {canManageRoom(r) && !r.is_official && (
+                  <button
+                    onClick={() =>
+                      openRoomManagement(r)
+                    }
+                    style={{
+                      ...tinyButton,
+                      color: "#e5a2ff",
+                      marginTop: 8,
+                    }}
+                  >
+                    ⚙ GESTISCI
+                  </button>
+                )}
+
+                {canLeave && (
+                  <button
+                    onClick={() => leaveRoom(r)}
+                    style={{
+                      ...tinyButton,
+                      color: C.red,
+                      marginTop: 8,
+                      marginLeft: 6,
+                    }}
+                  >
+                    ESCI DAL GRUPPO
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </section>
 
         <Nav />
       </main>
     );
   }
+
+  /* ======================================================
+     SHOP
+     ====================================================== */
 
   if (page === "shop") {
     return (
@@ -2527,9 +3833,17 @@ export default function Home() {
             padding: 18,
           }}
         >
-          <h1 style={{ fontFamily: displayFont }}>WHO SHOP</h1>
+          <h1 style={{ fontFamily: displayFont }}>
+            WHO SHOP
+          </h1>
 
-          <div style={{ ...card, padding: 15, marginBottom: 15 }}>
+          <div
+            style={{
+              ...card,
+              padding: 15,
+              marginBottom: 15,
+            }}
+          >
             ✦ {points} WHO Points
           </div>
 
@@ -2543,7 +3857,10 @@ export default function Home() {
             {shopItems.map((item) => (
               <div
                 key={item.id}
-                style={{ ...card, overflow: "hidden" }}
+                style={{
+                  ...card,
+                  overflow: "hidden",
+                }}
               >
                 <img
                   src={item.image}
@@ -2574,7 +3891,9 @@ export default function Home() {
                       ...purpleButton,
                       width: "100%",
                       padding: 10,
-                      opacity: owned.includes(item.id) ? 0.4 : 1,
+                      opacity: owned.includes(item.id)
+                        ? 0.4
+                        : 1,
                     }}
                   >
                     {owned.includes(item.id)
@@ -2592,6 +3911,10 @@ export default function Home() {
     );
   }
 
+  /* ======================================================
+     PROFILO
+     ====================================================== */
+
   if (page === "profile") {
     return (
       <main style={background}>
@@ -2603,7 +3926,11 @@ export default function Home() {
           }}
         >
           <div style={{ textAlign: "center" }}>
-            <Avatar name={avatar} size={130} />
+            <Avatar
+              name={avatar}
+              size={130}
+            />
+
             <h1>@{nickname}</h1>
 
             {isFounder && (
@@ -2642,7 +3969,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
             <strong>STILE MESSAGGI</strong>
 
             <div
@@ -2679,7 +4012,10 @@ export default function Home() {
                   key={value}
                   onClick={() => {
                     setMessageColor(value);
-                    saveMessageStyle(value, messageFont);
+                    saveMessageStyle(
+                      value,
+                      messageFont
+                    );
                   }}
                   style={{
                     padding: 10,
@@ -2712,7 +4048,10 @@ export default function Home() {
                   key={value}
                   onClick={() => {
                     setMessageFont(value);
-                    saveMessageStyle(messageColor, value);
+                    saveMessageStyle(
+                      messageColor,
+                      value
+                    );
                   }}
                   style={{
                     padding: 11,
@@ -2729,7 +4068,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
             <strong>PRIVACY MESSAGGI</strong>
 
             <div
@@ -2747,7 +4092,9 @@ export default function Home() {
               ].map(([value, label]) => (
                 <button
                   key={value}
-                  onClick={() => saveDmSettings(value)}
+                  onClick={() =>
+                    saveDmSettings(value)
+                  }
                   style={{
                     padding: 10,
                     borderRadius: 12,
@@ -2765,10 +4112,18 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ ...card, padding: 16, marginTop: 10 }}>
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
             <strong>REPUTAZIONE</strong>
 
-            <h3 style={{ color: C.green }}>✓ IN REGOLA</h3>
+            <h3 style={{ color: C.green }}>
+              ✓ IN REGOLA
+            </h3>
 
             <div style={{ color: C.muted }}>
               {reputation}/100
@@ -2808,6 +4163,10 @@ export default function Home() {
     );
   }
 
+  /* ======================================================
+     CHAT
+     ====================================================== */
+
   return (
     <main
       style={{
@@ -2843,7 +4202,10 @@ export default function Home() {
               setRoomPanel(null);
               setPage("rooms");
             }}
-            style={{ ...card, padding: "8px 12px" }}
+            style={{
+              ...card,
+              padding: "8px 12px",
+            }}
           >
             ◉ Stanze
           </button>
@@ -2896,243 +4258,285 @@ export default function Home() {
             }}
           >
             ✉ PRIVATI
-            {incomingRequests.length + totalUnreadPrivate > 0
+            {incomingRequests.length +
+              totalUnreadPrivate >
+            0
               ? ` · ${
-                  incomingRequests.length + totalUnreadPrivate
+                  incomingRequests.length +
+                  totalUnreadPrivate
                 }`
               : ""}
           </button>
         </div>
 
-        {chatMode === "inbox" && !privateConversation && (
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            <h2>Richieste</h2>
-
-            {incomingRequests.map((req) => (
-              <div
-                key={req.id}
-                style={{
-                  ...card,
-                  padding: 13,
-                  marginBottom: 8,
-                }}
-              >
-                <strong>✉ Nuova richiesta privata</strong>
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 6,
-                    marginTop: 10,
-                  }}
-                >
-                  <button
-                    onClick={() => acceptRequest(req)}
-                    style={{
-                      ...purpleButton,
-                      flex: 1,
-                      padding: 10,
-                    }}
-                  >
-                    ACCETTA
-                  </button>
-
-                  <button
-                    onClick={() => declineRequest(req)}
-                    style={{
-                      ...card,
-                      flex: 1,
-                      padding: 10,
-                      color: C.red,
-                    }}
-                  >
-                    RIFIUTA
-                  </button>
-                </div>
-              </div>
-            ))}
-
-            <h2>Conversazioni</h2>
-
-            {conversations.map((conv) => {
-              const info = conversationDetails[conv.id];
-
-              return (
-                <button
-                  key={conv.id}
-                  onClick={() => openConversationFromList(conv)}
-                  style={{
-                    ...card,
-                    width: "100%",
-                    padding: 11,
-                    marginBottom: 7,
-                    display: "flex",
-                    gap: 10,
-                    textAlign: "left",
-                  }}
-                >
-                  <Avatar
-                    name={info?.avatar || "Shadow"}
-                    size={45}
-                  />
-
-                  <div style={{ flex: 1 }}>
-                    <strong>@{info?.nickname || "WHO"}</strong>
-
-                    <div
-                      style={{
-                        color: C.muted,
-                        fontSize: 10,
-                      }}
-                    >
-                      {info?.lastMessage || "Nuova conversazione"}
-                    </div>
-                  </div>
-
-                  {info?.unread > 0 && (
-                    <strong style={{ color: C.pink }}>
-                      {info.unread}
-                    </strong>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {chatMode === "private" && privateConversation && (
-          <>
+        {chatMode === "inbox" &&
+          !privateConversation && (
             <div
               style={{
-                ...card,
-                padding: 9,
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
+                flex: 1,
+                overflowY: "auto",
               }}
             >
-              <button
-                onClick={() => {
-                  setChatMode("inbox");
-                  setPrivateConversation(null);
-                }}
-                style={{
-                  background: "transparent",
-                  border: 0,
-                  color: "#dda0ff",
-                }}
-              >
-                ‹
-              </button>
+              <h2>Richieste</h2>
 
-              <Avatar
-                name={privatePeer?.avatar}
-                size={36}
-              />
+              {incomingRequests.map((req) => (
+                <div
+                  key={req.id}
+                  style={{
+                    ...card,
+                    padding: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  <strong>
+                    ✉ Nuova richiesta privata
+                  </strong>
 
-              <strong style={{ flex: 1 }}>
-                @{privatePeer?.nickname}
-              </strong>
-
-              <button
-                onClick={() => blockUser(privatePeer?.id)}
-                style={{
-                  border: 0,
-                  background: "transparent",
-                  color: C.red,
-                }}
-              >
-                ⊘ BLOCCA
-              </button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: "auto" }}>
-              {privateMessages.map((m) => {
-                const mine = m.sender_id === session.user.id;
-
-                return (
                   <div
-                    key={m.id}
                     style={{
                       display: "flex",
-                      justifyContent:
-                        mine ? "flex-end" : "flex-start",
-                      margin: 7,
+                      gap: 6,
+                      marginTop: 10,
                     }}
                   >
-                    <div
+                    <button
+                      onClick={() =>
+                        acceptRequest(req)
+                      }
                       style={{
-                        ...card,
-                        maxWidth: "82%",
+                        ...purpleButton,
+                        flex: 1,
                         padding: 10,
                       }}
                     >
-                      {m.content}
+                      ACCETTA
+                    </button>
 
-                      <button
-                        onClick={() =>
-                          setPrivateReply({
-                            ...m,
-                            nickname: mine
-                              ? nickname
-                              : privatePeer?.nickname,
-                          })
-                        }
+                    <button
+                      onClick={() =>
+                        declineRequest(req)
+                      }
+                      style={{
+                        ...card,
+                        flex: 1,
+                        padding: 10,
+                        color: C.red,
+                      }}
+                    >
+                      RIFIUTA
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <h2>Conversazioni</h2>
+
+              {conversations.map((conv) => {
+                const info =
+                  conversationDetails[conv.id];
+
+                return (
+                  <button
+                    key={conv.id}
+                    onClick={() =>
+                      openConversationFromList(conv)
+                    }
+                    style={{
+                      ...card,
+                      width: "100%",
+                      padding: 11,
+                      marginBottom: 7,
+                      display: "flex",
+                      gap: 10,
+                      textAlign: "left",
+                    }}
+                  >
+                    <Avatar
+                      name={
+                        info?.avatar || "Shadow"
+                      }
+                      size={45}
+                    />
+
+                    <div style={{ flex: 1 }}>
+                      <strong>
+                        @{info?.nickname || "WHO"}
+                      </strong>
+
+                      <div
                         style={{
-                          display: "block",
-                          border: 0,
-                          background: "transparent",
-                          color: C.pink,
-                          marginTop: 5,
+                          color: C.muted,
+                          fontSize: 10,
                         }}
                       >
-                        ↩ RISPONDI
-                      </button>
+                        {info?.lastMessage ||
+                          "Nuova conversazione"}
+                      </div>
                     </div>
-                  </div>
+
+                    {info?.unread > 0 && (
+                      <strong
+                        style={{
+                          color: C.pink,
+                        }}
+                      >
+                        {info.unread}
+                      </strong>
+                    )}
+                  </button>
                 );
               })}
-
-              <div ref={privateBottomRef} />
             </div>
+          )}
 
-            <ReplyBox
-              data={privateReply}
-              cancel={() => setPrivateReply(null)}
-            />
+        {chatMode === "private" &&
+          privateConversation && (
+            <>
+              <div
+                style={{
+                  ...card,
+                  padding: 9,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                }}
+              >
+                <button
+                  onClick={() => {
+                    setChatMode("inbox");
+                    setPrivateConversation(null);
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: 0,
+                    color: "#dda0ff",
+                  }}
+                >
+                  ‹
+                </button>
 
-            <div
-              style={{
-                ...card,
-                padding: 6,
-                display: "flex",
-              }}
-            >
-              <input
-                value={privateMessage}
-                onChange={(e) =>
-                  setPrivateMessage(e.target.value)
-                }
-                placeholder="Messaggio privato..."
+                <Avatar
+                  name={privatePeer?.avatar}
+                  size={36}
+                />
+
+                <strong style={{ flex: 1 }}>
+                  @{privatePeer?.nickname}
+                </strong>
+
+                <button
+                  onClick={() =>
+                    blockUser(privatePeer?.id)
+                  }
+                  style={{
+                    border: 0,
+                    background: "transparent",
+                    color: C.red,
+                  }}
+                >
+                  ⊘ BLOCCA
+                </button>
+              </div>
+
+              <div
                 style={{
                   flex: 1,
-                  background: "transparent",
-                  border: 0,
-                  color: "#fff",
-                  outline: 0,
-                  padding: 10,
+                  overflowY: "auto",
                 }}
+              >
+                {privateMessages.map((m) => {
+                  const mine =
+                    m.sender_id === session.user.id;
+
+                  return (
+                    <div
+                      key={m.id}
+                      style={{
+                        display: "flex",
+                        justifyContent: mine
+                          ? "flex-end"
+                          : "flex-start",
+                        margin: 7,
+                      }}
+                    >
+                      <div
+                        style={{
+                          ...card,
+                          maxWidth: "82%",
+                          padding: 10,
+                        }}
+                      >
+                        {m.content}
+
+                        <button
+                          onClick={() =>
+                            setPrivateReply({
+                              ...m,
+                              nickname: mine
+                                ? nickname
+                                : privatePeer?.nickname,
+                            })
+                          }
+                          style={{
+                            display: "block",
+                            border: 0,
+                            background: "transparent",
+                            color: C.pink,
+                            marginTop: 5,
+                          }}
+                        >
+                          ↩ RISPONDI
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <div ref={privateBottomRef} />
+              </div>
+
+              <ReplyBox
+                data={privateReply}
+                cancel={() =>
+                  setPrivateReply(null)
+                }
               />
 
-              <button
-                onClick={sendPrivateMessage}
-                style={{ ...purpleButton, width: 45 }}
+              <div
+                style={{
+                  ...card,
+                  padding: 6,
+                  display: "flex",
+                }}
               >
-                ➤
-              </button>
-            </div>
-          </>
-        )}
+                <input
+                  value={privateMessage}
+                  onChange={(e) =>
+                    setPrivateMessage(e.target.value)
+                  }
+                  placeholder="Messaggio privato..."
+                  style={{
+                    flex: 1,
+                    background: "transparent",
+                    border: 0,
+                    color: "#fff",
+                    outline: 0,
+                    padding: 10,
+                  }}
+                />
+
+                <button
+                  onClick={sendPrivateMessage}
+                  style={{
+                    ...purpleButton,
+                    width: 45,
+                  }}
+                >
+                  ➤
+                </button>
+              </div>
+            </>
+          )}
 
         {chatMode === "public" && (
           <>
@@ -3144,7 +4548,11 @@ export default function Home() {
               }}
             >
               <div>
-                <small style={{ color: "#c879ef" }}>
+                <small
+                  style={{
+                    color: "#c879ef",
+                  }}
+                >
                   CHAT PUBBLICA
                 </small>
 
@@ -3154,11 +4562,18 @@ export default function Home() {
                     fontSize: 19,
                   }}
                 >
+                  {activeRoom.is_private
+                    ? "🔒 "
+                    : ""}
                   {activeRoom.name}
                 </div>
 
                 {myRoomRole && (
-                  <small style={{ color: "#e8a0ff" }}>
+                  <small
+                    style={{
+                      color: "#e8a0ff",
+                    }}
+                  >
                     {myRoomRole === "FOUNDER"
                       ? "♛ WHO FOUNDER"
                       : myRoomRole === "OWNER"
@@ -3168,7 +4583,12 @@ export default function Home() {
                 )}
               </div>
 
-              <div style={{ color: C.muted, fontSize: 9 }}>
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 9,
+                }}
+              >
                 ⚡ VIBE {vibe}
               </div>
             </div>
@@ -3187,19 +4607,20 @@ export default function Home() {
               </div>
             )}
 
-            {!myRoomStatus?.banned && myRoomStatus?.muted && (
-              <div
-                style={{
-                  ...card,
-                  padding: 10,
-                  color: C.pink,
-                  textAlign: "center",
-                  marginBottom: 6,
-                }}
-              >
-                🔇 SEI TEMPORANEAMENTE SILENZIATO
-              </div>
-            )}
+            {!myRoomStatus?.banned &&
+              myRoomStatus?.muted && (
+                <div
+                  style={{
+                    ...card,
+                    padding: 10,
+                    color: C.pink,
+                    textAlign: "center",
+                    marginBottom: 6,
+                  }}
+                >
+                  🔇 SEI TEMPORANEAMENTE SILENZIATO
+                </div>
+              )}
 
             <div
               ref={publicChatRef}
@@ -3211,9 +4632,15 @@ export default function Home() {
               }}
             >
               {messages.map((msg) => {
-                const mine = msg.user_id === session.user.id;
-                const positive = myVotes[msg.id] === "like";
-                const negative = myVotes[msg.id] === "dislike";
+                const mine =
+                  msg.user_id === session.user.id;
+
+                const positive =
+                  myVotes[msg.id] === "like";
+
+                const negative =
+                  myVotes[msg.id] === "dislike";
+
                 const reported =
                   reportedMessages.includes(msg.id);
 
@@ -3231,10 +4658,23 @@ export default function Home() {
                       marginBottom: 5,
                     }}
                   >
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <Avatar name={msg.avatar} size={32} />
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 8,
+                      }}
+                    >
+                      <Avatar
+                        name={msg.avatar}
+                        size={32}
+                      />
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div
+                        style={{
+                          flex: 1,
+                          minWidth: 0,
+                        }}
+                      >
                         <strong>
                           @{msg.nickname || "anonimo"}
                         </strong>
@@ -3250,7 +4690,9 @@ export default function Home() {
                             marginTop: 4,
                           }}
                         >
-                          {renderMessageText(msg.content)}
+                          {renderMessageText(
+                            msg.content
+                          )}
                         </div>
 
                         <div
@@ -3262,14 +4704,18 @@ export default function Home() {
                           }}
                         >
                           <button
-                            onClick={() => setReplyingTo(msg)}
+                            onClick={() =>
+                              setReplyingTo(msg)
+                            }
                             style={tinyButton}
                           >
                             ↩
                           </button>
 
                           <button
-                            onClick={() => mentionUser(msg)}
+                            onClick={() =>
+                              mentionUser(msg)
+                            }
                             style={tinyButton}
                           >
                             @
@@ -3277,7 +4723,9 @@ export default function Home() {
 
                           {!mine && (
                             <button
-                              onClick={() => requestPrivate(msg)}
+                              onClick={() =>
+                                requestPrivate(msg)
+                              }
                               style={{
                                 ...tinyButton,
                                 color: "#e6a6ff",
@@ -3303,7 +4751,10 @@ export default function Home() {
 
                           <button
                             onClick={() =>
-                              voteMessage(msg, "dislike")
+                              voteMessage(
+                                msg,
+                                "dislike"
+                              )
                             }
                             style={{
                               ...tinyButton,
@@ -3312,36 +4763,45 @@ export default function Home() {
                                 : "#a999b1",
                             }}
                           >
-                            ♢− {Number(msg.dislikes || 0)}
+                            ♢−{" "}
+                            {Number(
+                              msg.dislikes || 0
+                            )}
                           </button>
 
-                          {!mine && roomCanModerate && (
-                            <button
-                              onClick={() =>
-                                setModerationMessage(
-                                  moderationMessage?.id === msg.id
-                                    ? null
-                                    : msg
-                                )
-                              }
-                              style={{
-                                ...tinyButton,
-                                color: "#ffad65",
-                              }}
-                            >
-                              ⚙ MOD
-                            </button>
-                          )}
+                          {!mine &&
+                            roomCanModerate && (
+                              <button
+                                onClick={() =>
+                                  setModerationMessage(
+                                    moderationMessage?.id ===
+                                      msg.id
+                                      ? null
+                                      : msg
+                                  )
+                                }
+                                style={{
+                                  ...tinyButton,
+                                  color: "#ffad65",
+                                }}
+                              >
+                                ⚙ MOD
+                              </button>
+                            )}
 
                           {!mine && (
                             <button
                               disabled={reported}
-                              onClick={() => reportMessage(msg)}
+                              onClick={() =>
+                                reportMessage(msg)
+                              }
                               style={{
                                 ...tinyButton,
                                 marginLeft: "auto",
                                 color: C.red,
-                                opacity: reported ? 0.4 : 1,
+                                opacity: reported
+                                  ? 0.4
+                                  : 1,
                               }}
                             >
                               ⚑
@@ -3349,7 +4809,8 @@ export default function Home() {
                           )}
                         </div>
 
-                        {moderationMessage?.id === msg.id &&
+                        {moderationMessage?.id ===
+                          msg.id &&
                           roomCanModerate && (
                             <div
                               style={{
@@ -3377,7 +4838,10 @@ export default function Home() {
                               >
                                 <button
                                   onClick={() =>
-                                    muteFromRoom(msg, 10)
+                                    muteFromRoom(
+                                      msg,
+                                      10
+                                    )
                                   }
                                   style={tinyButton}
                                 >
@@ -3386,7 +4850,10 @@ export default function Home() {
 
                                 <button
                                   onClick={() =>
-                                    muteFromRoom(msg, 60)
+                                    muteFromRoom(
+                                      msg,
+                                      60
+                                    )
                                   }
                                   style={tinyButton}
                                 >
@@ -3395,7 +4862,10 @@ export default function Home() {
 
                                 <button
                                   onClick={() =>
-                                    muteFromRoom(msg, 1440)
+                                    muteFromRoom(
+                                      msg,
+                                      1440
+                                    )
                                   }
                                   style={tinyButton}
                                 >
@@ -3404,7 +4874,10 @@ export default function Home() {
 
                                 <button
                                   onClick={() =>
-                                    muteFromRoom(msg, 10080)
+                                    muteFromRoom(
+                                      msg,
+                                      10080
+                                    )
                                   }
                                   style={tinyButton}
                                 >
@@ -3412,7 +4885,9 @@ export default function Home() {
                                 </button>
 
                                 <button
-                                  onClick={() => banFromRoom(msg)}
+                                  onClick={() =>
+                                    banFromRoom(msg)
+                                  }
                                   style={{
                                     ...tinyButton,
                                     color: C.red,
@@ -3432,10 +4907,28 @@ export default function Home() {
               <div ref={publicBottomRef} />
             </div>
 
+            {showNewMessages && (
+              <button
+                onClick={() =>
+                  scrollPublicToBottom("smooth")
+                }
+                style={{
+                  ...purpleButton,
+                  alignSelf: "center",
+                  padding: "7px 12px",
+                  marginBottom: 5,
+                }}
+              >
+                ↓ NUOVI MESSAGGI
+              </button>
+            )}
+
             <div style={{ paddingTop: 5 }}>
               <ReplyBox
                 data={replyingTo}
-                cancel={() => setReplyingTo(null)}
+                cancel={() =>
+                  setReplyingTo(null)
+                }
               />
 
               <div
@@ -3453,9 +4946,14 @@ export default function Home() {
                   }
                   value={message}
                   maxLength={500}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) =>
+                    setMessage(e.target.value)
+                  }
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (
+                      e.key === "Enter" &&
+                      !e.shiftKey
+                    ) {
                       e.preventDefault();
                       sendMessage();
                     }
@@ -3472,8 +4970,14 @@ export default function Home() {
                     minWidth: 0,
                     background: "transparent",
                     border: 0,
-                    color: getMessageColor(messageColor),
-                    fontFamily: getMessageFont(messageFont),
+                    color:
+                      getMessageColor(
+                        messageColor
+                      ),
+                    fontFamily:
+                      getMessageFont(
+                        messageFont
+                      ),
                     outline: 0,
                     padding: "10px 9px",
                   }}
@@ -3509,4 +5013,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-      }
+                     }
