@@ -1624,12 +1624,9 @@ export default function Home() {
   }
 
   /* ======================================================
-     LIKE / DISLIKE — CORRETTO
-     Database:
-     1  = LIKE
-     -1 = DISLIKE
-     Interfaccia:
-     "like" / "dislike"
+     LIKE / DISLIKE — VERSIONE SICURA
+     Il browser modifica SOLO message_votes.
+     Il trigger Supabase aggiorna messages.likes/dislikes.
      ====================================================== */
 
   async function loadVotes() {
@@ -1678,7 +1675,7 @@ export default function Home() {
         .maybeSingle();
 
     if (existingError) {
-      console.error(existingError);
+      console.error("Errore controllo voto:", existingError);
       alert(existingError.message);
       return;
     }
@@ -1708,44 +1705,8 @@ export default function Home() {
     }
 
     if (voteError) {
-      console.error(voteError);
+      console.error("Errore voto:", voteError);
       alert(voteError.message);
-      return;
-    }
-
-    let likes = Number(msg.likes ?? 0);
-    let dislikes = Number(msg.dislikes ?? 0);
-
-    if (oldVote === "like") {
-      likes = Math.max(0, likes - 1);
-    }
-
-    if (oldVote === "dislike") {
-      dislikes = Math.max(0, dislikes - 1);
-    }
-
-    if (vote === "like") {
-      likes += 1;
-    }
-
-    if (vote === "dislike") {
-      dislikes += 1;
-    }
-
-    const { error: messageError } = await supabase
-      .from("messages")
-      .update({
-        likes,
-        dislikes,
-      })
-      .eq("id", msg.id);
-
-    if (messageError) {
-      console.error(messageError);
-      alert(messageError.message);
-
-      await loadVotes();
-      await loadMessages(false);
       return;
     }
 
@@ -1754,20 +1715,35 @@ export default function Home() {
       [msg.id]: vote,
     }));
 
+    const { data: refreshedMessage, error: refreshError } =
+      await supabase
+        .from("messages")
+        .select("*")
+        .eq("id", msg.id)
+        .single();
+
+    if (refreshError) {
+      console.error(
+        "Errore aggiornamento contatori:",
+        refreshError
+      );
+
+      await loadMessages(false);
+      return;
+    }
+
     setMessages((old) =>
       old.map((item) =>
         item.id === msg.id
           ? {
               ...item,
-              likes,
-              dislikes,
+              ...refreshedMessage,
             }
           : item
       )
     );
-  }
-
-  async function loadReports() {
+    }
+    async function loadReports() {
     if (!session) return;
 
     const { data } = await supabase
@@ -2339,7 +2315,8 @@ export default function Home() {
         </button>
       </div>
     );
-    }
+  }
+
   if (loading) {
     return (
       <main
@@ -2535,10 +2512,6 @@ export default function Home() {
       </main>
     );
   }
-
-  /* ======================================================
-     PAGINA STANZE
-     ====================================================== */
 
   if (page === "rooms") {
     const showManagement =
@@ -4370,4 +4343,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-                }
+          }
