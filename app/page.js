@@ -9,6 +9,31 @@ const supabase = createClient(
 );
 
 /* =========================================================
+   WHO — DESIGN
+   ========================================================= */
+
+const C = {
+  bg: "#07050a",
+  panel: "#100b16",
+  panel2: "#17101f",
+  purple: "#b54cff",
+  purple2: "#7928ca",
+  pink: "#ef7dff",
+  cyan: "#64e8ff",
+  text: "#f8f4fb",
+  muted: "#978b9f",
+  border: "rgba(190,100,255,.20)",
+  green: "#61e5a4",
+  red: "#ff7295",
+};
+
+const font =
+  '"Trebuchet MS","Arial Narrow",Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+
+const displayFont =
+  '"Arial Black","Trebuchet MS",Inter,system-ui,sans-serif';
+
+/* =========================================================
    WHO — AVATARS
    ========================================================= */
 
@@ -36,7 +61,7 @@ const ownerAvatar = {
 };
 
 /* =========================================================
-   WHO — STANZE
+   WHO — ROOMS
    ========================================================= */
 
 const defaultOfficialRooms = [
@@ -137,7 +162,7 @@ const fallbackShopItems = [
 ];
 
 /* =========================================================
-   TRADUZIONI
+   TRANSLATIONS
    ========================================================= */
 
 const translations = {
@@ -162,7 +187,7 @@ const translations = {
     shop: "Shop",
     profile: "Profilo",
     publicChat: "CHAT PUBBLICA",
-    write: "Scrivi un messaggio...",
+    write: "Scrivi qualcosa...",
     points: "WHO POINTS",
     createRoom: "CREA UNA STANZA",
     roomName: "Nome della stanza",
@@ -170,8 +195,8 @@ const translations = {
     public: "Pubblica",
     private: "Privata",
     create: "CREA",
-    official: "STANZE WHO",
-    community: "CREATE DALLA COMMUNITY",
+    official: "STANZE UFFICIALI",
+    community: "COMMUNITY",
     shopTitle: "WHO SHOP",
     unlock: "SBLOCCA",
     owned: "POSSEDUTO",
@@ -182,20 +207,19 @@ const translations = {
     inventory: "COLLEZIONE",
     change: "CAMBIA AVATAR",
     logout: "ESCI",
-    noRooms: "Non ci sono ancora stanze community.",
-    emptyChat: "Ancora nessun messaggio. Rompi il silenzio.",
+    noRooms: "Nessuna stanza community per ora.",
+    emptyChat: "Qui è ancora tutto silenzioso. Scrivi il primo messaggio.",
     reporting: "Segnalazione inviata alla moderazione.",
     alreadyReported: "Hai già segnalato questo messaggio.",
-    identityHint: "Il nickname è il tuo unico nome pubblico.",
-    shopHint: "Sblocca oggetti esclusivi e costruisci il tuo stile WHO.",
+    identityHint: "Il nickname sarà la tua identità pubblica.",
+    shopHint: "Oggetti esclusivi per costruire la tua identità WHO.",
     ownedItems: "Oggetti posseduti",
-    report: "SEGNALA",
-    reported: "SEGNALATO",
-    enter: "ENTRA",
+    report: "Segnala",
+    reported: "Segnalato",
     founder: "WHO FOUNDER",
     member: "WHO MEMBER",
+    collectionEmpty: "La tua collezione è ancora vuota.",
   },
-
   en: {
     slogan: "No names. No judgment. Just WHO.",
     login: "SIGN IN",
@@ -217,7 +241,7 @@ const translations = {
     shop: "Shop",
     profile: "Profile",
     publicChat: "PUBLIC CHAT",
-    write: "Write a message...",
+    write: "Say something...",
     points: "WHO POINTS",
     createRoom: "CREATE A ROOM",
     roomName: "Room name",
@@ -225,8 +249,8 @@ const translations = {
     public: "Public",
     private: "Private",
     create: "CREATE",
-    official: "WHO ROOMS",
-    community: "CREATED BY THE COMMUNITY",
+    official: "OFFICIAL ROOMS",
+    community: "COMMUNITY",
     shopTitle: "WHO SHOP",
     unlock: "UNLOCK",
     owned: "OWNED",
@@ -237,18 +261,18 @@ const translations = {
     inventory: "COLLECTION",
     change: "CHANGE AVATAR",
     logout: "LOG OUT",
-    noRooms: "There are no community rooms yet.",
-    emptyChat: "No messages yet. Break the silence.",
+    noRooms: "No community rooms yet.",
+    emptyChat: "It's quiet here. Send the first message.",
     reporting: "Report sent to moderation.",
     alreadyReported: "You already reported this message.",
-    identityHint: "Your nickname is your only public name.",
-    shopHint: "Unlock exclusive items and build your WHO style.",
+    identityHint: "Your nickname will be your public identity.",
+    shopHint: "Exclusive items to build your WHO identity.",
     ownedItems: "Owned items",
-    report: "REPORT",
-    reported: "REPORTED",
-    enter: "ENTER",
+    report: "Report",
+    reported: "Reported",
     founder: "WHO FOUNDER",
     member: "WHO MEMBER",
+    collectionEmpty: "Your collection is still empty.",
   },
 };
 
@@ -281,15 +305,43 @@ function getShopImage(item) {
 }
 
 function makeRoomKey(room) {
-  if (room.room_key) return room.room_key;
+  if (room?.room_key) return room.room_key;
+  if (room?.id === "who-general") return "generale";
 
-  if (room.id === "who-general") return "generale";
-
-  return String(room.id || room.name || "generale")
+  return String(room?.id || room?.name || "generale")
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9_-]/g, "-")
     .replace(/-+/g, "-");
+}
+
+function rarityStyle(rarity) {
+  switch (rarity) {
+    case "LEGENDARY":
+      return {
+        color: "#ffd879",
+        border: "rgba(255,216,121,.45)",
+        bg: "rgba(255,190,70,.10)",
+      };
+    case "LIMITED":
+      return {
+        color: "#ff80d7",
+        border: "rgba(255,80,190,.45)",
+        bg: "rgba(255,80,190,.10)",
+      };
+    case "EPIC":
+      return {
+        color: "#c790ff",
+        border: "rgba(184,110,255,.45)",
+        bg: "rgba(170,80,255,.10)",
+      };
+    default:
+      return {
+        color: "#77eaff",
+        border: "rgba(90,220,255,.4)",
+        bg: "rgba(90,220,255,.08)",
+      };
+  }
 }
 
 /* =========================================================
@@ -352,51 +404,52 @@ export default function Home() {
     [shopItems, owned]
   );
 
-  /* =========================================================
-     STILI
-     ========================================================= */
-
   const background = {
-    minHeight: "100vh",
-    color: "#fff",
-    background:
-      "radial-gradient(circle at 50% -10%,#42106b 0,#180921 36%,#08050d 72%,#050308 100%)",
-    paddingBottom: session && started ? 105 : 25,
+    minHeight: "100dvh",
+    color: C.text,
+    fontFamily: font,
+    background: `
+      radial-gradient(circle at 50% -15%, rgba(137,42,190,.38), transparent 35%),
+      radial-gradient(circle at 100% 30%, rgba(49,39,150,.16), transparent 30%),
+      linear-gradient(180deg,#0b0710 0%,#07050a 48%,#050407 100%)
+    `,
+    paddingBottom: session && started ? 108 : 25,
   };
 
   const card = {
     background:
-      "linear-gradient(145deg,rgba(38,18,57,.97),rgba(12,8,20,.98))",
-    border: "1px solid rgba(137,66,177,.45)",
+      "linear-gradient(145deg,rgba(27,17,36,.96),rgba(12,8,17,.97))",
+    border: `1px solid ${C.border}`,
     borderRadius: 22,
-    color: "#fff",
-    boxShadow: "0 12px 35px rgba(0,0,0,.30)",
+    color: C.text,
+    boxShadow:
+      "0 16px 45px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.025)",
   };
 
   const inputStyle = {
     boxSizing: "border-box",
     width: "100%",
-    padding: 15,
-    borderRadius: 15,
-    border: "1px solid #55306c",
-    background: "#0d0913",
-    color: "#fff",
+    padding: "15px 16px",
+    borderRadius: 16,
+    border: `1px solid ${C.border}`,
+    background: "rgba(5,4,8,.75)",
+    color: C.text,
     outline: 0,
+    fontFamily: font,
     fontSize: 16,
   };
 
   const primaryButton = {
     borderRadius: 16,
-    border: "1px solid #b954e5",
-    background: "linear-gradient(135deg,#862ab4,#501b77)",
+    border: "1px solid rgba(220,110,255,.65)",
+    background:
+      "linear-gradient(135deg,#a23bd1 0%,#7020a0 55%,#4e176f 100%)",
     color: "#fff",
+    fontFamily: font,
     fontWeight: 900,
-    boxShadow: "0 8px 24px rgba(109,36,151,.25)",
+    letterSpacing: ".4px",
+    boxShadow: "0 10px 28px rgba(132,42,177,.25)",
   };
-
-  /* =========================================================
-     AVVIO
-     ========================================================= */
 
   useEffect(() => {
     const savedLanguage = localStorage.getItem("who-language");
@@ -449,10 +502,8 @@ export default function Home() {
 
     loadMessages();
 
-    const channelName = `who-room-${currentRoomKey}`;
-
     const channel = supabase
-      .channel(channelName)
+      .channel(`who-room-${currentRoomKey}`)
       .on(
         "postgres_changes",
         {
@@ -471,7 +522,7 @@ export default function Home() {
   }, [session, started, currentRoomKey]);
 
   /* =========================================================
-     PROFILO
+     PROFILE
      ========================================================= */
 
   async function loadUserData(user) {
@@ -543,7 +594,7 @@ export default function Home() {
     if (!/^[a-z0-9_]{3,20}$/.test(username)) {
       setAuthError(
         language === "it"
-          ? "Nickname: da 3 a 20 caratteri. Usa lettere, numeri o _"
+          ? "Nickname: 3-20 caratteri. Usa lettere, numeri o _"
           : "Nickname: 3-20 characters. Use letters, numbers or _"
       );
       return;
@@ -659,10 +710,7 @@ export default function Home() {
   async function selectAvatar(name) {
     if (!session?.user?.id) return;
 
-    if (name === "UNKNOWN" && !isFounder) {
-      alert("Founder avatar.");
-      return;
-    }
+    if (name === "UNKNOWN" && !isFounder) return;
 
     const { data, error } = await supabase
       .from("profiles")
@@ -696,9 +744,7 @@ export default function Home() {
       .eq("room", currentRoomKey)
       .order("id", { ascending: true });
 
-    if (!error) {
-      setMessages(data || []);
-    }
+    if (!error) setMessages(data || []);
 
     setMessagesLoading(false);
   }
@@ -736,7 +782,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     VOTI
+     VOTES
      ========================================================= */
 
   async function loadVotes() {
@@ -832,15 +878,13 @@ export default function Home() {
 
     setMessages((old) =>
       old.map((item) =>
-        item.id === messageId
-          ? { ...item, likes, dislikes }
-          : item
+        item.id === messageId ? { ...item, likes, dislikes } : item
       )
     );
   }
 
   /* =========================================================
-     SEGNALAZIONI
+     REPORTS
      ========================================================= */
 
   async function loadReports() {
@@ -881,7 +925,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     STANZE
+     ROOMS
      ========================================================= */
 
   async function loadRooms() {
@@ -946,13 +990,11 @@ export default function Home() {
 
     await loadRooms();
 
-    if (data) {
-      enterRoom(data);
-    }
+    if (data) enterRoom(data);
   }
 
   /* =========================================================
-     SHOP / INVENTARIO
+     INVENTORY
      ========================================================= */
 
   async function loadInventory() {
@@ -970,7 +1012,6 @@ export default function Home() {
 
   async function buy(item) {
     if (!session?.user?.id || buying) return;
-
     if (owned.includes(item.id)) return;
 
     const price = Number(item.points_price || 0);
@@ -997,7 +1038,8 @@ export default function Home() {
         return;
       }
 
-      const newPoints = points - price;
+      const oldPoints = points;
+      const newPoints = oldPoints - price;
 
       const { data: updatedProfile, error: pointsError } = await supabase
         .from("profiles")
@@ -1024,7 +1066,7 @@ export default function Home() {
       if (inventoryError) {
         await supabase
           .from("profiles")
-          .update({ who_points: points })
+          .update({ who_points: oldPoints })
           .eq("id", session.user.id);
 
         alert(inventoryError.message);
@@ -1040,16 +1082,18 @@ export default function Home() {
   }
 
   /* =========================================================
-     COMPONENTI
+     UI COMPONENTS
      ========================================================= */
 
   function Language() {
     return (
       <div
         style={{
+          maxWidth: 650,
+          margin: "0 auto",
           display: "flex",
           justifyContent: "flex-end",
-          gap: 6,
+          gap: 7,
           padding: "13px 17px",
         }}
       >
@@ -1058,12 +1102,21 @@ export default function Home() {
             key={lang}
             onClick={() => changeLanguage(lang)}
             style={{
-              background: language === lang ? "#66258c" : "#15101c",
-              border: "1px solid #663a7b",
-              borderRadius: 20,
+              background:
+                language === lang
+                  ? "linear-gradient(135deg,#71308e,#371448)"
+                  : "rgba(17,12,22,.85)",
+              border: `1px solid ${
+                language === lang
+                  ? "rgba(213,110,255,.55)"
+                  : C.border
+              }`,
+              borderRadius: 30,
               padding: "7px 11px",
               color: "#fff",
-              fontWeight: 800,
+              fontFamily: font,
+              fontWeight: 900,
+              fontSize: 11,
             }}
           >
             {lang === "it" ? "🇮🇹 IT" : "🇬🇧 EN"}
@@ -1073,35 +1126,39 @@ export default function Home() {
     );
   }
 
-  function Logo() {
+  function Logo({ compact = false }) {
     return (
       <div style={{ textAlign: "center" }}>
         <div
           style={{
-            fontSize: 74,
-            lineHeight: 1,
+            fontFamily: displayFont,
+            fontSize: compact ? 44 : 76,
+            lineHeight: 0.9,
             fontWeight: 950,
-            letterSpacing: -6,
+            letterSpacing: compact ? -3 : -6,
             background:
-              "linear-gradient(90deg,#fff,#e993ff,#8c59ff,#5ee8ff)",
+              "linear-gradient(100deg,#ffffff 5%,#f0a7ff 42%,#a963ff 70%,#6eeeff)",
             WebkitBackgroundClip: "text",
             color: "transparent",
-            filter: "drop-shadow(0 0 20px #922eff)",
+            filter: "drop-shadow(0 0 20px rgba(173,66,255,.40))",
           }}
         >
           WHO
         </div>
 
-        <div
-          style={{
-            fontSize: 10,
-            letterSpacing: 7,
-            color: "#ad75ca",
-            marginTop: 8,
-          }}
-        >
-          BE ANYONE
-        </div>
+        {!compact && (
+          <div
+            style={{
+              fontSize: 9,
+              fontWeight: 900,
+              letterSpacing: 8,
+              color: "#bc78d8",
+              marginTop: 12,
+            }}
+          >
+            BE ANYONE
+          </div>
+        )}
       </div>
     );
   }
@@ -1122,22 +1179,37 @@ export default function Home() {
           borderRadius: "50%",
           flexShrink: 0,
           border: border
-            ? "3px solid #c75af1"
-            : "1px solid #5b3470",
+            ? "3px solid rgba(218,104,255,.85)"
+            : "1px solid rgba(174,94,211,.32)",
           boxShadow: border
-            ? "0 0 28px rgba(178,69,221,.45)"
+            ? "0 0 0 5px rgba(176,70,220,.08),0 0 32px rgba(178,69,221,.30)"
             : "none",
         }}
       />
     );
   }
 
+  function SectionLabel({ children }) {
+    return (
+      <small
+        style={{
+          color: "#c97af0",
+          letterSpacing: 2.7,
+          fontWeight: 900,
+          fontSize: 10,
+        }}
+      >
+        {children}
+      </small>
+    );
+  }
+
   function Nav() {
     const nav = [
-      ["chat", "◌", t.chat],
-      ["rooms", "◎", t.rooms],
+      ["chat", "✦", t.chat],
+      ["rooms", "◉", t.rooms],
       ["shop", "◇", t.shop],
-      ["profile", "◉", t.profile],
+      ["profile", "●", t.profile],
     ];
 
     return (
@@ -1150,10 +1222,12 @@ export default function Home() {
           right: 0,
           display: "grid",
           gridTemplateColumns: "repeat(4,1fr)",
-          background: "rgba(7,4,12,.97)",
-          borderTop: "1px solid rgba(116,53,151,.55)",
-          padding: "8px 4px 12px",
-          backdropFilter: "blur(18px)",
+          background: "rgba(7,5,10,.94)",
+          borderTop: "1px solid rgba(166,77,210,.20)",
+          padding:
+            "8px 5px calc(10px + env(safe-area-inset-bottom,0px))",
+          backdropFilter: "blur(24px)",
+          boxShadow: "0 -12px 35px rgba(0,0,0,.32)",
         }}
       >
         {nav.map(([id, icon, label]) => {
@@ -1164,23 +1238,43 @@ export default function Home() {
               key={id}
               onClick={() => setPage(id)}
               style={{
+                position: "relative",
                 background: active
-                  ? "linear-gradient(180deg,rgba(115,38,155,.30),transparent)"
+                  ? "linear-gradient(180deg,rgba(167,67,218,.15),transparent)"
                   : "transparent",
                 border: 0,
-                borderRadius: 14,
-                color: active ? "#e69cff" : "#817589",
-                fontSize: 11,
-                fontWeight: 800,
-                padding: "5px 2px",
+                borderRadius: 15,
+                color: active ? "#edb0ff" : "#786f7d",
+                fontFamily: font,
+                fontSize: 10,
+                fontWeight: 900,
+                padding: "6px 2px 4px",
               }}
             >
+              {active && (
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -8,
+                    left: "32%",
+                    right: "32%",
+                    height: 2,
+                    borderRadius: 5,
+                    background: "#c65cff",
+                    boxShadow: "0 0 12px #b54cff",
+                  }}
+                />
+              )}
+
               <span
                 style={{
                   display: "block",
-                  fontSize: 22,
-                  marginBottom: 3,
-                  textShadow: active ? "0 0 12px #b34ee1" : "none",
+                  fontSize: 20,
+                  lineHeight: 1,
+                  marginBottom: 5,
+                  textShadow: active
+                    ? "0 0 13px rgba(206,87,255,.9)"
+                    : "none",
                 }}
               >
                 {icon}
@@ -1223,7 +1317,7 @@ export default function Home() {
 
         <section
           style={{
-            minHeight: "82vh",
+            minHeight: "80dvh",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
@@ -1236,20 +1330,26 @@ export default function Home() {
 
           <p
             style={{
-              opacity: 0.72,
+              color: C.muted,
               textAlign: "center",
-              marginTop: 25,
+              margin: "28px 0 17px",
+              fontSize: 14,
             }}
           >
             {t.slogan}
           </p>
 
-          <div style={{ ...card, padding: 20, marginTop: 15 }}>
-            <small style={{ color: "#d285f6", letterSpacing: 2 }}>
-              WHO ACCOUNT
-            </small>
+          <div style={{ ...card, padding: 21 }}>
+            <SectionLabel>WHO ACCOUNT</SectionLabel>
 
-            <h2>
+            <h2
+              style={{
+                fontFamily: displayFont,
+                fontSize: 23,
+                letterSpacing: "-.7px",
+                margin: "9px 0 19px",
+              }}
+            >
               {authMode === "login" ? t.loginTitle : t.registerTitle}
             </h2>
 
@@ -1284,11 +1384,12 @@ export default function Home() {
               <div
                 style={{
                   marginTop: 12,
-                  padding: 11,
-                  borderRadius: 12,
-                  background: "rgba(150,35,70,.18)",
-                  border: "1px solid #7d3150",
-                  fontSize: 13,
+                  padding: 12,
+                  borderRadius: 13,
+                  background: "rgba(160,42,82,.12)",
+                  border: "1px solid rgba(255,92,140,.25)",
+                  color: "#ffb2c8",
+                  fontSize: 12,
                 }}
               >
                 {authError}
@@ -1305,11 +1406,11 @@ export default function Home() {
                 width: "100%",
                 padding: 16,
                 marginTop: 16,
-                opacity: authBusy ? 0.6 : 1,
+                opacity: authBusy ? 0.55 : 1,
               }}
             >
               {authBusy
-                ? "..."
+                ? "•••"
                 : authMode === "login"
                 ? t.login
                 : t.register}
@@ -1325,10 +1426,13 @@ export default function Home() {
               }}
               style={{
                 width: "100%",
-                marginTop: 14,
+                marginTop: 15,
+                padding: 5,
                 background: "transparent",
                 border: 0,
-                color: "#d58cf5",
+                color: "#d796f0",
+                fontFamily: font,
+                fontSize: 12,
               }}
             >
               {authMode === "login"
@@ -1342,7 +1446,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     IDENTITÀ
+     IDENTITY
      ========================================================= */
 
   if (started === "identity") {
@@ -1356,20 +1460,33 @@ export default function Home() {
 
         <section
           style={{
-            padding: "5px 18px 20px",
+            padding: "6px 18px 17px",
             maxWidth: 600,
             margin: "0 auto",
           }}
         >
-          <small style={{ color: "#d285f6", letterSpacing: 3 }}>
-            {t.identity}
-          </small>
+          <SectionLabel>{t.identity}</SectionLabel>
 
-          <h1 style={{ fontSize: 34 }}>{t.who}</h1>
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: 35,
+              letterSpacing: "-1.4px",
+              margin: "7px 0",
+            }}
+          >
+            {t.who}
+          </h1>
 
-          <p style={{ opacity: 0.6 }}>{t.identityHint}</p>
-
-          <h3>{t.avatar}</h3>
+          <p
+            style={{
+              color: C.muted,
+              marginTop: 6,
+              fontSize: 13,
+            }}
+          >
+            {t.identityHint}
+          </p>
         </section>
 
         <section
@@ -1391,10 +1508,14 @@ export default function Home() {
                 onClick={() => selectAvatar(item.name)}
                 style={{
                   ...card,
-                  padding: "16px 7px",
+                  position: "relative",
+                  padding: "14px 8px",
                   border: selected
-                    ? "2px solid #d168ff"
+                    ? "1px solid rgba(220,100,255,.85)"
                     : card.border,
+                  boxShadow: selected
+                    ? "0 0 0 1px rgba(196,76,255,.18),0 15px 40px rgba(114,32,160,.22)"
+                    : card.boxShadow,
                 }}
               >
                 <img
@@ -1405,14 +1526,14 @@ export default function Home() {
                     event.currentTarget.src = "/shadow.png";
                   }}
                   style={{
-                    width: 105,
-                    height: 105,
+                    width: 110,
+                    height: 110,
                     maxWidth: "100%",
                     borderRadius: "50%",
                     objectFit: "cover",
                     border: selected
                       ? "3px solid #d86cff"
-                      : "2px solid #5b3470",
+                      : "2px solid rgba(111,62,135,.6)",
                   }}
                 />
 
@@ -1420,9 +1541,10 @@ export default function Home() {
                   <div
                     style={{
                       color: "#f0b3ff",
-                      fontSize: 10,
+                      fontSize: 9,
+                      letterSpacing: 1,
                       fontWeight: 900,
-                      marginTop: 8,
+                      marginTop: 9,
                     }}
                   >
                     ♛ FOUNDER EXCLUSIVE
@@ -1432,9 +1554,10 @@ export default function Home() {
                 <small
                   style={{
                     display: "block",
-                    marginTop: 8,
-                    color: selected ? "#e39aff" : "#887c91",
-                    fontWeight: 800,
+                    marginTop: 9,
+                    color: selected ? "#efaaff" : C.muted,
+                    fontWeight: 900,
+                    letterSpacing: ".6px",
                   }}
                 >
                   {selected ? `✓ ${t.selected}` : t.choose}
@@ -1470,25 +1593,30 @@ export default function Home() {
   }
 
   /* =========================================================
-     STANZE
+     ROOMS
      ========================================================= */
 
   if (page === "rooms") {
     const officialRooms = rooms.filter((room) => room.is_official);
     const communityRooms = rooms.filter((room) => !room.is_official);
 
-    function RoomCard({ room }) {
+    function RoomCard({ room, index }) {
+      const symbols = ["✦", "☾", "◆", "♫", "◎"];
+      const symbol = room.is_private
+        ? "◆"
+        : symbols[index % symbols.length];
+
       return (
         <button
           onClick={() => enterRoom(room)}
           style={{
             ...card,
             width: "100%",
-            padding: 17,
-            marginBottom: 11,
+            padding: 15,
+            marginBottom: 10,
             display: "flex",
             alignItems: "center",
-            gap: 14,
+            gap: 13,
             textAlign: "left",
           }}
         >
@@ -1500,16 +1628,25 @@ export default function Home() {
               borderRadius: 16,
               display: "grid",
               placeItems: "center",
-              fontSize: 24,
+              fontSize: 21,
+              color: "#dc94ff",
               background:
-                "linear-gradient(145deg,#40175a,#1a0c26)",
+                "radial-gradient(circle at 40% 30%,#54206c,#1a0c24 70%)",
+              border: "1px solid rgba(181,76,255,.20)",
+              boxShadow: "inset 0 0 20px rgba(181,76,255,.08)",
             }}
           >
-            {room.is_private ? "◈" : "◎"}
+            {symbol}
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <strong style={{ fontSize: 16 }}>
+            <strong
+              style={{
+                fontFamily: displayFont,
+                fontSize: 14,
+                letterSpacing: ".2px",
+              }}
+            >
               {room.is_private ? "🔒 " : ""}
               {room.name}
             </strong>
@@ -1518,10 +1655,12 @@ export default function Home() {
               <small
                 style={{
                   display: "block",
-                  opacity: 0.58,
+                  color: C.muted,
                   marginTop: 5,
+                  whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  fontSize: 11,
                 }}
               >
                 {room.description}
@@ -1531,8 +1670,8 @@ export default function Home() {
 
           <span
             style={{
-              color: "#cf7aff",
-              fontSize: 26,
+              color: "#c872ed",
+              fontSize: 24,
               fontWeight: 900,
             }}
           >
@@ -1553,32 +1692,33 @@ export default function Home() {
             margin: "0 auto",
           }}
         >
-          <small style={{ color: "#d486fa", letterSpacing: 3 }}>
-            {t.official}
-          </small>
+          <SectionLabel>WHO NETWORK</SectionLabel>
 
-          <h1 style={{ fontSize: 36, marginTop: 8 }}>{t.rooms}</h1>
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: 37,
+              letterSpacing: "-1.5px",
+              margin: "7px 0 17px",
+            }}
+          >
+            {t.rooms}
+          </h1>
 
           <button
             onClick={() => setCreatingRoom(!creatingRoom)}
             style={{
               ...primaryButton,
               width: "100%",
-              padding: 17,
-              marginBottom: 18,
+              padding: 16,
+              marginBottom: 19,
             }}
           >
             ＋ {t.createRoom}
           </button>
 
           {creatingRoom && (
-            <div
-              style={{
-                ...card,
-                padding: 16,
-                marginBottom: 20,
-              }}
-            >
+            <div style={{ ...card, padding: 16, marginBottom: 21 }}>
               <input
                 value={roomName}
                 maxLength={30}
@@ -1599,7 +1739,7 @@ export default function Home() {
                 style={{
                   display: "flex",
                   gap: 8,
-                  marginTop: 12,
+                  marginTop: 11,
                 }}
               >
                 <button
@@ -1607,14 +1747,15 @@ export default function Home() {
                   style={{
                     flex: 1,
                     padding: 12,
-                    background: "#21142c",
-                    border: "1px solid #583370",
+                    background: "#17101f",
+                    border: `1px solid ${C.border}`,
                     color: "#fff",
                     borderRadius: 13,
-                    fontWeight: 800,
+                    fontFamily: font,
+                    fontWeight: 900,
                   }}
                 >
-                  {roomPrivate ? `🔒 ${t.private}` : `◎ ${t.public}`}
+                  {roomPrivate ? `◆ ${t.private}` : `◎ ${t.public}`}
                 </button>
 
                 <button
@@ -1631,19 +1772,40 @@ export default function Home() {
             </div>
           )}
 
-          {officialRooms.map((room) => (
-            <RoomCard key={room.id} room={room} />
-          ))}
+          <SectionLabel>{t.official}</SectionLabel>
 
-          <h3 style={{ marginTop: 28 }}>{t.community}</h3>
+          <div style={{ marginTop: 10 }}>
+            {officialRooms.map((room, index) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                index={index}
+              />
+            ))}
+          </div>
+
+          <div style={{ margin: "28px 0 10px" }}>
+            <SectionLabel>{t.community}</SectionLabel>
+          </div>
 
           {communityRooms.length === 0 ? (
-            <div style={{ ...card, padding: 18, opacity: 0.7 }}>
+            <div
+              style={{
+                ...card,
+                padding: 18,
+                color: C.muted,
+                fontSize: 12,
+              }}
+            >
               {t.noRooms}
             </div>
           ) : (
-            communityRooms.map((room) => (
-              <RoomCard key={room.id} room={room} />
+            communityRooms.map((room, index) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                index={index + 2}
+              />
             ))
           )}
         </section>
@@ -1664,23 +1826,51 @@ export default function Home() {
 
         <section
           style={{
-            padding: "0 18px 15px",
+            padding: "0 18px 16px",
             maxWidth: 650,
             margin: "0 auto",
           }}
         >
-          <small style={{ color: "#d687ff", letterSpacing: 3 }}>
-            {t.shopTitle}
-          </small>
+          <SectionLabel>{t.shopTitle}</SectionLabel>
 
-          <h1 style={{ fontSize: 38, marginBottom: 8 }}>{t.shop}</h1>
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: 38,
+              letterSpacing: "-1.7px",
+              margin: "7px 0 6px",
+            }}
+          >
+            {t.shop}
+          </h1>
 
-          <p style={{ opacity: 0.65 }}>{t.shopHint}</p>
+          <p
+            style={{
+              color: C.muted,
+              fontSize: 12,
+              marginBottom: 17,
+            }}
+          >
+            {t.shopHint}
+          </p>
 
-          <div style={{ ...card, padding: 17 }}>
-            <small>{t.points}</small>
+          <div
+            style={{
+              ...card,
+              padding: 17,
+              background:
+                "radial-gradient(circle at 85% 0%,rgba(171,66,222,.18),transparent 38%),linear-gradient(145deg,#1c1026,#0d0912)",
+            }}
+          >
+            <SectionLabel>{t.points}</SectionLabel>
 
-            <div style={{ fontSize: 31, fontWeight: 950 }}>
+            <div
+              style={{
+                fontFamily: displayFont,
+                fontSize: 31,
+                marginTop: 4,
+              }}
+            >
               ✦ {points}
             </div>
           </div>
@@ -1690,7 +1880,7 @@ export default function Home() {
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(2,minmax(0,1fr))",
-            gap: 12,
+            gap: 11,
             padding: "0 18px",
             maxWidth: 650,
             margin: "0 auto",
@@ -1700,6 +1890,7 @@ export default function Home() {
             const isOwned = owned.includes(item.id);
             const price = Number(item.points_price || 0);
             const isBuying = buying === item.id;
+            const rarity = rarityStyle(item.rarity);
 
             return (
               <div
@@ -1713,27 +1904,41 @@ export default function Home() {
               >
                 <div
                   style={{
-                    height: 165,
+                    height: 168,
                     position: "relative",
                     display: "grid",
                     placeItems: "center",
                     background:
-                      "radial-gradient(circle,#55206f,#100817)",
+                      "radial-gradient(circle at 50% 45%,rgba(130,50,165,.28),rgba(12,7,17,.95) 67%)",
                     overflow: "hidden",
                   }}
                 >
+                  <div
+                    style={{
+                      position: "absolute",
+                      width: 110,
+                      height: 110,
+                      borderRadius: "50%",
+                      background: rarity.bg,
+                      filter: "blur(16px)",
+                    }}
+                  />
+
                   <img
                     src={getShopImage(item)}
                     alt=""
                     onError={(event) => {
                       event.currentTarget.onerror = null;
-                      event.currentTarget.style.opacity = "0";
+                      event.currentTarget.style.display = "none";
                     }}
                     style={{
-                      width: "100%",
-                      height: "100%",
+                      position: "relative",
+                      zIndex: 2,
+                      width: "90%",
+                      height: "90%",
                       objectFit: "contain",
                       display: "block",
+                      filter: "drop-shadow(0 10px 18px rgba(0,0,0,.45))",
                     }}
                   />
 
@@ -1741,13 +1946,15 @@ export default function Home() {
                     style={{
                       position: "absolute",
                       zIndex: 3,
-                      top: 8,
-                      left: 8,
-                      background: "rgba(8,5,12,.94)",
-                      border: "1px solid rgba(173,91,211,.25)",
+                      top: 9,
+                      left: 9,
+                      background: "rgba(7,5,10,.88)",
+                      border: `1px solid ${rarity.border}`,
+                      color: rarity.color,
                       padding: "5px 7px",
                       borderRadius: 8,
-                      fontSize: 10,
+                      fontSize: 8,
+                      letterSpacing: ".7px",
                       fontWeight: 900,
                     }}
                   >
@@ -1758,12 +1965,14 @@ export default function Home() {
                     <div
                       style={{
                         position: "absolute",
+                        zIndex: 4,
                         right: 8,
                         top: 8,
                         borderRadius: 20,
-                        background: "#1e7b55",
-                        padding: "5px 8px",
-                        fontSize: 9,
+                        background: "rgba(27,111,75,.92)",
+                        border: "1px solid rgba(91,231,163,.25)",
+                        padding: "5px 7px",
+                        fontSize: 8,
                         fontWeight: 900,
                       }}
                     >
@@ -1782,8 +1991,10 @@ export default function Home() {
                 >
                   <strong
                     style={{
-                      fontSize: 14,
-                      minHeight: 34,
+                      fontFamily: displayFont,
+                      fontSize: 12,
+                      minHeight: 31,
+                      letterSpacing: ".2px",
                     }}
                   >
                     {item.name}
@@ -1791,9 +2002,10 @@ export default function Home() {
 
                   <div
                     style={{
-                      color: "#df94ff",
+                      color: "#e2a0ff",
                       fontWeight: 900,
-                      margin: "8px 0 11px",
+                      margin: "7px 0 11px",
+                      fontSize: 13,
                     }}
                   >
                     ✦ {price}
@@ -1807,20 +2019,25 @@ export default function Home() {
                       padding: 11,
                       marginTop: "auto",
                       borderRadius: 12,
-                      border: "1px solid #784093",
+                      border: isOwned
+                        ? "1px solid rgba(255,255,255,.06)"
+                        : "1px solid rgba(192,84,230,.40)",
                       background: isOwned
-                        ? "#242027"
-                        : "linear-gradient(135deg,#79259f,#51176f)",
-                      color: "#fff",
+                        ? "#19161b"
+                        : "linear-gradient(135deg,#7d28a2,#4c1768)",
+                      color: isOwned ? "#817b84" : "#fff",
+                      fontFamily: font,
+                      fontSize: 10,
+                      letterSpacing: ".5px",
                       fontWeight: 900,
                       opacity:
-                        Boolean(buying) && !isBuying ? 0.5 : 1,
+                        Boolean(buying) && !isBuying ? 0.45 : 1,
                     }}
                   >
                     {isOwned
                       ? `✓ ${t.owned}`
                       : isBuying
-                      ? "..."
+                      ? "•••"
                       : t.unlock}
                   </button>
                 </div>
@@ -1835,7 +2052,7 @@ export default function Home() {
   }
 
   /* =========================================================
-     PROFILO
+     PROFILE
      ========================================================= */
 
   if (page === "profile") {
@@ -1843,14 +2060,41 @@ export default function Home() {
       <main style={background}>
         <Language />
 
-        <section style={{ textAlign: "center", padding: 20 }}>
-          <SafeAvatar name={avatar} size={135} border />
+        <section
+          style={{
+            textAlign: "center",
+            padding: "10px 20px 21px",
+          }}
+        >
+          <SafeAvatar name={avatar} size={136} border />
 
-          <h1 style={{ marginBottom: 8 }}>@{nickname}</h1>
+          <h1
+            style={{
+              fontFamily: displayFont,
+              fontSize: 28,
+              letterSpacing: "-.8px",
+              margin: "16px 0 7px",
+            }}
+          >
+            @{nickname}
+          </h1>
 
           <span
             style={{
-              color: isFounder ? "#e7a3ff" : "#6de0ad",
+              display: "inline-block",
+              borderRadius: 30,
+              padding: "6px 10px",
+              border: `1px solid ${
+                isFounder
+                  ? "rgba(220,112,255,.32)"
+                  : "rgba(87,225,159,.25)"
+              }`,
+              background: isFounder
+                ? "rgba(176,62,219,.10)"
+                : "rgba(60,190,130,.08)",
+              color: isFounder ? "#e7a3ff" : C.green,
+              fontSize: 9,
+              letterSpacing: 1,
               fontWeight: 900,
             }}
           >
@@ -1869,62 +2113,131 @@ export default function Home() {
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
-              gap: 11,
+              gap: 10,
             }}
           >
             <div style={{ ...card, padding: 17 }}>
-              <small>{t.points}</small>
+              <SectionLabel>{t.points}</SectionLabel>
 
-              <div style={{ fontSize: 27, fontWeight: 900 }}>
+              <div
+                style={{
+                  fontFamily: displayFont,
+                  fontSize: 26,
+                  marginTop: 5,
+                }}
+              >
                 ✦ {points}
               </div>
             </div>
 
             <div style={{ ...card, padding: 17 }}>
-              <small>{t.level}</small>
+              <SectionLabel>{t.level}</SectionLabel>
 
-              <div style={{ fontSize: 27, fontWeight: 900 }}>
+              <div
+                style={{
+                  fontFamily: displayFont,
+                  fontSize: 26,
+                  marginTop: 5,
+                }}
+              >
                 {level}
               </div>
             </div>
           </div>
 
-          <div style={{ ...card, padding: 17, marginTop: 11 }}>
-            <small>{t.reputation}</small>
+          <div style={{ ...card, padding: 17, marginTop: 10 }}>
+            <SectionLabel>{t.reputation}</SectionLabel>
 
-            <h3 style={{ color: "#5ce5a1", marginBottom: 6 }}>
+            <h3
+              style={{
+                color: C.green,
+                margin: "7px 0 5px",
+                fontFamily: displayFont,
+                fontSize: 16,
+              }}
+            >
               ✓ {t.good}
             </h3>
 
-            <div style={{ fontSize: 13, opacity: 0.7 }}>
-              WHO Reputation: {reputation}
+            <div
+              style={{
+                height: 5,
+                borderRadius: 20,
+                background: "#211723",
+                overflow: "hidden",
+                margin: "10px 0 7px",
+              }}
+            >
+              <div
+                style={{
+                  width: `${Math.max(
+                    0,
+                    Math.min(100, reputation)
+                  )}%`,
+                  height: "100%",
+                  borderRadius: 20,
+                  background:
+                    "linear-gradient(90deg,#5ee3a0,#a2efcb)",
+                }}
+              />
+            </div>
+
+            <div style={{ fontSize: 11, color: C.muted }}>
+              WHO Reputation · {reputation}/100
             </div>
           </div>
 
-          <div style={{ ...card, padding: 17, marginTop: 11 }}>
-            <small>{t.inventory}</small>
+          <div style={{ ...card, padding: 17, marginTop: 10 }}>
+            <SectionLabel>{t.inventory}</SectionLabel>
 
-            <h2 style={{ margin: "6px 0" }}>{owned.length}</h2>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 7,
+                marginTop: 5,
+              }}
+            >
+              <strong
+                style={{
+                  fontFamily: displayFont,
+                  fontSize: 27,
+                }}
+              >
+                {owned.length}
+              </strong>
 
-            <span style={{ opacity: 0.6, fontSize: 13 }}>
-              {t.ownedItems}
-            </span>
+              <span style={{ color: C.muted, fontSize: 11 }}>
+                {t.ownedItems}
+              </span>
+            </div>
 
-            {ownedProducts.length > 0 && (
+            {ownedProducts.length === 0 ? (
+              <div
+                style={{
+                  marginTop: 13,
+                  color: C.muted,
+                  fontSize: 11,
+                }}
+              >
+                {t.collectionEmpty}
+              </div>
+            ) : (
               <div
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(3,1fr)",
                   gap: 8,
-                  marginTop: 15,
+                  marginTop: 14,
                 }}
               >
                 {ownedProducts.map((item) => (
                   <div
                     key={item.id}
                     style={{
-                      background: "#130a1b",
-                      border: "1px solid #58306e",
+                      background:
+                        "radial-gradient(circle,#281333,#0d0911)",
+                      border: `1px solid ${C.border}`,
                       borderRadius: 14,
                       overflow: "hidden",
                     }}
@@ -1945,8 +2258,9 @@ export default function Home() {
 
                     <div
                       style={{
-                        padding: 6,
-                        fontSize: 8,
+                        padding: "6px 4px",
+                        fontSize: 7,
+                        letterSpacing: ".3px",
                         fontWeight: 900,
                         textAlign: "center",
                       }}
@@ -1964,8 +2278,9 @@ export default function Home() {
             style={{
               ...card,
               width: "100%",
-              padding: 17,
-              marginTop: 11,
+              padding: 16,
+              marginTop: 10,
+              fontFamily: font,
               fontWeight: 900,
             }}
           >
@@ -1976,12 +2291,13 @@ export default function Home() {
             onClick={logout}
             style={{
               width: "100%",
-              padding: 17,
-              marginTop: 11,
+              padding: 16,
+              marginTop: 10,
               borderRadius: 20,
-              border: "1px solid #74354e",
-              background: "#29121c",
+              border: "1px solid rgba(255,91,137,.25)",
+              background: "rgba(100,30,51,.16)",
               color: "#ff9db6",
+              fontFamily: font,
               fontWeight: 900,
             }}
           >
@@ -2011,51 +2327,35 @@ export default function Home() {
             alignItems: "center",
           }}
         >
-          <div>
-            <strong
-              style={{
-                display: "block",
-                fontSize: 27,
-                color: "#dc8dff",
-              }}
-            >
-              WHO
-            </strong>
-
-            <small style={{ opacity: 0.55 }}>
-              {activeRoom?.name || "WHO GENERAL"}
-            </small>
-          </div>
+          <Logo compact />
 
           <button
             onClick={() => setPage("rooms")}
             style={{
-              border: "1px solid #58316d",
-              borderRadius: 20,
-              padding: "7px 11px",
-              background: "#160b20",
-              color: "#d99aff",
-              fontSize: 11,
+              border: `1px solid ${C.border}`,
+              borderRadius: 30,
+              padding: "8px 12px",
+              background: "rgba(20,11,28,.85)",
+              color: "#dda0f6",
+              fontFamily: font,
+              fontSize: 10,
               fontWeight: 900,
             }}
           >
-            ◎ {t.rooms}
+            ◉ {t.rooms}
           </button>
         </header>
 
         <section style={{ padding: "0 18px 12px" }}>
-          <small
-            style={{
-              color: "#cd7af3",
-              letterSpacing: 2,
-            }}
-          >
+          <SectionLabel>
             {activeRoom?.is_private ? "PRIVATE CHAT" : t.publicChat}
-          </small>
+          </SectionLabel>
 
           <h1
             style={{
-              fontSize: 32,
+              fontFamily: displayFont,
+              fontSize: 31,
+              letterSpacing: "-1.1px",
               margin: "5px 0 13px",
             }}
           >
@@ -2073,14 +2373,22 @@ export default function Home() {
           >
             <SafeAvatar name={avatar} size={48} />
 
-            <div style={{ flex: 1 }}>
-              <strong>@{nickname}</strong>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <strong
+                style={{
+                  fontFamily: displayFont,
+                  fontSize: 13,
+                }}
+              >
+                @{nickname}
+              </strong>
 
               <small
                 style={{
                   display: "block",
                   color: "#bd82d4",
-                  marginTop: 2,
+                  marginTop: 3,
+                  fontSize: 10,
                 }}
               >
                 ✦ {points} WHO Points
@@ -2092,7 +2400,8 @@ export default function Home() {
                 style={{
                   color: "#e59cff",
                   fontWeight: 900,
-                  fontSize: 10,
+                  fontSize: 8,
+                  letterSpacing: ".7px",
                 }}
               >
                 ♛ FOUNDER
@@ -2106,7 +2415,7 @@ export default function Home() {
             <div
               style={{
                 textAlign: "center",
-                opacity: 0.5,
+                color: C.muted,
                 padding: 20,
               }}
             >
@@ -2118,9 +2427,10 @@ export default function Home() {
             <div
               style={{
                 ...card,
-                padding: 18,
+                padding: 20,
                 textAlign: "center",
-                opacity: 0.65,
+                color: C.muted,
+                fontSize: 12,
               }}
             >
               {t.emptyChat}
@@ -2129,11 +2439,10 @@ export default function Home() {
 
           {messages.map((msg) => {
             const userVote = Number(myVotes[msg.id] || 0);
-
             const reported = reportedMessages.includes(msg.id);
 
             return (
-              <div
+              <article
                 key={msg.id}
                 style={{
                   ...card,
@@ -2155,16 +2464,23 @@ export default function Home() {
                   />
 
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <strong style={{ fontSize: 14 }}>
+                    <strong
+                      style={{
+                        fontFamily: displayFont,
+                        fontSize: 12,
+                        letterSpacing: ".1px",
+                      }}
+                    >
                       @{msg.nickname || "anonimo"}
                     </strong>
 
                     <p
                       style={{
                         overflowWrap: "anywhere",
-                        lineHeight: 1.4,
-                        margin: "5px 0 10px",
+                        lineHeight: 1.48,
+                        margin: "5px 0 11px",
                         fontSize: 14,
+                        color: "#f2edf4",
                       }}
                     >
                       {msg.content}
@@ -2183,23 +2499,25 @@ export default function Home() {
                         style={{
                           border:
                             userVote === 1
-                              ? "1px solid #cf73f4"
-                              : "1px solid #4b3955",
+                              ? "1px solid rgba(198,91,244,.70)"
+                              : "1px solid rgba(255,255,255,.08)",
                           background:
                             userVote === 1
-                              ? "#48205a"
-                              : "#130e17",
+                              ? "rgba(150,55,190,.24)"
+                              : "rgba(8,6,10,.60)",
                           color:
                             userVote === 1
                               ? "#efb2ff"
-                              : "#bfb2c5",
+                              : "#9f95a4",
                           borderRadius: 20,
-                          minWidth: 52,
+                          minWidth: 48,
                           padding: "6px 9px",
+                          fontFamily: font,
+                          fontSize: 11,
                           fontWeight: 900,
                         }}
                       >
-                        ↑ {Number(msg.likes || 0)}
+                        ♡ {Number(msg.likes || 0)}
                       </button>
 
                       <button
@@ -2208,23 +2526,25 @@ export default function Home() {
                         style={{
                           border:
                             userVote === -1
-                              ? "1px solid #d45d83"
-                              : "1px solid #4b3955",
+                              ? "1px solid rgba(255,93,135,.55)"
+                              : "1px solid rgba(255,255,255,.08)",
                           background:
                             userVote === -1
-                              ? "#491d2c"
-                              : "#130e17",
+                              ? "rgba(160,45,77,.20)"
+                              : "rgba(8,6,10,.60)",
                           color:
                             userVote === -1
-                              ? "#ff9cb9"
-                              : "#bfb2c5",
+                              ? "#ff9ab6"
+                              : "#9f95a4",
                           borderRadius: 20,
-                          minWidth: 52,
+                          minWidth: 48,
                           padding: "6px 9px",
+                          fontFamily: font,
+                          fontSize: 11,
                           fontWeight: 900,
                         }}
                       >
-                        ↓ {Number(msg.dislikes || 0)}
+                        ◇ {Number(msg.dislikes || 0)}
                       </button>
 
                       <button
@@ -2232,17 +2552,11 @@ export default function Home() {
                         onClick={() => reportMessage(msg.id)}
                         style={{
                           marginLeft: "auto",
-                          border: reported
-                            ? "1px solid #563946"
-                            : "1px solid #49374f",
-                          background: reported
-                            ? "#25161c"
-                            : "#110d14",
-                          color: reported
-                            ? "#8d6673"
-                            : "#aa9caf",
-                          borderRadius: 20,
-                          padding: "6px 9px",
+                          border: 0,
+                          background: "transparent",
+                          color: reported ? "#715b65" : "#8c818f",
+                          padding: "6px",
+                          fontFamily: font,
                           fontSize: 9,
                           fontWeight: 800,
                         }}
@@ -2252,57 +2566,72 @@ export default function Home() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
 
           <div
             style={{
-              ...card,
-              padding: 9,
-              display: "flex",
-              gap: 7,
+              padding: "10px 0 6px",
               position: "sticky",
-              bottom: 80,
+              bottom: 78,
               zIndex: 20,
-              marginTop: 10,
+              marginTop: 8,
+              background:
+                "linear-gradient(180deg,transparent,#07050a 25%)",
             }}
           >
-            <input
-              value={message}
-              maxLength={500}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              placeholder={t.write}
+            <div
               style={{
-                flex: 1,
-                minWidth: 0,
-                background: "#0d0913",
-                border: "1px solid #533069",
-                borderRadius: 14,
-                color: "#fff",
-                padding: 12,
-                outline: 0,
-              }}
-            />
-
-            <button
-              disabled={sending || !message.trim()}
-              onClick={sendMessage}
-              style={{
-                ...primaryButton,
-                width: 48,
-                fontSize: 18,
-                opacity: sending || !message.trim() ? 0.45 : 1,
+                ...card,
+                padding: 8,
+                display: "flex",
+                gap: 7,
+                borderRadius: 20,
+                boxShadow:
+                  "0 12px 35px rgba(0,0,0,.45),0 0 0 1px rgba(169,72,215,.05)",
               }}
             >
-              {sending ? "…" : "➤"}
-            </button>
+              <input
+                value={message}
+                maxLength={500}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                  }
+                }}
+                placeholder={t.write}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  background: "transparent",
+                  border: 0,
+                  color: "#fff",
+                  padding: "11px 10px",
+                  outline: 0,
+                  fontFamily: font,
+                  fontSize: 14,
+                }}
+              />
+
+              <button
+                disabled={sending || !message.trim()}
+                onClick={sendMessage}
+                style={{
+                  ...primaryButton,
+                  width: 46,
+                  height: 44,
+                  borderRadius: 15,
+                  fontSize: 17,
+                  opacity:
+                    sending || !message.trim() ? 0.35 : 1,
+                }}
+              >
+                {sending ? "…" : "➤"}
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -2310,4 +2639,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-    }
+      }
