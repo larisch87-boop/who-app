@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -197,20 +197,32 @@ export default function Home() {
   const [replyingTo, setReplyingTo] = useState(null);
   const [sending, setSending] = useState(false);
 
+  const [myVotes, setMyVotes] = useState({});
+  const [reportedMessages, setReportedMessages] = useState([]);
+
   const [chatMode, setChatMode] = useState("public");
 
   const [requests, setRequests] = useState([]);
   const [conversations, setConversations] = useState([]);
+
   const [privateConversation, setPrivateConversation] =
     useState(null);
+
   const [privatePeer, setPrivatePeer] = useState(null);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateMessage, setPrivateMessage] = useState("");
   const [privateReply, setPrivateReply] = useState(null);
 
   const [blocked, setBlocked] = useState([]);
-
   const [owned, setOwned] = useState([]);
+
+  const [showNewMessages, setShowNewMessages] = useState(false);
+
+  const publicChatRef = useRef(null);
+  const publicBottomRef = useRef(null);
+  const privateBottomRef = useRef(null);
+  const publicAtBottomRef = useRef(true);
+  const firstPublicLoadRef = useRef(true);
 
   const isFounder =
     String(profile?.role || "").toUpperCase() === "FOUNDER";
@@ -219,14 +231,14 @@ export default function Home() {
 
   const level = Math.max(1, Math.floor(points / 250) + 1);
 
-  const unreadPrivate = useMemo(
+  const incomingRequests = useMemo(
     () =>
-      privateMessages.filter(
-        (m) =>
-          !m.is_read &&
-          m.sender_id !== session?.user?.id
-      ).length,
-    [privateMessages, session]
+      requests.filter(
+        (r) =>
+          r.receiver_id === session?.user?.id &&
+          r.status === "pending"
+      ),
+    [requests, session]
   );
 
   const background = {
@@ -235,14 +247,14 @@ export default function Home() {
     fontFamily: font,
     background:
       "radial-gradient(circle at 50% -15%,rgba(137,42,190,.38),transparent 35%),linear-gradient(180deg,#0b0710,#050407)",
-    paddingBottom: session && started ? 110 : 25,
+    paddingBottom: session && started ? 88 : 25,
   };
 
   const card = {
     background:
       "linear-gradient(145deg,rgba(27,17,36,.96),rgba(12,8,17,.97))",
     border: `1px solid ${C.border}`,
-    borderRadius: 20,
+    borderRadius: 18,
     color: C.text,
   };
 
@@ -268,6 +280,17 @@ export default function Home() {
     fontFamily: font,
   };
 
+  const tinyButton = {
+    border: `1px solid ${C.border}`,
+    background: "rgba(10,7,14,.82)",
+    color: "#bcaac5",
+    borderRadius: 9,
+    padding: "5px 7px",
+    fontSize: 10,
+    fontWeight: 800,
+    fontFamily: font,
+  };
+
   useEffect(() => {
     initialize();
 
@@ -289,11 +312,17 @@ export default function Home() {
   useEffect(() => {
     if (!session || !started) return;
 
-    loadMessages();
+    firstPublicLoadRef.current = true;
+    publicAtBottomRef.current = true;
+    setShowNewMessages(false);
+
+    loadMessages(true);
     loadRooms();
     loadInventory();
     loadPrivateData();
     loadBlocks();
+    loadVotes();
+    loadReports();
 
     const channel = supabase
       .channel(`who-public-${currentRoom}`)
@@ -305,7 +334,7 @@ export default function Home() {
           table: "messages",
           filter: `room=eq.${currentRoom}`,
         },
-        loadMessages
+        () => loadMessages(false)
       )
       .subscribe();
 
@@ -337,9 +366,7 @@ export default function Home() {
           await loadPrivateData();
 
           if (privateConversation) {
-            await loadPrivateMessages(
-              privateConversation.id
-            );
+            await loadPrivateMessages(privateConversation.id);
           }
         }
       )
@@ -347,6 +374,20 @@ export default function Home() {
 
     return () => supabase.removeChannel(channel);
   }, [session, privateConversation?.id]);
+
+  useEffect(() => {
+    if (
+      chatMode === "private" &&
+      privateConversation &&
+      privateMessages.length
+    ) {
+      setTimeout(() => {
+        privateBottomRef.current?.scrollIntoView({
+          behavior: "smooth",
+        });
+      }, 80);
+    }
+  }, [privateMessages.length, chatMode, privateConversation?.id]);
 
   async function initialize() {
     const { data } = await supabase.auth.getSession();
@@ -376,9 +417,9 @@ export default function Home() {
 
     if (!data) {
       const username =
-        user.user_metadata?.username ||
-        user.email?.split("@")[0] ||
-        "who_user";
+        cleanNickname(user.user_metadata?.username) ||
+        cleanNickname(user.email?.split("@")[0]) ||
+        `who_${user.id.slice(0, 8)}`;
 
       const created = await supabase
         .from("profiles")
@@ -426,11 +467,16 @@ export default function Home() {
       return;
     }
 
+    setAuthError("");
+
     const { data, error } = await supabase.auth.signUp({
       email: internalEmail(username),
       password,
       options: {
-        data: { username },
+        data: {
+          username,
+          nickname: username,
+        },
       },
     });
 
@@ -439,9 +485,40 @@ export default function Home() {
       return;
     }
 
-    if (data.session) {
+    if (data.session && data.user) {
       setSession(data.session);
+
+      /*
+        IMPORTANTE:
+        Se Supabase ha già creato automaticamente il profilo
+        con un nome WHO_xxxxx, qui forziamo il nickname
+        realmente scelto dall'utente.
+      */
+
+      const existing = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", data.user.id)
+        .maybeSingle();
+
+      if (existing.data) {
+        await supabase
+          .from("profiles")
+          .update({
+            nickname: username,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", data.user.id);
+      } else {
+        await supabase.from("profiles").insert({
+          id: data.user.id,
+          nickname: username,
+          avatar: "Shadow",
+        });
+      }
+
       await loadProfile(data.user);
+      setStarted("identity");
     } else {
       setAuthMode("login");
       setAuthError("Account creato. Ora accedi.");
@@ -449,9 +526,11 @@ export default function Home() {
   }
 
   async function login() {
+    const username = cleanNickname(nickname);
+
     const { data, error } =
       await supabase.auth.signInWithPassword({
-        email: internalEmail(nickname),
+        email: internalEmail(username),
         password,
       });
 
@@ -470,11 +549,12 @@ export default function Home() {
     setSession(null);
     setProfile(null);
     setStarted(false);
+    setMessages([]);
+    setPrivateMessages([]);
   }
 
   async function selectAvatar(name) {
     if (!session) return;
-
     if (name === "UNKNOWN" && !isFounder) return;
 
     const { data, error } = await supabase
@@ -516,14 +596,71 @@ export default function Home() {
     applyProfile(data);
   }
 
-  async function loadMessages() {
-    const { data } = await supabase
+  function scrollPublicToBottom(behavior = "smooth") {
+    setTimeout(() => {
+      publicBottomRef.current?.scrollIntoView({
+        behavior,
+        block: "end",
+      });
+
+      publicAtBottomRef.current = true;
+      setShowNewMessages(false);
+    }, 60);
+  }
+
+  function handlePublicScroll() {
+    const el = publicChatRef.current;
+    if (!el) return;
+
+    const distance =
+      el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    const nearBottom = distance < 100;
+
+    publicAtBottomRef.current = nearBottom;
+
+    if (nearBottom) {
+      setShowNewMessages(false);
+    }
+  }
+
+  async function loadMessages(forceBottom = false) {
+    const wasAtBottom = publicAtBottomRef.current;
+
+    const { data, error } = await supabase
       .from("messages")
       .select("*")
       .eq("room", currentRoom)
       .order("id", { ascending: true });
 
-    setMessages(data || []);
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const next = data || [];
+
+    setMessages((old) => {
+      if (
+        next.length > old.length &&
+        !wasAtBottom &&
+        !forceBottom &&
+        !firstPublicLoadRef.current
+      ) {
+        setShowNewMessages(true);
+      }
+
+      return next;
+    });
+
+    if (
+      forceBottom ||
+      wasAtBottom ||
+      firstPublicLoadRef.current
+    ) {
+      firstPublicLoadRef.current = false;
+      scrollPublicToBottom(forceBottom ? "auto" : "smooth");
+    }
   }
 
   async function sendMessage() {
@@ -533,9 +670,7 @@ export default function Home() {
 
     setSending(true);
 
-    const mentionMatch = text.match(
-      /@([a-z0-9_]{3,20})/i
-    );
+    const mentionMatch = text.match(/@([a-z0-9_]{3,20})/i);
 
     let mentionedUserId = null;
     let mentionedNickname = null;
@@ -558,24 +693,17 @@ export default function Home() {
       .insert({
         room: currentRoom,
         user_id: session.user.id,
-        nickname,
+        nickname: profile?.nickname || nickname,
         avatar,
         content: text.slice(0, 500),
         likes: 0,
         dislikes: 0,
-
         reply_to_id: replyingTo?.id || null,
-
-        reply_to_nickname:
-          replyingTo?.nickname || null,
-
+        reply_to_nickname: replyingTo?.nickname || null,
         reply_preview:
           replyingTo?.content?.slice(0, 100) || null,
-
         mentioned_user_id: mentionedUserId,
-
-        mentioned_nickname:
-          mentionedNickname,
+        mentioned_nickname: mentionedNickname,
       });
 
     if (error) {
@@ -583,7 +711,9 @@ export default function Home() {
     } else {
       setMessage("");
       setReplyingTo(null);
-      await loadMessages();
+      publicAtBottomRef.current = true;
+
+      await loadMessages(true);
     }
 
     setSending(false);
@@ -599,6 +729,166 @@ export default function Home() {
 
       return `${old}${old ? " " : ""}${mention}`;
     });
+  }
+
+  function renderMessageText(text = "") {
+    const parts = String(text).split(/(@[a-zA-Z0-9_]+)/g);
+
+    return parts.map((part, index) => {
+      if (/^@[a-zA-Z0-9_]+$/.test(part)) {
+        return (
+          <span
+            key={index}
+            style={{
+              color: C.cyan,
+              fontWeight: 900,
+            }}
+          >
+            {part}
+          </span>
+        );
+      }
+
+      return <span key={index}>{part}</span>;
+    });
+  }
+
+  async function loadVotes() {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("*")
+      .eq("user_id", session.user.id);
+
+    if (error) return;
+
+    const map = {};
+
+    (data || []).forEach((v) => {
+      map[v.message_id] = v.vote;
+    });
+
+    setMyVotes(map);
+  }
+
+  async function voteMessage(msg, vote) {
+    if (!session) return;
+
+    const oldVote = myVotes[msg.id];
+
+    if (oldVote === vote) return;
+
+    const existing = await supabase
+      .from("message_votes")
+      .select("*")
+      .eq("user_id", session.user.id)
+      .eq("message_id", msg.id)
+      .maybeSingle();
+
+    let error = null;
+
+    if (existing.data) {
+      const result = await supabase
+        .from("message_votes")
+        .update({ vote })
+        .eq("user_id", session.user.id)
+        .eq("message_id", msg.id);
+
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from("message_votes")
+        .insert({
+          user_id: session.user.id,
+          message_id: msg.id,
+          vote,
+        });
+
+      error = result.error;
+    }
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    let likes = Number(msg.likes || 0);
+    let dislikes = Number(msg.dislikes || 0);
+
+    if (oldVote === "like") likes = Math.max(0, likes - 1);
+    if (oldVote === "dislike")
+      dislikes = Math.max(0, dislikes - 1);
+
+    if (vote === "like") likes += 1;
+    if (vote === "dislike") dislikes += 1;
+
+    const update = await supabase
+      .from("messages")
+      .update({
+        likes,
+        dislikes,
+      })
+      .eq("id", msg.id);
+
+    if (update.error) {
+      alert(update.error.message);
+      return;
+    }
+
+    setMyVotes((old) => ({
+      ...old,
+      [msg.id]: vote,
+    }));
+
+    await loadMessages(false);
+  }
+
+  async function loadReports() {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from("message_reports")
+      .select("message_id")
+      .eq("user_id", session.user.id);
+
+    if (error) return;
+
+    setReportedMessages(
+      (data || []).map((x) => x.message_id)
+    );
+  }
+
+  async function reportMessage(msg) {
+    if (!session) return;
+
+    if (reportedMessages.includes(msg.id)) {
+      alert("Hai già segnalato questo messaggio.");
+      return;
+    }
+
+    const ok = confirm(
+      `Segnalare il messaggio di @${msg.nickname || "anonimo"}?`
+    );
+
+    if (!ok) return;
+
+    const { error } = await supabase
+      .from("message_reports")
+      .insert({
+        message_id: msg.id,
+        user_id: session.user.id,
+        reason: "user_report",
+      });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setReportedMessages((old) => [...old, msg.id]);
+
+    alert("Segnalazione inviata.");
   }
 
   async function requestPrivate(msg) {
@@ -619,7 +909,9 @@ export default function Home() {
     }
 
     if (!targetId) {
-      alert("Impossibile trovare questo utente.");
+      alert(
+        "Questo è un vecchio messaggio e non è collegato a un account."
+      );
       return;
     }
 
@@ -637,31 +929,24 @@ export default function Home() {
         alert(
           `Questo utente richiede almeno ${result.required_vibe} VIBE. Tu ne hai ${result.your_vibe}.`
         );
-      } else if (
-        result?.reason === "private_disabled"
-      ) {
+      } else if (result?.reason === "private_disabled") {
         alert(
           "Questo utente non accetta messaggi privati."
         );
       } else if (result?.reason === "blocked") {
-        alert(
-          "Il contatto privato non è disponibile."
-        );
+        alert("Il contatto privato non è disponibile.");
       } else {
-        alert(
-          "Non puoi contattare questo utente."
-        );
+        alert("Non puoi contattare questo utente.");
       }
 
       return;
     }
 
-    const existingConversation =
-      conversations.find(
-        (c) =>
-          c.user_one === targetId ||
-          c.user_two === targetId
-      );
+    const existingConversation = conversations.find(
+      (c) =>
+        c.user_one === targetId ||
+        c.user_two === targetId
+    );
 
     if (existingConversation) {
       openConversation(
@@ -731,9 +1016,7 @@ export default function Home() {
       ]);
 
     setRequests(requestResult.data || []);
-    setConversations(
-      conversationResult.data || []
-    );
+    setConversations(conversationResult.data || []);
   }
 
   async function acceptRequest(req) {
@@ -808,9 +1091,7 @@ export default function Home() {
 
     setChatMode("private");
 
-    await loadPrivateMessages(
-      conversation.id
-    );
+    await loadPrivateMessages(conversation.id);
   }
 
   async function openConversationFromList(conv) {
@@ -853,48 +1134,27 @@ export default function Home() {
     await supabase
       .from("private_messages")
       .update({ is_read: true })
-      .eq(
-        "conversation_id",
-        conversationId
-      )
-      .neq(
-        "sender_id",
-        session.user.id
-      )
+      .eq("conversation_id", conversationId)
+      .neq("sender_id", session.user.id)
       .eq("is_read", false);
   }
 
   async function sendPrivateMessage() {
     const text = privateMessage.trim();
 
-    if (
-      !text ||
-      !privateConversation ||
-      !session
-    )
-      return;
+    if (!text || !privateConversation || !session) return;
 
     const { error } = await supabase
       .from("private_messages")
       .insert({
-        conversation_id:
-          privateConversation.id,
-
+        conversation_id: privateConversation.id,
         sender_id: session.user.id,
-
         content: text.slice(0, 1000),
-
-        reply_to_id:
-          privateReply?.id || null,
-
+        reply_to_id: privateReply?.id || null,
         reply_to_nickname:
           privateReply?.nickname || null,
-
         reply_preview:
-          privateReply?.content?.slice(
-            0,
-            100
-          ) || null,
+          privateReply?.content?.slice(0, 100) || null,
       });
 
     if (error) {
@@ -905,20 +1165,13 @@ export default function Home() {
     setPrivateMessage("");
     setPrivateReply(null);
 
-    await loadPrivateMessages(
-      privateConversation.id
-    );
+    await loadPrivateMessages(privateConversation.id);
   }
 
   async function blockUser(userId) {
     if (!session || !userId) return;
 
-    if (
-      !confirm(
-        "Vuoi bloccare questo utente?"
-      )
-    )
-      return;
+    if (!confirm("Vuoi bloccare questo utente?")) return;
 
     const { error } = await supabase
       .from("user_blocks")
@@ -928,8 +1181,7 @@ export default function Home() {
           blocked_id: userId,
         },
         {
-          onConflict:
-            "blocker_id,blocked_id",
+          onConflict: "blocker_id,blocked_id",
         }
       );
 
@@ -953,16 +1205,9 @@ export default function Home() {
     const { data } = await supabase
       .from("user_blocks")
       .select("blocked_id")
-      .eq(
-        "blocker_id",
-        session.user.id
-      );
+      .eq("blocker_id", session.user.id);
 
-    setBlocked(
-      (data || []).map(
-        (x) => x.blocked_id
-      )
-    );
+    setBlocked((data || []).map((x) => x.blocked_id));
   }
 
   async function loadRooms() {
@@ -976,18 +1221,11 @@ export default function Home() {
 
     const db = data || [];
 
-    const official = db.filter(
-      (r) => r.is_official
-    );
-
-    const community = db.filter(
-      (r) => !r.is_official
-    );
+    const official = db.filter((r) => r.is_official);
+    const community = db.filter((r) => !r.is_official);
 
     setRooms([
-      ...(official.length
-        ? official
-        : roomsDefault),
+      ...(official.length ? official : roomsDefault),
       ...community,
     ]);
   }
@@ -998,33 +1236,21 @@ export default function Home() {
     const { data } = await supabase
       .from("user_inventory")
       .select("item_id")
-      .eq(
-        "user_id",
-        session.user.id
-      );
+      .eq("user_id", session.user.id);
 
-    setOwned(
-      (data || []).map(
-        (x) => x.item_id
-      )
-    );
+    setOwned((data || []).map((x) => x.item_id));
   }
 
   async function buyItem(item) {
-    if (
-      owned.includes(item.id) ||
-      points < item.price
-    ) {
-      if (points < item.price)
-        alert(
-          "WHO Points insufficienti."
-        );
+    if (owned.includes(item.id) || points < item.price) {
+      if (points < item.price) {
+        alert("WHO Points insufficienti.");
+      }
 
       return;
     }
 
-    const newPoints =
-      points - item.price;
+    const newPoints = points - item.price;
 
     const update = await supabase
       .from("profiles")
@@ -1040,46 +1266,36 @@ export default function Home() {
       return;
     }
 
-    const inventory =
-      await supabase
-        .from("user_inventory")
-        .insert({
-          user_id:
-            session.user.id,
-          item_id: item.id,
-        });
+    const inventory = await supabase
+      .from("user_inventory")
+      .insert({
+        user_id: session.user.id,
+        item_id: item.id,
+      });
 
     if (inventory.error) {
-      alert(
-        inventory.error.message
-      );
+      alert(inventory.error.message);
       return;
     }
 
     setPoints(newPoints);
-    setOwned((old) => [
-      ...old,
-      item.id,
-    ]);
+    setOwned((old) => [...old, item.id]);
   }
 
-  function Avatar({
-    name,
-    size = 46,
-  }) {
+  function Avatar({ name, size = 46 }) {
     return (
       <img
         src={avatarImage(name)}
         alt=""
         onError={(e) => {
-          e.currentTarget.src =
-            "/shadow.png";
+          e.currentTarget.src = "/shadow.png";
         }}
         style={{
           width: size,
           height: size,
           objectFit: "cover",
           borderRadius: "50%",
+          flexShrink: 0,
           border:
             "1px solid rgba(200,100,255,.35)",
         }}
@@ -1092,12 +1308,11 @@ export default function Home() {
       <div
         style={{
           fontFamily: displayFont,
-          fontSize: 44,
+          fontSize: 40,
           letterSpacing: -4,
           background:
             "linear-gradient(90deg,#fff,#e89cff,#8b55ff,#6eeeff)",
-          WebkitBackgroundClip:
-            "text",
+          WebkitBackgroundClip: "text",
           color: "transparent",
         }}
       >
@@ -1116,12 +1331,11 @@ export default function Home() {
           right: 0,
           zIndex: 100,
           display: "grid",
-          gridTemplateColumns:
-            "repeat(4,1fr)",
-          background:
-            "rgba(7,5,10,.96)",
+          gridTemplateColumns: "repeat(4,1fr)",
+          background: "rgba(7,5,10,.98)",
           borderTop: `1px solid ${C.border}`,
-          padding: "9px 4px 14px",
+          padding: "8px 4px 12px",
+          backdropFilter: "blur(15px)",
         }}
       >
         {[
@@ -1129,64 +1343,44 @@ export default function Home() {
           ["rooms", "◉", "Stanze"],
           ["shop", "◇", "Shop"],
           ["profile", "●", "Profilo"],
-        ].map(
-          ([id, icon, label]) => (
-            <button
-              key={id}
-              onClick={() =>
-                setPage(id)
-              }
-              style={{
-                border: 0,
-                background:
-                  "transparent",
-                color:
-                  page === id
-                    ? "#edaaff"
-                    : "#776d7b",
-                fontFamily: font,
-                fontWeight: 900,
-                fontSize: 10,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 20,
-                }}
-              >
-                {icon}
-              </div>
-
-              {label}
-            </button>
-          )
-        )}
+        ].map(([id, icon, label]) => (
+          <button
+            key={id}
+            onClick={() => setPage(id)}
+            style={{
+              border: 0,
+              background: "transparent",
+              color:
+                page === id ? "#edaaff" : "#776d7b",
+              fontFamily: font,
+              fontWeight: 900,
+              fontSize: 10,
+            }}
+          >
+            <div style={{ fontSize: 19 }}>{icon}</div>
+            {label}
+          </button>
+        ))}
       </nav>
     );
   }
 
-  function ReplyBox({
-    data,
-    cancel,
-  }) {
+  function ReplyBox({ data, cancel }) {
     if (!data) return null;
 
     return (
       <div
         style={{
-          ...card,
-          padding: 9,
-          marginBottom: 7,
+          background: "rgba(181,76,255,.08)",
+          borderLeft: "2px solid #c75cff",
+          borderRadius: 10,
+          padding: "7px 9px",
+          marginBottom: 6,
           display: "flex",
           gap: 8,
         }}
       >
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
+        <div style={{ flex: 1, minWidth: 0 }}>
           <strong
             style={{
               color: "#df9cff",
@@ -1202,8 +1396,7 @@ export default function Home() {
               fontSize: 10,
               whiteSpace: "nowrap",
               overflow: "hidden",
-              textOverflow:
-                "ellipsis",
+              textOverflow: "ellipsis",
             }}
           >
             {data.content}
@@ -1214,8 +1407,7 @@ export default function Home() {
           onClick={cancel}
           style={{
             border: 0,
-            background:
-              "transparent",
+            background: "transparent",
             color: "#aaa",
           }}
         >
@@ -1246,7 +1438,7 @@ export default function Home() {
           style={{
             maxWidth: 420,
             margin: "0 auto",
-            padding: "90px 20px",
+            padding: "80px 20px",
           }}
         >
           <div
@@ -1263,17 +1455,11 @@ export default function Home() {
                 marginTop: 10,
               }}
             >
-              Nessun nome. Nessun
-              giudizio. Solo WHO.
+              Nessun nome. Nessun giudizio. Solo WHO.
             </div>
           </div>
 
-          <div
-            style={{
-              ...card,
-              padding: 20,
-            }}
-          >
+          <div style={{ ...card, padding: 20 }}>
             <h2>
               {authMode === "login"
                 ? "Bentornato in WHO"
@@ -1283,11 +1469,7 @@ export default function Home() {
             <input
               value={nickname}
               onChange={(e) =>
-                setNickname(
-                  cleanNickname(
-                    e.target.value
-                  )
-                )
+                setNickname(cleanNickname(e.target.value))
               }
               placeholder="Nickname"
               style={input}
@@ -1297,9 +1479,7 @@ export default function Home() {
               type="password"
               value={password}
               onChange={(e) =>
-                setPassword(
-                  e.target.value
-                )
+                setPassword(e.target.value)
               }
               placeholder="Password"
               style={{
@@ -1322,9 +1502,7 @@ export default function Home() {
 
             <button
               onClick={
-                authMode === "login"
-                  ? login
-                  : register
+                authMode === "login" ? login : register
               }
               style={{
                 ...purpleButton,
@@ -1350,8 +1528,7 @@ export default function Home() {
               }}
               style={{
                 width: "100%",
-                background:
-                  "transparent",
+                background: "transparent",
                 border: 0,
                 color: "#d996f1",
                 marginTop: 14,
@@ -1381,24 +1558,19 @@ export default function Home() {
             padding: 20,
           }}
         >
-          <h1>
-            Scegli la tua identità
-          </h1>
+          <h1>Scegli la tua identità</h1>
 
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(2,1fr)",
+              gridTemplateColumns: "repeat(2,1fr)",
               gap: 10,
             }}
           >
             {available.map((a) => (
               <button
                 key={a.name}
-                onClick={() =>
-                  selectAvatar(a.name)
-                }
+                onClick={() => selectAvatar(a.name)}
                 style={{
                   ...card,
                   padding: 13,
@@ -1410,10 +1582,8 @@ export default function Home() {
                   style={{
                     width: 105,
                     height: 105,
-                    borderRadius:
-                      "50%",
-                    objectFit:
-                      "cover",
+                    borderRadius: "50%",
+                    objectFit: "cover",
                   }}
                 />
 
@@ -1436,9 +1606,7 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() =>
-              setStarted(true)
-            }
+            onClick={() => setStarted(true)}
             style={{
               ...purpleButton,
               width: "100%",
@@ -1465,8 +1633,7 @@ export default function Home() {
         >
           <h1
             style={{
-              fontFamily:
-                displayFont,
+              fontFamily: displayFont,
               fontSize: 35,
             }}
           >
@@ -1479,9 +1646,8 @@ export default function Home() {
               onClick={() => {
                 setActiveRoom(r);
                 setPage("chat");
-                setChatMode(
-                  "public"
-                );
+                setChatMode("public");
+                firstPublicLoadRef.current = true;
               }}
               style={{
                 ...card,
@@ -1492,9 +1658,7 @@ export default function Home() {
               }}
             >
               <strong>
-                {r.is_private
-                  ? "🔒 "
-                  : "✦ "}
+                {r.is_private ? "🔒 " : "✦ "}
                 {r.name}
               </strong>
 
@@ -1528,8 +1692,7 @@ export default function Home() {
         >
           <h1
             style={{
-              fontFamily:
-                displayFont,
+              fontFamily: displayFont,
               fontSize: 35,
             }}
           >
@@ -1549,82 +1712,59 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(2,1fr)",
+              gridTemplateColumns: "repeat(2,1fr)",
               gap: 10,
             }}
           >
-            {shopItems.map(
-              (item) => (
-                <div
-                  key={item.id}
+            {shopItems.map((item) => (
+              <div
+                key={item.id}
+                style={{
+                  ...card,
+                  overflow: "hidden",
+                }}
+              >
+                <img
+                  src={item.image}
+                  alt=""
                   style={{
-                    ...card,
-                    overflow:
-                      "hidden",
+                    width: "100%",
+                    height: 160,
+                    objectFit: "contain",
                   }}
-                >
-                  <img
-                    src={item.image}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      height: 160,
-                      objectFit:
-                        "contain",
-                    }}
-                  />
+                />
+
+                <div style={{ padding: 12 }}>
+                  <strong>{item.name}</strong>
 
                   <div
                     style={{
-                      padding: 12,
+                      color: "#dc9aff",
+                      margin: "8px 0",
                     }}
                   >
-                    <strong>
-                      {item.name}
-                    </strong>
-
-                    <div
-                      style={{
-                        color:
-                          "#dc9aff",
-                        margin:
-                          "8px 0",
-                      }}
-                    >
-                      ✦ {item.price}
-                    </div>
-
-                    <button
-                      disabled={owned.includes(
-                        item.id
-                      )}
-                      onClick={() =>
-                        buyItem(item)
-                      }
-                      style={{
-                        ...purpleButton,
-                        width:
-                          "100%",
-                        padding: 10,
-                        opacity:
-                          owned.includes(
-                            item.id
-                          )
-                            ? 0.4
-                            : 1,
-                      }}
-                    >
-                      {owned.includes(
-                        item.id
-                      )
-                        ? "✓ POSSEDUTO"
-                        : "SBLOCCA"}
-                    </button>
+                    ✦ {item.price}
                   </div>
+
+                  <button
+                    disabled={owned.includes(item.id)}
+                    onClick={() => buyItem(item)}
+                    style={{
+                      ...purpleButton,
+                      width: "100%",
+                      padding: 10,
+                      opacity: owned.includes(item.id)
+                        ? 0.4
+                        : 1,
+                    }}
+                  >
+                    {owned.includes(item.id)
+                      ? "✓ POSSEDUTO"
+                      : "SBLOCCA"}
+                  </button>
                 </div>
-              )
-            )}
+              </div>
+            ))}
           </div>
         </section>
 
@@ -1643,15 +1783,8 @@ export default function Home() {
             padding: 20,
           }}
         >
-          <div
-            style={{
-              textAlign: "center",
-            }}
-          >
-            <Avatar
-              name={avatar}
-              size={130}
-            />
+          <div style={{ textAlign: "center" }}>
+            <Avatar name={avatar} size={130} />
 
             <h1>@{nickname}</h1>
 
@@ -1670,38 +1803,22 @@ export default function Home() {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(3,1fr)",
+              gridTemplateColumns: "repeat(3,1fr)",
               gap: 8,
               marginTop: 20,
             }}
           >
-            <div
-              style={{
-                ...card,
-                padding: 13,
-              }}
-            >
+            <div style={{ ...card, padding: 13 }}>
               <small>POINTS</small>
               <h2>✦ {points}</h2>
             </div>
 
-            <div
-              style={{
-                ...card,
-                padding: 13,
-              }}
-            >
+            <div style={{ ...card, padding: 13 }}>
               <small>VIBE</small>
               <h2>⚡ {vibe}</h2>
             </div>
 
-            <div
-              style={{
-                ...card,
-                padding: 13,
-              }}
-            >
+            <div style={{ ...card, padding: 13 }}>
               <small>LEVEL</small>
               <h2>{level}</h2>
             </div>
@@ -1714,9 +1831,7 @@ export default function Home() {
               marginTop: 10,
             }}
           >
-            <strong>
-              PRIVACY MESSAGGI
-            </strong>
+            <strong>PRIVACY MESSAGGI</strong>
 
             <p
               style={{
@@ -1724,78 +1839,51 @@ export default function Home() {
                 fontSize: 11,
               }}
             >
-              Decidi chi può
-              inviarti una richiesta
-              privata.
+              Decidi chi può inviarti una richiesta privata.
             </p>
 
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "repeat(3,1fr)",
+                gridTemplateColumns: "repeat(3,1fr)",
                 gap: 6,
               }}
             >
               {[
-                [
-                  "everyone",
-                  "TUTTI",
-                ],
-                [
-                  "vibe",
-                  "VIBE",
-                ],
-                [
-                  "nobody",
-                  "NESSUNO",
-                ],
-              ].map(
-                ([value, label]) => (
-                  <button
-                    key={value}
-                    onClick={() =>
-                      saveDmSettings(
-                        value
-                      )
-                    }
-                    style={{
-                      padding: 10,
-                      borderRadius:
-                        12,
-                      border:
-                        dmPrivacy ===
-                        value
-                          ? "1px solid #cf6cff"
-                          : `1px solid ${C.border}`,
-                      background:
-                        dmPrivacy ===
-                        value
-                          ? "rgba(181,76,255,.18)"
-                          : "#0c0910",
-                      color:
-                        "#fff",
-                      fontWeight:
-                        900,
-                      fontSize: 9,
-                    }}
-                  >
-                    {label}
-                  </button>
-                )
-              )}
+                ["everyone", "TUTTI"],
+                ["vibe", "VIBE"],
+                ["nobody", "NESSUNO"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() =>
+                    saveDmSettings(value)
+                  }
+                  style={{
+                    padding: 10,
+                    borderRadius: 12,
+                    border:
+                      dmPrivacy === value
+                        ? "1px solid #cf6cff"
+                        : `1px solid ${C.border}`,
+                    background:
+                      dmPrivacy === value
+                        ? "rgba(181,76,255,.18)"
+                        : "#0c0910",
+                    color: "#fff",
+                    fontWeight: 900,
+                    fontSize: 9,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {dmPrivacy ===
-              "vibe" && (
-              <div
-                style={{
-                  marginTop: 14,
-                }}
-              >
+            {dmPrivacy === "vibe" && (
+              <div style={{ marginTop: 14 }}>
                 <small>
-                  VIBE MINIMA PER
-                  CONTATTARTI
+                  VIBE MINIMA PER CONTATTARTI
                 </small>
 
                 <input
@@ -1804,10 +1892,7 @@ export default function Home() {
                   value={dmMinVibe}
                   onChange={(e) =>
                     setDmMinVibe(
-                      Number(
-                        e.target
-                          .value
-                      )
+                      Number(e.target.value)
                     )
                   }
                   style={{
@@ -1843,15 +1928,9 @@ export default function Home() {
               marginTop: 10,
             }}
           >
-            <strong>
-              REPUTAZIONE
-            </strong>
+            <strong>REPUTAZIONE</strong>
 
-            <h3
-              style={{
-                color: C.green,
-              }}
-            >
+            <h3 style={{ color: C.green }}>
               ✓ IN REGOLA
             </h3>
 
@@ -1866,11 +1945,7 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() =>
-              setStarted(
-                "identity"
-              )
-            }
+            onClick={() => setStarted("identity")}
             style={{
               ...card,
               width: "100%",
@@ -1890,8 +1965,7 @@ export default function Home() {
               borderRadius: 15,
               border:
                 "1px solid rgba(255,90,130,.3)",
-              background:
-                "rgba(120,30,55,.15)",
+              background: "rgba(120,30,55,.15)",
               color: "#ff9ab6",
             }}
           >
@@ -1904,40 +1978,42 @@ export default function Home() {
     );
   }
 
-  const incomingRequests =
-    requests.filter(
-      (r) =>
-        r.receiver_id ===
-          session.user.id &&
-        r.status === "pending"
-    );
-
   return (
-    <main style={background}>
+    <main
+      style={{
+        ...background,
+        height: "100dvh",
+        overflow: "hidden",
+        paddingBottom: 0,
+      }}
+    >
       <section
         style={{
           maxWidth: 650,
+          height: "100%",
           margin: "0 auto",
-          padding: 18,
+          padding: "10px 12px 76px",
+          boxSizing: "border-box",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <header
           style={{
             display: "flex",
-            justifyContent:
-              "space-between",
+            justifyContent: "space-between",
             alignItems: "center",
+            flexShrink: 0,
           }}
         >
           <Logo />
 
           <button
-            onClick={() =>
-              setPage("rooms")
-            }
+            onClick={() => setPage("rooms")}
             style={{
               ...card,
-              padding: "8px 11px",
+              padding: "7px 10px",
+              fontSize: 11,
             }}
           >
             ◉ Stanze
@@ -1947,24 +2023,24 @@ export default function Home() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "1fr 1fr",
-            gap: 7,
-            margin: "15px 0",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 6,
+            margin: "8px 0",
+            flexShrink: 0,
           }}
         >
           <button
             onClick={() => {
-              setChatMode(
-                "public"
-              );
-              setPrivateConversation(
-                null
-              );
+              setChatMode("public");
+              setPrivateConversation(null);
+
+              setTimeout(() => {
+                scrollPublicToBottom("auto");
+              }, 80);
             }}
             style={{
-              padding: 12,
-              borderRadius: 13,
+              padding: 9,
+              borderRadius: 11,
               border:
                 chatMode === "public"
                   ? "1px solid #c65cff"
@@ -1975,6 +2051,7 @@ export default function Home() {
                   : "#0d0911",
               color: "#fff",
               fontWeight: 900,
+              fontSize: 11,
             }}
           >
             ✦ PUBBLICA
@@ -1982,17 +2059,13 @@ export default function Home() {
 
           <button
             onClick={() => {
-              setChatMode(
-                "inbox"
-              );
-              setPrivateConversation(
-                null
-              );
+              setChatMode("inbox");
+              setPrivateConversation(null);
               loadPrivateData();
             }}
             style={{
-              padding: 12,
-              borderRadius: 13,
+              padding: 9,
+              borderRadius: 11,
               border:
                 chatMode !== "public"
                   ? "1px solid #c65cff"
@@ -2003,149 +2076,125 @@ export default function Home() {
                   : "#0d0911",
               color: "#fff",
               fontWeight: 900,
+              fontSize: 11,
             }}
           >
             ✉ PRIVATI
-            {incomingRequests.length >
-              0 &&
+            {incomingRequests.length > 0 &&
               ` · ${incomingRequests.length}`}
           </button>
         </div>
 
         {chatMode === "inbox" &&
           !privateConversation && (
-            <>
-              <h2>
-                Richieste
-              </h2>
+            <div
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                paddingBottom: 10,
+              }}
+            >
+              <h2>Richieste</h2>
 
-              {incomingRequests.length ===
-                0 && (
+              {incomingRequests.length === 0 && (
                 <div
                   style={{
                     ...card,
                     padding: 15,
-                    color:
-                      C.muted,
+                    color: C.muted,
                   }}
                 >
-                  Nessuna nuova
-                  richiesta.
+                  Nessuna nuova richiesta.
                 </div>
               )}
 
-              {incomingRequests.map(
-                (req) => (
+              {incomingRequests.map((req) => (
+                <div
+                  key={req.id}
+                  style={{
+                    ...card,
+                    padding: 13,
+                    marginBottom: 8,
+                  }}
+                >
+                  <strong>
+                    ✉ Nuova richiesta privata
+                  </strong>
+
                   <div
-                    key={req.id}
                     style={{
-                      ...card,
-                      padding: 13,
-                      marginBottom: 8,
+                      display: "flex",
+                      gap: 6,
+                      marginTop: 10,
                     }}
                   >
-                    <strong>
-                      Nuova richiesta
-                      privata
-                    </strong>
-
-                    <div
+                    <button
+                      onClick={() =>
+                        acceptRequest(req)
+                      }
                       style={{
-                        display:
-                          "flex",
-                        gap: 6,
-                        marginTop: 10,
+                        ...purpleButton,
+                        flex: 1,
+                        padding: 10,
                       }}
                     >
-                      <button
-                        onClick={() =>
-                          acceptRequest(
-                            req
-                          )
-                        }
-                        style={{
-                          ...purpleButton,
-                          flex: 1,
-                          padding: 10,
-                        }}
-                      >
-                        ACCETTA
-                      </button>
+                      ACCETTA
+                    </button>
 
-                      <button
-                        onClick={() =>
-                          declineRequest(
-                            req
-                          )
-                        }
-                        style={{
-                          flex: 1,
-                          padding: 10,
-                          borderRadius:
-                            12,
-                          border:
-                            "1px solid rgba(255,100,140,.3)",
-                          background:
-                            "#160b10",
-                          color:
-                            "#ff9ab6",
-                        }}
-                      >
-                        RIFIUTA
-                      </button>
-                    </div>
+                    <button
+                      onClick={() =>
+                        declineRequest(req)
+                      }
+                      style={{
+                        flex: 1,
+                        padding: 10,
+                        borderRadius: 12,
+                        border:
+                          "1px solid rgba(255,100,140,.3)",
+                        background: "#160b10",
+                        color: "#ff9ab6",
+                      }}
+                    >
+                      RIFIUTA
+                    </button>
                   </div>
-                )
-              )}
+                </div>
+              ))}
 
-              <h2
-                style={{
-                  marginTop: 25,
-                }}
-              >
+              <h2 style={{ marginTop: 25 }}>
                 Conversazioni
               </h2>
 
-              {conversations.length ===
-                0 && (
+              {conversations.length === 0 && (
                 <div
                   style={{
                     ...card,
                     padding: 15,
-                    color:
-                      C.muted,
+                    color: C.muted,
                   }}
                 >
-                  Nessuna
-                  conversazione
-                  privata.
+                  Nessuna conversazione privata.
                 </div>
               )}
 
-              {conversations.map(
-                (conv) => (
-                  <button
-                    key={conv.id}
-                    onClick={() =>
-                      openConversationFromList(
-                        conv
-                      )
-                    }
-                    style={{
-                      ...card,
-                      width: "100%",
-                      padding: 14,
-                      marginBottom: 8,
-                      textAlign:
-                        "left",
-                    }}
-                  >
-                    ✉ Apri
-                    conversazione
-                  </button>
-                )
-              )}
-            </>
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() =>
+                    openConversationFromList(conv)
+                  }
+                  style={{
+                    ...card,
+                    width: "100%",
+                    padding: 14,
+                    marginBottom: 8,
+                    textAlign: "left",
+                  }}
+                >
+                  ✉ Apri conversazione
+                </button>
+              ))}
+            </div>
           )}
 
         {chatMode === "private" &&
@@ -2154,56 +2203,42 @@ export default function Home() {
               <div
                 style={{
                   ...card,
-                  padding: 12,
+                  padding: 9,
                   display: "flex",
-                  alignItems:
-                    "center",
-                  gap: 10,
-                  marginBottom: 10,
+                  alignItems: "center",
+                  gap: 9,
+                  marginBottom: 7,
+                  flexShrink: 0,
                 }}
               >
                 <button
                   onClick={() => {
-                    setChatMode(
-                      "inbox"
-                    );
-                    setPrivateConversation(
-                      null
-                    );
+                    setChatMode("inbox");
+                    setPrivateConversation(null);
                   }}
                   style={{
                     border: 0,
-                    background:
-                      "transparent",
-                    color:
-                      "#dda0ff",
-                    fontSize: 20,
+                    background: "transparent",
+                    color: "#dda0ff",
+                    fontSize: 22,
                   }}
                 >
                   ‹
                 </button>
 
                 <Avatar
-                  name={
-                    privatePeer?.avatar
-                  }
+                  name={privatePeer?.avatar}
+                  size={36}
                 />
 
-                <div
-                  style={{
-                    flex: 1,
-                  }}
-                >
+                <div style={{ flex: 1 }}>
                   <strong>
-                    @
-                    {privatePeer?.nickname ||
-                      "WHO"}
+                    @{privatePeer?.nickname || "WHO"}
                   </strong>
 
                   <div
                     style={{
-                      color:
-                        C.muted,
+                      color: C.muted,
                       fontSize: 9,
                     }}
                   >
@@ -2213,113 +2248,92 @@ export default function Home() {
 
                 <button
                   onClick={() =>
-                    blockUser(
-                      privatePeer?.id
-                    )
+                    blockUser(privatePeer?.id)
                   }
                   style={{
                     border: 0,
-                    background:
-                      "transparent",
-                    color:
-                      "#ff879f",
-                    fontSize: 10,
+                    background: "transparent",
+                    color: "#ff879f",
+                    fontSize: 9,
                   }}
                 >
                   ⊘ BLOCCA
                 </button>
               </div>
 
-              {privateMessages.map(
-                (m) => {
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  minHeight: 0,
+                  padding: "4px 2px 8px",
+                }}
+              >
+                {privateMessages.map((m) => {
                   const mine =
-                    m.sender_id ===
-                    session.user.id;
+                    m.sender_id === session.user.id;
 
                   return (
                     <div
                       key={m.id}
                       style={{
-                        display:
-                          "flex",
-                        justifyContent:
-                          mine
-                            ? "flex-end"
-                            : "flex-start",
-                        marginBottom: 7,
+                        display: "flex",
+                        justifyContent: mine
+                          ? "flex-end"
+                          : "flex-start",
+                        marginBottom: 6,
                       }}
                     >
                       <div
                         style={{
-                          maxWidth:
-                            "82%",
-                          padding:
-                            "10px 12px",
-                          borderRadius:
-                            mine
-                              ? "17px 17px 5px 17px"
-                              : "17px 17px 17px 5px",
-                          background:
-                            mine
-                              ? "linear-gradient(135deg,#702596,#45145f)"
-                              : "#17101f",
+                          maxWidth: "82%",
+                          padding: "9px 11px",
+                          borderRadius: mine
+                            ? "16px 16px 5px 16px"
+                            : "16px 16px 16px 5px",
+                          background: mine
+                            ? "linear-gradient(135deg,#702596,#45145f)"
+                            : "#17101f",
                           border: `1px solid ${C.border}`,
+                          fontSize: 13,
                         }}
                       >
                         {m.reply_to_nickname && (
                           <div
                             style={{
-                              padding:
-                                7,
+                              padding: 6,
                               borderLeft:
                                 "2px solid #d45fff",
                               background:
                                 "rgba(0,0,0,.18)",
-                              marginBottom:
-                                6,
-                              fontSize:
-                                9,
-                              color:
-                                C.muted,
+                              marginBottom: 5,
+                              fontSize: 9,
+                              color: C.muted,
                             }}
                           >
-                            ↩ @
-                            {
-                              m.reply_to_nickname
-                            }
+                            ↩ @{m.reply_to_nickname}
                             <br />
-                            {
-                              m.reply_preview
-                            }
+                            {m.reply_preview}
                           </div>
                         )}
 
-                        <div>
-                          {m.content}
-                        </div>
+                        <div>{m.content}</div>
 
                         <button
                           onClick={() =>
-                            setPrivateReply(
-                              {
-                                ...m,
-                                nickname:
-                                  mine
-                                    ? nickname
-                                    : privatePeer?.nickname,
-                              }
-                            )
+                            setPrivateReply({
+                              ...m,
+                              nickname: mine
+                                ? nickname
+                                : privatePeer?.nickname,
+                            })
                           }
                           style={{
                             border: 0,
-                            background:
-                              "transparent",
-                            color:
-                              "#c894dc",
-                            padding:
-                              "7px 0 0",
-                            fontSize:
-                              9,
+                            background: "transparent",
+                            color: "#c894dc",
+                            padding: "6px 0 0",
+                            fontSize: 9,
                           }}
                         >
                           ↩ RISPONDI
@@ -2327,60 +2341,59 @@ export default function Home() {
                       </div>
                     </div>
                   );
-                }
-              )}
+                })}
 
-              <ReplyBox
-                data={privateReply}
-                cancel={() =>
-                  setPrivateReply(
-                    null
-                  )
-                }
-              />
+                <div ref={privateBottomRef} />
+              </div>
 
-              <div
-                style={{
-                  ...card,
-                  padding: 7,
-                  display: "flex",
-                  gap: 6,
-                }}
-              >
-                <input
-                  value={
-                    privateMessage
+              <div style={{ flexShrink: 0 }}>
+                <ReplyBox
+                  data={privateReply}
+                  cancel={() =>
+                    setPrivateReply(null)
                   }
-                  onChange={(e) =>
-                    setPrivateMessage(
-                      e.target
-                        .value
-                    )
-                  }
-                  placeholder="Messaggio privato..."
-                  style={{
-                    flex: 1,
-                    background:
-                      "transparent",
-                    border: 0,
-                    outline: 0,
-                    color:
-                      "#fff",
-                    padding: 10,
-                  }}
                 />
 
-                <button
-                  onClick={
-                    sendPrivateMessage
-                  }
+                <div
                   style={{
-                    ...purpleButton,
-                    width: 45,
+                    ...card,
+                    padding: 6,
+                    display: "flex",
+                    gap: 6,
                   }}
                 >
-                  ➤
-                </button>
+                  <input
+                    value={privateMessage}
+                    onChange={(e) =>
+                      setPrivateMessage(e.target.value)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        sendPrivateMessage();
+                      }
+                    }}
+                    placeholder="Messaggio privato..."
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      background: "transparent",
+                      border: 0,
+                      outline: 0,
+                      color: "#fff",
+                      padding: 9,
+                    }}
+                  />
+
+                  <button
+                    onClick={sendPrivateMessage}
+                    style={{
+                      ...purpleButton,
+                      width: 43,
+                    }}
+                  >
+                    ➤
+                  </button>
+                </div>
               </div>
             </>
           )}
@@ -2389,259 +2402,398 @@ export default function Home() {
           <>
             <div
               style={{
-                marginBottom: 12,
+                display: "flex",
+                alignItems: "end",
+                justifyContent: "space-between",
+                margin: "1px 2px 7px",
+                flexShrink: 0,
               }}
             >
-              <small
-                style={{
-                  color:
-                    "#c879ef",
-                  fontWeight: 900,
-                }}
-              >
-                CHAT PUBBLICA
-              </small>
-
-              <h1
-                style={{
-                  fontFamily:
-                    displayFont,
-                  margin:
-                    "4px 0",
-                }}
-              >
-                {activeRoom.name}
-              </h1>
-            </div>
-
-            {messages.map(
-              (msg) => (
-                <article
-                  key={msg.id}
+              <div>
+                <small
                   style={{
-                    ...card,
-                    padding: 12,
-                    marginBottom: 8,
+                    color: "#c879ef",
+                    fontWeight: 900,
+                    fontSize: 9,
                   }}
                 >
-                  <div
-                    style={{
-                      display:
-                        "flex",
-                      gap: 9,
-                    }}
-                  >
-                    <button
-                      onClick={() =>
-                        requestPrivate(
-                          msg
-                        )
-                      }
-                      style={{
-                        border: 0,
-                        padding: 0,
-                        background:
-                          "transparent",
-                      }}
-                    >
-                      <Avatar
-                        name={
-                          msg.avatar
-                        }
-                        size={42}
-                      />
-                    </button>
+                  CHAT PUBBLICA
+                </small>
 
-                    <div
-                      style={{
-                        flex: 1,
-                        minWidth: 0,
-                      }}
-                    >
-                      <button
-                        onClick={() =>
-                          mentionUser(
-                            msg
-                          )
-                        }
-                        style={{
-                          border: 0,
-                          background:
-                            "transparent",
-                          padding: 0,
-                          color:
-                            "#fff",
-                          fontWeight:
-                            900,
-                        }}
-                      >
-                        @
-                        {msg.nickname ||
-                          "anonimo"}
-                      </button>
+                <div
+                  style={{
+                    fontFamily: displayFont,
+                    fontSize: 19,
+                    marginTop: 1,
+                  }}
+                >
+                  {activeRoom.name}
+                </div>
+              </div>
 
-                      {msg.reply_to_nickname && (
-                        <div
-                          style={{
-                            marginTop:
-                              6,
-                            padding:
-                              7,
-                            borderLeft:
-                              "2px solid #c95cff",
-                            background:
-                              "rgba(181,76,255,.07)",
-                            color:
-                              C.muted,
-                            fontSize:
-                              10,
-                          }}
-                        >
-                          ↩ @
-                          {
-                            msg.reply_to_nickname
-                          }
-                          :{" "}
-                          {
-                            msg.reply_preview
-                          }
-                        </div>
-                      )}
-
-                      <p
-                        style={{
-                          lineHeight:
-                            1.45,
-                          overflowWrap:
-                            "anywhere",
-                        }}
-                      >
-                        {msg.content}
-                      </p>
-
-                      <div
-                        style={{
-                          display:
-                            "flex",
-                          gap: 5,
-                          flexWrap:
-                            "wrap",
-                        }}
-                      >
-                        <button
-                          onClick={() =>
-                            setReplyingTo(
-                              msg
-                            )
-                          }
-                          style={{
-                            border:
-                              `1px solid ${C.border}`,
-                            background:
-                              "#0b0810",
-                            color:
-                              "#c995df",
-                            borderRadius:
-                              20,
-                            padding:
-                              "6px 9px",
-                          }}
-                        >
-                          ↩ Rispondi
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            mentionUser(
-                              msg
-                            )
-                          }
-                          style={{
-                            border:
-                              `1px solid ${C.border}`,
-                            background:
-                              "#0b0810",
-                            color:
-                              "#c995df",
-                            borderRadius:
-                              20,
-                            padding:
-                              "6px 9px",
-                          }}
-                        >
-                          @ Menziona
-                        </button>
-
-                        {msg.user_id !==
-                          session.user
-                            .id && (
-                          <button
-                            onClick={() =>
-                              requestPrivate(
-                                msg
-                              )
-                            }
-                            style={{
-                              border:
-                                `1px solid ${C.border}`,
-                              background:
-                                "#0b0810",
-                              color:
-                                "#e3a3ff",
-                              borderRadius:
-                                20,
-                              padding:
-                                "6px 9px",
-                            }}
-                          >
-                            ✉ Privato
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              )
-            )}
+              <div
+                style={{
+                  color: C.muted,
+                  fontSize: 9,
+                }}
+              >
+                ⚡ VIBE {vibe}
+              </div>
+            </div>
 
             <div
               style={{
-                position: "sticky",
-                bottom: 75,
-                background:
-                  "linear-gradient(transparent,#07050a 25%)",
-                paddingTop: 12,
+                position: "relative",
+                flex: 1,
+                minHeight: 0,
+              }}
+            >
+              <div
+                ref={publicChatRef}
+                onScroll={handlePublicScroll}
+                style={{
+                  height: "100%",
+                  overflowY: "auto",
+                  overscrollBehavior: "contain",
+                  padding: "2px 2px 10px",
+                  scrollbarWidth: "thin",
+                }}
+              >
+                {messages.length === 0 && (
+                  <div
+                    style={{
+                      textAlign: "center",
+                      color: C.muted,
+                      padding: 30,
+                      fontSize: 12,
+                    }}
+                  >
+                    Nessun messaggio ancora.
+                    <br />
+                    Inizia tu la conversazione.
+                  </div>
+                )}
+
+                {messages.map((msg) => {
+                  const mine =
+                    msg.user_id === session.user.id;
+
+                  const positive =
+                    myVotes[msg.id] === "like";
+
+                  const negative =
+                    myVotes[msg.id] === "dislike";
+
+                  const reported =
+                    reportedMessages.includes(msg.id);
+
+                  return (
+                    <article
+                      key={msg.id}
+                      style={{
+                        background: mine
+                          ? "linear-gradient(145deg,rgba(67,24,88,.78),rgba(20,11,28,.94))"
+                          : "linear-gradient(145deg,rgba(24,15,32,.95),rgba(11,8,15,.96))",
+                        border: mine
+                          ? "1px solid rgba(202,91,255,.32)"
+                          : `1px solid ${C.border}`,
+                        borderRadius: 14,
+                        padding: "8px 9px",
+                        marginBottom: 6,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          alignItems: "flex-start",
+                        }}
+                      >
+                        <button
+                          onClick={() =>
+                            !mine &&
+                            requestPrivate(msg)
+                          }
+                          style={{
+                            border: 0,
+                            padding: 0,
+                            background: "transparent",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Avatar
+                            name={msg.avatar}
+                            size={34}
+                          />
+                        </button>
+
+                        <div
+                          style={{
+                            flex: 1,
+                            minWidth: 0,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                            }}
+                          >
+                            <button
+                              onClick={() =>
+                                mentionUser(msg)
+                              }
+                              style={{
+                                border: 0,
+                                background: "transparent",
+                                padding: 0,
+                                color: mine
+                                  ? "#f0c7ff"
+                                  : "#fff",
+                                fontWeight: 900,
+                                fontSize: 12,
+                              }}
+                            >
+                              @{msg.nickname || "anonimo"}
+                            </button>
+
+                            {mine && (
+                              <span
+                                style={{
+                                  color: C.muted,
+                                  fontSize: 8,
+                                }}
+                              >
+                                TU
+                              </span>
+                            )}
+                          </div>
+
+                          {msg.reply_to_nickname && (
+                            <div
+                              style={{
+                                marginTop: 5,
+                                padding: "5px 7px",
+                                borderLeft:
+                                  "2px solid #c95cff",
+                                borderRadius: 7,
+                                background:
+                                  "rgba(181,76,255,.07)",
+                                color: C.muted,
+                                fontSize: 9,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                            >
+                              ↩ @{msg.reply_to_nickname}:{" "}
+                              {msg.reply_preview}
+                            </div>
+                          )}
+
+                          <div
+                            style={{
+                              marginTop: 5,
+                              lineHeight: 1.35,
+                              fontSize: 13,
+                              overflowWrap: "anywhere",
+                              color: "#f4edf7",
+                            }}
+                          >
+                            {renderMessageText(msg.content)}
+                          </div>
+
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              flexWrap: "wrap",
+                              marginTop: 7,
+                            }}
+                          >
+                            <button
+                              title="Rispondi"
+                              onClick={() =>
+                                setReplyingTo(msg)
+                              }
+                              style={tinyButton}
+                            >
+                              ↩
+                            </button>
+
+                            <button
+                              title="Menziona"
+                              onClick={() =>
+                                mentionUser(msg)
+                              }
+                              style={tinyButton}
+                            >
+                              @
+                            </button>
+
+                            {!mine && (
+                              <button
+                                title="Privato"
+                                onClick={() =>
+                                  requestPrivate(msg)
+                                }
+                                style={{
+                                  ...tinyButton,
+                                  color: "#dda0ff",
+                                }}
+                              >
+                                ✉
+                              </button>
+                            )}
+
+                            <button
+                              title="Reazione positiva"
+                              onClick={() =>
+                                voteMessage(msg, "like")
+                              }
+                              style={{
+                                ...tinyButton,
+                                color: positive
+                                  ? C.cyan
+                                  : "#9e8ba8",
+                                border: positive
+                                  ? `1px solid ${C.cyan}`
+                                  : `1px solid ${C.border}`,
+                                boxShadow: positive
+                                  ? "0 0 10px rgba(100,232,255,.18)"
+                                  : "none",
+                              }}
+                            >
+                              ◇+ {Number(msg.likes || 0)}
+                            </button>
+
+                            <button
+                              title="Reazione negativa"
+                              onClick={() =>
+                                voteMessage(
+                                  msg,
+                                  "dislike"
+                                )
+                              }
+                              style={{
+                                ...tinyButton,
+                                color: negative
+                                  ? C.pink
+                                  : "#9e8ba8",
+                                border: negative
+                                  ? `1px solid ${C.pink}`
+                                  : `1px solid ${C.border}`,
+                                boxShadow: negative
+                                  ? "0 0 10px rgba(239,125,255,.18)"
+                                  : "none",
+                              }}
+                            >
+                              ◇−{" "}
+                              {Number(
+                                msg.dislikes || 0
+                              )}
+                            </button>
+
+                            {!mine && (
+                              <button
+                                title="Segnala"
+                                disabled={reported}
+                                onClick={() =>
+                                  reportMessage(msg)
+                                }
+                                style={{
+                                  ...tinyButton,
+                                  marginLeft: "auto",
+                                  color: reported
+                                    ? "#5e5662"
+                                    : "#aa7583",
+                                  opacity: reported
+                                    ? 0.45
+                                    : 1,
+                                }}
+                              >
+                                ⚑
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+
+                <div ref={publicBottomRef} />
+              </div>
+
+              {showNewMessages && (
+                <button
+                  onClick={() =>
+                    scrollPublicToBottom("smooth")
+                  }
+                  style={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: 8,
+                    transform: "translateX(-50%)",
+                    border:
+                      "1px solid rgba(210,105,255,.55)",
+                    borderRadius: 20,
+                    background:
+                      "rgba(38,16,48,.96)",
+                    color: "#f2c3ff",
+                    padding: "7px 12px",
+                    fontSize: 9,
+                    fontWeight: 900,
+                    boxShadow:
+                      "0 6px 20px rgba(0,0,0,.4)",
+                    zIndex: 20,
+                  }}
+                >
+                  ↓ NUOVI MESSAGGI
+                </button>
+              )}
+            </div>
+
+            <div
+              style={{
+                flexShrink: 0,
+                paddingTop: 6,
+                background: C.bg,
               }}
             >
               <ReplyBox
                 data={replyingTo}
                 cancel={() =>
-                  setReplyingTo(
-                    null
-                  )
+                  setReplyingTo(null)
                 }
               />
 
               <div
                 style={{
                   ...card,
-                  padding: 7,
+                  padding: 5,
                   display: "flex",
-                  gap: 6,
+                  alignItems: "center",
+                  gap: 5,
+                  borderRadius: 14,
+                  boxShadow:
+                    "0 -8px 24px rgba(0,0,0,.28)",
                 }}
               >
                 <input
                   value={message}
+                  maxLength={500}
                   onChange={(e) =>
-                    setMessage(
-                      e.target.value
-                    )
+                    setMessage(e.target.value)
                   }
                   onKeyDown={(e) => {
                     if (
-                      e.key ===
-                      "Enter"
+                      e.key === "Enter" &&
+                      !e.shiftKey
                     ) {
+                      e.preventDefault();
                       sendMessage();
                     }
                   }}
@@ -2649,36 +2801,30 @@ export default function Home() {
                   style={{
                     flex: 1,
                     minWidth: 0,
-                    background:
-                      "transparent",
+                    background: "transparent",
                     border: 0,
-                    color:
-                      "#fff",
+                    color: "#fff",
                     outline: 0,
-                    padding: 10,
+                    padding: "10px 9px",
+                    fontSize: 13,
                   }}
                 />
 
                 <button
-                  onClick={
-                    sendMessage
-                  }
+                  onClick={sendMessage}
                   disabled={
-                    sending ||
-                    !message.trim()
+                    sending || !message.trim()
                   }
                   style={{
                     ...purpleButton,
-                    width: 45,
+                    width: 42,
+                    height: 38,
+                    flexShrink: 0,
                     opacity:
-                      !message.trim()
-                        ? 0.4
-                        : 1,
+                      !message.trim() ? 0.4 : 1,
                   }}
                 >
-                  {sending
-                    ? "…"
-                    : "➤"}
+                  {sending ? "…" : "➤"}
                 </button>
               </div>
             </div>
