@@ -153,10 +153,7 @@ function internalEmail(nickname) {
 function avatarImage(name) {
   if (name === "UNKNOWN") return ownerAvatar.image;
 
-  return (
-    avatars.find((a) => a.name === name)?.image ||
-    "/shadow.png"
-  );
+  return avatars.find((a) => a.name === name)?.image || "/shadow.png";
 }
 
 function roomKey(room) {
@@ -165,6 +162,31 @@ function roomKey(room) {
   return String(room?.id || "generale")
     .toLowerCase()
     .replace(/[^a-z0-9_-]/g, "-");
+}
+
+function getMessageColor(value) {
+  const colors = {
+    purple: "#e4a7ff",
+    cyan: "#64e8ff",
+    pink: "#ff8fda",
+    red: "#ff728f",
+    green: "#61e5a4",
+    white: "#f8f4fb",
+  };
+
+  return colors[value] || colors.purple;
+}
+
+function getMessageFont(value) {
+  const fonts = {
+    standard:
+      '"Trebuchet MS",Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+    tech: '"Courier New",Courier,monospace',
+    bold: '"Arial Black","Trebuchet MS",sans-serif',
+    elegant: 'Georgia,"Times New Roman",serif',
+  };
+
+  return fonts[value] || fonts.standard;
 }
 
 export default function Home() {
@@ -189,6 +211,9 @@ export default function Home() {
   const [dmPrivacy, setDmPrivacy] = useState("vibe");
   const [dmMinVibe, setDmMinVibe] = useState(100);
 
+  const [messageColor, setMessageColor] = useState("purple");
+  const [messageFont, setMessageFont] = useState("standard");
+
   const [rooms, setRooms] = useState(roomsDefault);
   const [activeRoom, setActiveRoom] = useState(roomsDefault[0]);
 
@@ -205,9 +230,7 @@ export default function Home() {
   const [requests, setRequests] = useState([]);
   const [conversations, setConversations] = useState([]);
 
-  const [privateConversation, setPrivateConversation] =
-    useState(null);
-
+  const [privateConversation, setPrivateConversation] = useState(null);
   const [privatePeer, setPrivatePeer] = useState(null);
   const [privateMessages, setPrivateMessages] = useState([]);
   const [privateMessage, setPrivateMessage] = useState("");
@@ -228,7 +251,6 @@ export default function Home() {
     String(profile?.role || "").toUpperCase() === "FOUNDER";
 
   const currentRoom = roomKey(activeRoom);
-
   const level = Math.max(1, Math.floor(points / 250) + 1);
 
   const incomingRequests = useMemo(
@@ -272,8 +294,7 @@ export default function Home() {
 
   const purpleButton = {
     border: "1px solid rgba(220,110,255,.55)",
-    background:
-      "linear-gradient(135deg,#9c38cc,#5b1a7d)",
+    background: "linear-gradient(135deg,#9c38cc,#5b1a7d)",
     color: "#fff",
     borderRadius: 14,
     fontWeight: 900,
@@ -281,13 +302,13 @@ export default function Home() {
   };
 
   const tinyButton = {
-    border: `1px solid ${C.border}`,
-    background: "rgba(10,7,14,.82)",
-    color: "#bcaac5",
-    borderRadius: 9,
-    padding: "5px 7px",
-    fontSize: 10,
-    fontWeight: 800,
+    border: 0,
+    background: "transparent",
+    color: "#a999b1",
+    borderRadius: 7,
+    padding: "4px 5px",
+    fontSize: 9,
+    fontWeight: 900,
     fontFamily: font,
   };
 
@@ -391,7 +412,6 @@ export default function Home() {
 
   async function initialize() {
     const { data } = await supabase.auth.getSession();
-
     const current = data?.session || null;
 
     setSession(current);
@@ -403,7 +423,7 @@ export default function Home() {
     setLoading(false);
   }
 
-  async function loadProfile(user) {
+  async function loadProfile(user, preferredNickname = "") {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -415,9 +435,14 @@ export default function Home() {
       return;
     }
 
+    const preferred =
+      cleanNickname(preferredNickname) ||
+      cleanNickname(user.user_metadata?.username) ||
+      cleanNickname(user.user_metadata?.nickname);
+
     if (!data) {
       const username =
-        cleanNickname(user.user_metadata?.username) ||
+        preferred ||
         cleanNickname(user.email?.split("@")[0]) ||
         `who_${user.id.slice(0, 8)}`;
 
@@ -427,6 +452,8 @@ export default function Home() {
           id: user.id,
           nickname: username,
           avatar: "Shadow",
+          message_color: "purple",
+          message_font: "standard",
         })
         .select()
         .single();
@@ -439,7 +466,32 @@ export default function Home() {
       return;
     }
 
-    applyProfile(data);
+    let finalProfile = data;
+
+    const currentNickname = String(data.nickname || "");
+    const looksAutomatic = /^who_[a-z0-9]{6,}$/i.test(currentNickname);
+
+    if (
+      preferred &&
+      looksAutomatic &&
+      cleanNickname(currentNickname) !== preferred
+    ) {
+      const repaired = await supabase
+        .from("profiles")
+        .update({
+          nickname: preferred,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", user.id)
+        .select()
+        .single();
+
+      if (!repaired.error && repaired.data) {
+        finalProfile = repaired.data;
+      }
+    }
+
+    applyProfile(finalProfile);
     setStarted(true);
   }
 
@@ -452,6 +504,8 @@ export default function Home() {
     setReputation(Number(data.reputation ?? 100));
     setDmPrivacy(data.dm_privacy || "vibe");
     setDmMinVibe(Number(data.dm_min_vibe ?? 100));
+    setMessageColor(data.message_color || "purple");
+    setMessageFont(data.message_font || "standard");
   }
 
   async function register() {
@@ -488,13 +542,6 @@ export default function Home() {
     if (data.session && data.user) {
       setSession(data.session);
 
-      /*
-        IMPORTANTE:
-        Se Supabase ha già creato automaticamente il profilo
-        con un nome WHO_xxxxx, qui forziamo il nickname
-        realmente scelto dall'utente.
-      */
-
       const existing = await supabase
         .from("profiles")
         .select("id")
@@ -514,10 +561,12 @@ export default function Home() {
           id: data.user.id,
           nickname: username,
           avatar: "Shadow",
+          message_color: "purple",
+          message_font: "standard",
         });
       }
 
-      await loadProfile(data.user);
+      await loadProfile(data.user, username);
       setStarted("identity");
     } else {
       setAuthMode("login");
@@ -528,11 +577,10 @@ export default function Home() {
   async function login() {
     const username = cleanNickname(nickname);
 
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email: internalEmail(username),
-        password,
-      });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: internalEmail(username),
+      password,
+    });
 
     if (error) {
       setAuthError("Nickname o password non corretti.");
@@ -540,7 +588,7 @@ export default function Home() {
     }
 
     setSession(data.session);
-    await loadProfile(data.user);
+    await loadProfile(data.user, username);
   }
 
   async function logout() {
@@ -570,6 +618,28 @@ export default function Home() {
     if (!error && data) {
       applyProfile(data);
     }
+  }
+
+  async function saveMessageStyle(color, fontStyle) {
+    if (!session) return;
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        message_color: color,
+        message_font: fontStyle,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", session.user.id)
+      .select()
+      .single();
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    applyProfile(data);
   }
 
   async function saveDmSettings(mode, minimum = dmMinVibe) {
@@ -616,7 +686,6 @@ export default function Home() {
       el.scrollHeight - el.scrollTop - el.clientHeight;
 
     const nearBottom = distance < 100;
-
     publicAtBottomRef.current = nearBottom;
 
     if (nearBottom) {
@@ -704,6 +773,8 @@ export default function Home() {
           replyingTo?.content?.slice(0, 100) || null,
         mentioned_user_id: mentionedUserId,
         mentioned_nickname: mentionedNickname,
+        message_color: messageColor,
+        message_font: messageFont,
       });
 
     if (error) {
@@ -776,7 +847,6 @@ export default function Home() {
     if (!session) return;
 
     const oldVote = myVotes[msg.id];
-
     if (oldVote === vote) return;
 
     const existing = await supabase
@@ -825,10 +895,7 @@ export default function Home() {
 
     const update = await supabase
       .from("messages")
-      .update({
-        likes,
-        dislikes,
-      })
+      .update({ likes, dislikes })
       .eq("id", msg.id);
 
     if (update.error) {
@@ -887,13 +954,11 @@ export default function Home() {
     }
 
     setReportedMessages((old) => [...old, msg.id]);
-
     alert("Segnalazione inviata.");
   }
 
   async function requestPrivate(msg) {
     if (!session) return;
-
     if (msg.user_id === session.user.id) return;
 
     let targetId = msg.user_id;
@@ -930,9 +995,7 @@ export default function Home() {
           `Questo utente richiede almeno ${result.required_vibe} VIBE. Tu ne hai ${result.your_vibe}.`
         );
       } else if (result?.reason === "private_disabled") {
-        alert(
-          "Questo utente non accetta messaggi privati."
-        );
+        alert("Questo utente non accetta messaggi privati.");
       } else if (result?.reason === "blocked") {
         alert("Il contatto privato non è disponibile.");
       } else {
@@ -997,22 +1060,14 @@ export default function Home() {
         supabase
           .from("private_requests")
           .select("*")
-          .or(
-            `sender_id.eq.${uid},receiver_id.eq.${uid}`
-          )
-          .order("created_at", {
-            ascending: false,
-          }),
+          .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
+          .order("created_at", { ascending: false }),
 
         supabase
           .from("private_conversations")
           .select("*")
-          .or(
-            `user_one.eq.${uid},user_two.eq.${uid}`
-          )
-          .order("updated_at", {
-            ascending: false,
-          }),
+          .or(`user_one.eq.${uid},user_two.eq.${uid}`)
+          .order("updated_at", { ascending: false }),
       ]);
 
     setRequests(requestResult.data || []);
@@ -1090,7 +1145,6 @@ export default function Home() {
     });
 
     setChatMode("private");
-
     await loadPrivateMessages(conversation.id);
   }
 
@@ -1123,9 +1177,7 @@ export default function Home() {
       .from("private_messages")
       .select("*")
       .eq("conversation_id", conversationId)
-      .order("created_at", {
-        ascending: true,
-      });
+      .order("created_at", { ascending: true });
 
     if (error) return;
 
@@ -1170,7 +1222,6 @@ export default function Home() {
 
   async function blockUser(userId) {
     if (!session || !userId) return;
-
     if (!confirm("Vuoi bloccare questo utente?")) return;
 
     const { error } = await supabase
@@ -1215,9 +1266,7 @@ export default function Home() {
       .from("rooms")
       .select("*")
       .eq("is_active", true)
-      .order("created_at", {
-        ascending: false,
-      });
+      .order("created_at", { ascending: false });
 
     const db = data || [];
 
@@ -1246,7 +1295,6 @@ export default function Home() {
       if (points < item.price) {
         alert("WHO Points insufficienti.");
       }
-
       return;
     }
 
@@ -1296,8 +1344,7 @@ export default function Home() {
           objectFit: "cover",
           borderRadius: "50%",
           flexShrink: 0,
-          border:
-            "1px solid rgba(200,100,255,.35)",
+          border: "1px solid rgba(200,100,255,.35)",
         }}
       />
     );
@@ -1478,9 +1525,7 @@ export default function Home() {
             <input
               type="password"
               value={password}
-              onChange={(e) =>
-                setPassword(e.target.value)
-              }
+              onChange={(e) => setPassword(e.target.value)}
               placeholder="Password"
               style={{
                 ...input,
@@ -1523,7 +1568,6 @@ export default function Home() {
                     ? "register"
                     : "login"
                 );
-
                 setAuthError("");
               }}
               style={{
@@ -1831,6 +1875,135 @@ export default function Home() {
               marginTop: 10,
             }}
           >
+            <strong>STILE MESSAGGI</strong>
+
+            <p
+              style={{
+                color: C.muted,
+                fontSize: 11,
+              }}
+            >
+              Crea il tuo stile personale nella chat pubblica.
+            </p>
+
+            <div
+              style={{
+                background: "#09070c",
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 14,
+                color: getMessageColor(messageColor),
+                fontFamily: getMessageFont(messageFont),
+                fontSize: 14,
+              }}
+            >
+              Questo è il mio stile WHO.
+            </div>
+
+            <small>COLORE</small>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3,1fr)",
+                gap: 7,
+                marginTop: 7,
+              }}
+            >
+              {[
+                ["purple", "VIOLA"],
+                ["cyan", "CIANO"],
+                ["pink", "ROSA"],
+                ["red", "ROSSO"],
+                ["green", "VERDE"],
+                ["white", "BIANCO"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setMessageColor(value);
+                    saveMessageStyle(value, messageFont);
+                  }}
+                  style={{
+                    padding: 10,
+                    borderRadius: 11,
+                    border:
+                      messageColor === value
+                        ? `1px solid ${getMessageColor(value)}`
+                        : `1px solid ${C.border}`,
+                    background:
+                      messageColor === value
+                        ? "rgba(181,76,255,.14)"
+                        : "#0c0910",
+                    color: getMessageColor(value),
+                    fontSize: 9,
+                    fontWeight: 900,
+                  }}
+                >
+                  ● {label}
+                </button>
+              ))}
+            </div>
+
+            <small
+              style={{
+                display: "block",
+                marginTop: 15,
+              }}
+            >
+              CARATTERE
+            </small>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(2,1fr)",
+                gap: 7,
+                marginTop: 7,
+              }}
+            >
+              {[
+                ["standard", "STANDARD"],
+                ["tech", "TECH"],
+                ["bold", "BOLD"],
+                ["elegant", "ELEGANT"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setMessageFont(value);
+                    saveMessageStyle(messageColor, value);
+                  }}
+                  style={{
+                    padding: 11,
+                    borderRadius: 11,
+                    border:
+                      messageFont === value
+                        ? "1px solid #cf6cff"
+                        : `1px solid ${C.border}`,
+                    background:
+                      messageFont === value
+                        ? "rgba(181,76,255,.16)"
+                        : "#0c0910",
+                    color: "#fff",
+                    fontFamily: getMessageFont(value),
+                    fontSize: 10,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{
+              ...card,
+              padding: 16,
+              marginTop: 10,
+            }}
+          >
             <strong>PRIVACY MESSAGGI</strong>
 
             <p
@@ -1856,9 +2029,7 @@ export default function Home() {
               ].map(([value, label]) => (
                 <button
                   key={value}
-                  onClick={() =>
-                    saveDmSettings(value)
-                  }
+                  onClick={() => saveDmSettings(value)}
                   style={{
                     padding: 10,
                     borderRadius: 12,
@@ -1882,18 +2053,14 @@ export default function Home() {
 
             {dmPrivacy === "vibe" && (
               <div style={{ marginTop: 14 }}>
-                <small>
-                  VIBE MINIMA PER CONTATTARTI
-                </small>
+                <small>VIBE MINIMA PER CONTATTARTI</small>
 
                 <input
                   type="number"
                   min="0"
                   value={dmMinVibe}
                   onChange={(e) =>
-                    setDmMinVibe(
-                      Number(e.target.value)
-                    )
+                    setDmMinVibe(Number(e.target.value))
                   }
                   style={{
                     ...input,
@@ -1903,10 +2070,7 @@ export default function Home() {
 
                 <button
                   onClick={() =>
-                    saveDmSettings(
-                      "vibe",
-                      dmMinVibe
-                    )
+                    saveDmSettings("vibe", dmMinVibe)
                   }
                   style={{
                     ...purpleButton,
@@ -1963,8 +2127,7 @@ export default function Home() {
               padding: 15,
               marginTop: 10,
               borderRadius: 15,
-              border:
-                "1px solid rgba(255,90,130,.3)",
+              border: "1px solid rgba(255,90,130,.3)",
               background: "rgba(120,30,55,.15)",
               color: "#ff9ab6",
             }}
@@ -2117,9 +2280,7 @@ export default function Home() {
                     marginBottom: 8,
                   }}
                 >
-                  <strong>
-                    ✉ Nuova richiesta privata
-                  </strong>
+                  <strong>✉ Nuova richiesta privata</strong>
 
                   <div
                     style={{
@@ -2129,9 +2290,7 @@ export default function Home() {
                     }}
                   >
                     <button
-                      onClick={() =>
-                        acceptRequest(req)
-                      }
+                      onClick={() => acceptRequest(req)}
                       style={{
                         ...purpleButton,
                         flex: 1,
@@ -2142,9 +2301,7 @@ export default function Home() {
                     </button>
 
                     <button
-                      onClick={() =>
-                        declineRequest(req)
-                      }
+                      onClick={() => declineRequest(req)}
                       style={{
                         flex: 1,
                         padding: 10,
@@ -2349,9 +2506,7 @@ export default function Home() {
               <div style={{ flexShrink: 0 }}>
                 <ReplyBox
                   data={privateReply}
-                  cancel={() =>
-                    setPrivateReply(null)
-                  }
+                  cancel={() => setPrivateReply(null)}
                 />
 
                 <div
@@ -2405,7 +2560,7 @@ export default function Home() {
                 display: "flex",
                 alignItems: "end",
                 justifyContent: "space-between",
-                margin: "1px 2px 7px",
+                margin: "1px 2px 5px",
                 flexShrink: 0,
               }}
             >
@@ -2455,7 +2610,7 @@ export default function Home() {
                   height: "100%",
                   overflowY: "auto",
                   overscrollBehavior: "contain",
-                  padding: "2px 2px 10px",
+                  padding: "2px 1px 8px",
                   scrollbarWidth: "thin",
                 }}
               >
@@ -2492,20 +2647,19 @@ export default function Home() {
                       key={msg.id}
                       style={{
                         background: mine
-                          ? "linear-gradient(145deg,rgba(67,24,88,.78),rgba(20,11,28,.94))"
-                          : "linear-gradient(145deg,rgba(24,15,32,.95),rgba(11,8,15,.96))",
-                        border: mine
-                          ? "1px solid rgba(202,91,255,.32)"
-                          : `1px solid ${C.border}`,
-                        borderRadius: 14,
-                        padding: "8px 9px",
-                        marginBottom: 6,
+                          ? "rgba(112,37,150,.10)"
+                          : "rgba(255,255,255,.015)",
+                        borderBottom:
+                          "1px solid rgba(190,100,255,.10)",
+                        borderRadius: 10,
+                        padding: "6px 5px",
+                        marginBottom: 2,
                       }}
                     >
                       <div
                         style={{
                           display: "flex",
-                          gap: 8,
+                          gap: 7,
                           alignItems: "flex-start",
                         }}
                       >
@@ -2523,7 +2677,7 @@ export default function Home() {
                         >
                           <Avatar
                             name={msg.avatar}
-                            size={34}
+                            size={30}
                           />
                         </button>
 
@@ -2537,7 +2691,7 @@ export default function Home() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 6,
+                              gap: 5,
                             }}
                           >
                             <button
@@ -2552,7 +2706,7 @@ export default function Home() {
                                   ? "#f0c7ff"
                                   : "#fff",
                                 fontWeight: 900,
-                                fontSize: 12,
+                                fontSize: 11,
                               }}
                             >
                               @{msg.nickname || "anonimo"}
@@ -2562,7 +2716,7 @@ export default function Home() {
                               <span
                                 style={{
                                   color: C.muted,
-                                  fontSize: 8,
+                                  fontSize: 7,
                                 }}
                               >
                                 TU
@@ -2573,15 +2727,15 @@ export default function Home() {
                           {msg.reply_to_nickname && (
                             <div
                               style={{
-                                marginTop: 5,
-                                padding: "5px 7px",
+                                marginTop: 3,
+                                padding: "3px 6px",
                                 borderLeft:
                                   "2px solid #c95cff",
-                                borderRadius: 7,
+                                borderRadius: 5,
                                 background:
-                                  "rgba(181,76,255,.07)",
+                                  "rgba(181,76,255,.05)",
                                 color: C.muted,
-                                fontSize: 9,
+                                fontSize: 8,
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 whiteSpace: "nowrap",
@@ -2594,11 +2748,16 @@ export default function Home() {
 
                           <div
                             style={{
-                              marginTop: 5,
-                              lineHeight: 1.35,
+                              marginTop: 3,
+                              lineHeight: 1.28,
                               fontSize: 13,
                               overflowWrap: "anywhere",
-                              color: "#f4edf7",
+                              color: getMessageColor(
+                                msg.message_color
+                              ),
+                              fontFamily: getMessageFont(
+                                msg.message_font
+                              ),
                             }}
                           >
                             {renderMessageText(msg.content)}
@@ -2608,9 +2767,10 @@ export default function Home() {
                             style={{
                               display: "flex",
                               alignItems: "center",
-                              gap: 4,
+                              gap: 2,
                               flexWrap: "wrap",
-                              marginTop: 7,
+                              marginTop: 3,
+                              minHeight: 22,
                             }}
                           >
                             <button
@@ -2642,9 +2802,10 @@ export default function Home() {
                                 style={{
                                   ...tinyButton,
                                   color: "#dda0ff",
+                                  fontSize: 9,
                                 }}
                               >
-                                ✉
+                                ✉ PVT
                               </button>
                             )}
 
@@ -2658,12 +2819,9 @@ export default function Home() {
                                 color: positive
                                   ? C.cyan
                                   : "#9e8ba8",
-                                border: positive
-                                  ? `1px solid ${C.cyan}`
-                                  : `1px solid ${C.border}`,
-                                boxShadow: positive
-                                  ? "0 0 10px rgba(100,232,255,.18)"
-                                  : "none",
+                                background: positive
+                                  ? "rgba(100,232,255,.08)"
+                                  : "transparent",
                               }}
                             >
                               ◇+ {Number(msg.likes || 0)}
@@ -2682,12 +2840,9 @@ export default function Home() {
                                 color: negative
                                   ? C.pink
                                   : "#9e8ba8",
-                                border: negative
-                                  ? `1px solid ${C.pink}`
-                                  : `1px solid ${C.border}`,
-                                boxShadow: negative
-                                  ? "0 0 10px rgba(239,125,255,.18)"
-                                  : "none",
+                                background: negative
+                                  ? "rgba(239,125,255,.08)"
+                                  : "transparent",
                               }}
                             >
                               ◇−{" "}
@@ -2759,7 +2914,7 @@ export default function Home() {
             <div
               style={{
                 flexShrink: 0,
-                paddingTop: 6,
+                paddingTop: 5,
                 background: C.bg,
               }}
             >
@@ -2803,7 +2958,8 @@ export default function Home() {
                     minWidth: 0,
                     background: "transparent",
                     border: 0,
-                    color: "#fff",
+                    color: getMessageColor(messageColor),
+                    fontFamily: getMessageFont(messageFont),
                     outline: 0,
                     padding: "10px 9px",
                     fontSize: 13,
@@ -2835,4 +2991,4 @@ export default function Home() {
       <Nav />
     </main>
   );
-          }
+                         }
