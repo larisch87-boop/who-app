@@ -184,69 +184,99 @@ function ShopPicture({item,size=140}){
   );
 }
 
+// WHO EQUIPMENT ENGINE
+// Livelli indipendenti e coordinate specifiche.
+// Le immagini con sfondo nero vengono fuse in modalità screen.
+// Per una resa perfetta sono necessari PNG trasparenti.
+
+const equipmentPositions={
+  "royal-crown":{
+    width:"68%",height:"36%",left:"16%",top:"-7%",
+    zIndex:6
+  },
+  "void-mask":{
+    width:"59%",height:"56%",left:"20.5%",top:"27%",
+    zIndex:6
+  },
+  "glitch-eyes":{
+    width:"72%",height:"36%",left:"14%",top:"31%",
+    zIndex:7
+  },
+  "neon-visor":{
+    width:"76%",height:"36%",left:"12%",top:"30%",
+    zIndex:7
+  },
+  "dual-aura":{
+    width:"138%",height:"138%",left:"-19%",top:"-19%",
+    zIndex:1
+  },
+  "nexus-frame":{
+    width:"119%",height:"119%",left:"-9.5%",top:"-9.5%",
+    zIndex:5
+  }
+};
+
+const equipmentDefaults={
+  head:{
+    width:"70%",height:"35%",left:"15%",top:"-5%",zIndex:6
+  },
+  face:{
+    width:"70%",height:"40%",left:"15%",top:"30%",zIndex:6
+  },
+  aura:{
+    width:"140%",height:"140%",left:"-20%",top:"-20%",zIndex:1
+  },
+  frame:{
+    width:"120%",height:"120%",left:"-10%",top:"-10%",zIndex:5
+  }
+};
+
 function AvatarView({
   name="Shadow",size=46,equipment={},catalog=legacyShop
 }){
   const eq=equipment||{};
   const find=id=>catalog.find(x=>x.id===id);
-  const frame=find(eq.frame);
-  const aura=find(eq.aura);
-  const head=find(eq.head);
-  const face=find(eq.face);
-
   const [failed,setFailed]=useState({});
-  useEffect(()=>setFailed({}),[
-    name,eq.head,eq.face,eq.aura,eq.frame
-  ]);
 
-  const layer=(item,slot)=>{
+  useEffect(()=>{
+    setFailed({});
+  },[name,eq.head,eq.face,eq.aura,eq.frame]);
+
+  function renderItem(slot){
+    const item=find(eq[slot]);
     if(!item?.image||failed[item.id])return null;
-
-    const styles={
-      aura:{
-        width:"130%",height:"130%",
-        left:"50%",top:"50%",
-        transform:"translate(-50%,-50%)",
-        zIndex:0,opacity:.55
-      },
-      frame:{
-        width:"116%",height:"116%",
-        left:"50%",top:"50%",
-        transform:"translate(-50%,-50%)",
-        zIndex:1,opacity:.7
-      },
-      head:{
-        width:"64%",height:"30%",
-        left:"50%",top:"1%",
-        transform:"translateX(-50%)",
-        zIndex:4
-      },
-      face:{
-        width:"52%",height:"22%",
-        left:"50%",top:"48%",
-        transform:"translate(-50%,-50%)",
-        zIndex:4
-      }
-    };
+    const position=equipmentPositions[item.id]||
+      equipmentDefaults[slot];
 
     return (
-      <img key={slot} src={item.image} alt=""
-        onError={()=>setFailed(old=>({...old,[item.id]:true}))}
+      <img
+        key={`${slot}-${item.id}`}
+        src={item.image}
+        alt=""
+        onError={()=>setFailed(old=>({
+          ...old,[item.id]:true
+        }))}
         style={{
-          position:"absolute",objectFit:"contain",
-          pointerEvents:"none",...styles[slot]
-        }}/>
+          position:"absolute",
+          ...position,
+          objectFit:"fill",
+          pointerEvents:"none",
+          mixBlendMode:"screen",
+          opacity:slot==="aura"?.75:1,
+          filter:"drop-shadow(0 0 3px rgba(180,80,255,.35))"
+        }}
+      />
     );
-  };
+  }
 
   return (
     <div style={{
-      width:size,height:size,position:"relative",
+      position:"relative",
+      width:size,height:size,
       flexShrink:0,display:"inline-block",
-      isolation:"isolate"
+      isolation:"isolate",overflow:"visible"
     }}>
-      {layer(aura,"aura")}
-      {layer(frame,"frame")}
+      {renderItem("aura")}
       <img src={avatarImage(name)} alt={name}
         onError={e=>{
           if(!e.currentTarget.src.endsWith("/shadow.png"))
@@ -258,8 +288,9 @@ function AvatarView({
           borderRadius:"50%",objectFit:"cover",
           border:"1px solid rgba(200,100,255,.35)"
         }}/>
-      {layer(face,"face")}
-      {layer(head,"head")}
+      {renderItem("frame")}
+      {renderItem("face")}
+      {renderItem("head")}
     </div>
   );
 }
@@ -1099,7 +1130,7 @@ export default function Home(){
     </main>
   );
 
-  // CONTINUA IMMEDIATAMENTE CON IL BLOCCO 2
+  // BLOCCO 2: INCOLLARE QUI SOTTO
   if(page==="rooms")return (
     <main style={background}>
       <section style={{maxWidth:650,margin:"auto",padding:18}}>
