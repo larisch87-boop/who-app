@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -30,7 +29,10 @@ const displayFont = '"Arial Black","Trebuchet MS",sans-serif';
 const avatars = [
   "Shadow", "Pixie", "King", "Azra", "Zero", "Luna",
   "Ranger", "Neon", "Ares", "Vix", "Nova", "Ghost"
-].map(name => ({ name, image: `/${name.toLowerCase()}.png` }));
+].map(name => ({
+  name,
+  image: `/${name.toLowerCase()}.png`
+}));
 
 const ownerAvatar = {
   name: "UNKNOWN",
@@ -44,13 +46,21 @@ const roomsDefault = [
   ["music", "music", "MUSIC", "Musica e nuove scoperte"],
   ["meet-people", "meet-people", "MEET PEOPLE", "Conosci nuove persone"]
 ].map(row => ({
-  id: row[0], room_key: row[1], name: row[2],
-  description: row[3], is_official: true, is_private: false
+  id: row[0],
+  room_key: row[1],
+  name: row[2],
+  description: row[3],
+  is_official: true,
+  is_private: false
 }));
 
 const messageColors = {
-  purple: "#e4a7ff", cyan: "#64e8ff", pink: "#ff8fda",
-  red: "#ff728f", green: "#61e5a4", white: "#f8f4fb"
+  purple: "#e4a7ff",
+  cyan: "#64e8ff",
+  pink: "#ff8fda",
+  red: "#ff728f",
+  green: "#61e5a4",
+  white: "#f8f4fb"
 };
 
 const messageFonts = {
@@ -60,17 +70,28 @@ const messageFonts = {
   elegant: 'Georgia,"Times New Roman",serif'
 };
 
-const cleanNickname = s => String(s || "")
-  .toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
+const cleanNickname = s =>
+  String(s || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "")
+    .slice(0, 20);
 
-const internalEmail = n => `${cleanNickname(n)}@account.who.local`;
-const roomKey = r => r?.room_key || String(r?.id || "generale");
-const avatarImage = name => name === "UNKNOWN"
-  ? ownerAvatar.image
-  : avatars.find(a => a.name === name)?.image || "/shadow.png";
+const internalEmail = n =>
+  `${cleanNickname(n)}@account.who.local`;
 
-const getMessageColor = v => messageColors[v] || messageColors.purple;
-const getMessageFont = v => messageFonts[v] || messageFonts.standard;
+const roomKey = r =>
+  r?.room_key || String(r?.id || "generale");
+
+const avatarImage = name =>
+  name === "UNKNOWN"
+    ? ownerAvatar.image
+    : avatars.find(a => a.name === name)?.image || "/shadow.png";
+
+const getMessageColor = v =>
+  messageColors[v] || messageColors.purple;
+
+const getMessageFont = v =>
+  messageFonts[v] || messageFonts.standard;
 
 const messageStyle = m => ({
   color: getMessageColor(m.message_color),
@@ -89,28 +110,43 @@ const panel = {
 };
 
 const inputStyle = {
-  width: "100%", boxSizing: "border-box", padding: 13,
-  background: "#08060b", color: "#fff",
-  border: `1px solid ${C.border}`, borderRadius: 13,
-  outline: 0, fontFamily: font
+  width: "100%",
+  boxSizing: "border-box",
+  padding: 13,
+  background: "#08060b",
+  color: "#fff",
+  border: `1px solid ${C.border}`,
+  borderRadius: 13,
+  outline: 0,
+  fontFamily: font
 };
 
 const buttonStyle = {
   background: "linear-gradient(135deg,#9c38cc,#5b1a7d)",
   border: "1px solid rgba(220,110,255,.55)",
-  borderRadius: 12, padding: "11px 14px",
-  color: "#fff", fontWeight: 900, fontFamily: font,
+  borderRadius: 12,
+  padding: "11px 14px",
+  color: "#fff",
+  fontWeight: 900,
+  fontFamily: font,
   cursor: "pointer"
 };
 
 const secondaryButton = {
-  background: "#130d19", border: `1px solid ${C.border}`,
-  borderRadius: 11, padding: "9px 11px",
-  color: "#e5c4ee", fontWeight: 800, cursor: "pointer"
+  background: "#130d19",
+  border: `1px solid ${C.border}`,
+  borderRadius: 11,
+  padding: "9px 11px",
+  color: "#e5c4ee",
+  fontWeight: 800,
+  cursor: "pointer"
 };
 
-const formatPoints = v => Number(v || 0).toLocaleString("it-IT");
-const clampScore = v => Math.max(0, Math.min(100, Number(v ?? 100)));
+const formatPoints = v =>
+  Number(v || 0).toLocaleString("it-IT");
+
+const clampScore = v =>
+  Math.max(0, Math.min(100, Number(v ?? 100)));
 
 function rankingTitle(score, rank) {
   const v = Number(score || 0);
@@ -132,14 +168,19 @@ function vibeTitle(value) {
 
 function AvatarView({ name = "Shadow", size = 46 }) {
   return (
-    <img src={avatarImage(name)} alt={name}
+    <img
+      src={avatarImage(name)}
+      alt={name}
       onError={e => {
         if (!e.currentTarget.src.endsWith("/shadow.png"))
           e.currentTarget.src = "/shadow.png";
       }}
       style={{
-        width: size, height: size, flexShrink: 0,
-        borderRadius: "50%", objectFit: "cover",
+        width: size,
+        height: size,
+        flexShrink: 0,
+        borderRadius: "50%",
+        objectFit: "cover",
         border: "1px solid rgba(200,100,255,.35)",
         boxShadow: "0 0 12px rgba(181,76,255,.15)"
       }}
@@ -150,10 +191,15 @@ function AvatarView({ name = "Shadow", size = 46 }) {
 function Logo() {
   return (
     <div style={{
-      fontFamily: displayFont, fontSize: 39, fontWeight: 900,
+      fontFamily: displayFont,
+      fontSize: 39,
+      fontWeight: 900,
       background: "linear-gradient(90deg,#fff,#f0b4ff,#9b63ff,#6eeeff)",
-      WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
-    }}>WHO</div>
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent"
+    }}>
+      WHO
+    </div>
   );
 }
 
@@ -220,16 +266,23 @@ export default function Home() {
 
   const uid = session?.user?.id;
   const currentRoom = roomKey(activeRoom);
-  const isFounder = String(profile?.role || "").toUpperCase() === "FOUNDER";
+  const isFounder =
+    String(profile?.role || "").toUpperCase() === "FOUNDER";
+
   const level = Math.max(1, Math.floor(points / 250) + 1);
 
   const background = {
-    minHeight: "100dvh", color: C.text, fontFamily: font,
-    background: "radial-gradient(circle at 50% -15%,rgba(137,42,190,.38),transparent 35%),linear-gradient(180deg,#0b0710,#050407)",
+    minHeight: "100dvh",
+    color: C.text,
+    fontFamily: font,
+    background:
+      "radial-gradient(circle at 50% -15%,rgba(137,42,190,.38),transparent 35%),linear-gradient(180deg,#0b0710,#050407)",
     paddingBottom: session && started ? 90 : 25
   };
 
-  function alertUser(text) { setNotice(String(text)); }
+  function alertUser(text) {
+    setNotice(String(text));
+  }
 
   function applyProfile(p) {
     setProfile(p);
@@ -246,8 +299,12 @@ export default function Home() {
 
   async function refreshPoints() {
     if (!uid) return;
-    const { data, error } = await supabase.from("profiles")
-      .select("who_points,vibe,reputation").eq("id", uid).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("who_points,vibe,reputation")
+      .eq("id", uid)
+      .maybeSingle();
+
     if (!error && data) {
       setPoints(Number(data.who_points ?? 0));
       setVibe(clampScore(data.vibe));
@@ -256,44 +313,54 @@ export default function Home() {
   }
 
   async function loadProfile(user, preferred = "") {
-    const { data, error } = await supabase.from("profiles")
-      .select("*").eq("id", user.id).maybeSingle();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .maybeSingle();
 
-    if (error) { alertUser(error.message); return; }
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
     if (data) {
       applyProfile(data);
       setStarted(true);
       return;
     }
 
-    const name = cleanNickname(
-      preferred || user.user_metadata?.nickname ||
-      user.user_metadata?.username || user.email?.split("@")[0]
-    ) || `who_${user.id.slice(0, 8)}`;
-
-    const created = await supabase.from("profiles").insert({
-      id: user.id, nickname: name, avatar: "Shadow",
-      message_color: "purple", message_font: "standard"
-    }).select().single();
-
-    if (created.error) { alertUser(created.error.message); return; }
-    applyProfile(created.data);
-    setStarted("identity");
+    // Il profilo deve essere creato dal trigger Supabase.
+    // Non eseguiamo INSERT dal client.
+    alertUser(
+      "Profilo non ancora disponibile. Riprova ad accedere tra qualche istante."
+    );
   }
 
   useEffect(() => {
     let alive = true;
+
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
       setSession(data.session || null);
       setLoading(false);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-      if (!next) { setProfile(null); setStarted(false); }
-      setLoading(false);
-    });
-    return () => { alive = false; data.subscription.unsubscribe(); };
+
+    const { data } = supabase.auth.onAuthStateChange(
+      (_event, next) => {
+        setSession(next);
+        if (!next) {
+          setProfile(null);
+          setStarted(false);
+        }
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      alive = false;
+      data.subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -302,302 +369,577 @@ export default function Home() {
 
   async function register() {
     const name = cleanNickname(nickname);
+
     if (name.length < 3) {
-      setAuthError("Nickname minimo 3 caratteri."); return;
+      setAuthError("Nickname minimo 3 caratteri.");
+      return;
     }
+
     if (password.length < 8) {
-      setAuthError("Password minimo 8 caratteri."); return;
+      setAuthError("Password minimo 8 caratteri.");
+      return;
     }
+
     setAuthError("");
+
     const { data, error } = await supabase.auth.signUp({
-      email: internalEmail(name), password,
-      options: { data: { username: name, nickname: name } }
+      email: internalEmail(name),
+      password,
+      options: {
+        data: {
+          username: name,
+          nickname: name
+        }
+      }
     });
-    if (error) { setAuthError(error.message); return; }
-    if (data.session && data.user) await loadProfile(data.user, name);
-    else {
+
+    if (error) {
+      setAuthError(error.message);
+      return;
+    }
+
+    if (data.session && data.user) {
+      await loadProfile(data.user, name);
+    } else {
       setAuthMode("login");
       setAuthError("Account creato. Ora prova ad accedere.");
     }
+
     setPassword("");
   }
 
   async function login() {
     const name = cleanNickname(nickname);
-    if (!name) { setAuthError("Inserisci il nickname."); return; }
-    const { error } = await supabase.auth.signInWithPassword({
-      email: internalEmail(name), password
-    });
-    if (error) {
-      setAuthError("Nickname o password non corretti."); return;
+
+    if (!name) {
+      setAuthError("Inserisci il nickname.");
+      return;
     }
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email: internalEmail(name),
+      password
+    });
+
+    if (error) {
+      setAuthError("Nickname o password non corretti.");
+      return;
+    }
+
     setPassword("");
   }
 
   async function logout() {
     await supabase.auth.signOut();
-    setProfile(null); setStarted(false); setPage("chat");
-    setNickname(""); setPassword(""); setMessages([]);
-    setDmMessages([]); setDmUser(null); setConversations([]);
-    setUnreadDM(0); setRanking([]); setWeeklyRanking([]);
-    setMyRank(null); setMyWeeklyRank(null);
+    setProfile(null);
+    setStarted(false);
+    setPage("chat");
+    setNickname("");
+    setPassword("");
+    setMessages([]);
+    setDmMessages([]);
+    setDmUser(null);
+    setConversations([]);
+    setUnreadDM(0);
+    setRanking([]);
+    setWeeklyRanking([]);
+    setMyRank(null);
+    setMyWeeklyRank(null);
   }
 
   async function selectAvatar(name) {
     if (!uid || (name === "UNKNOWN" && !isFounder)) return;
-    const { data, error } = await supabase.from("profiles").update({
-      avatar: name, updated_at: new Date().toISOString()
-    }).eq("id", uid).select().single();
-    if (error) { alertUser(error.message); return; }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .update({
+        avatar: name,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", uid)
+      .select()
+      .single();
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
     applyProfile(data);
   }
 
+  // CLASSIFICA MONDIALE: usa la vista Supabase.
+  // CLASSIFICA SETTIMANALE: mantiene la RPC esistente.
   async function loadRanking() {
     if (!uid) return;
+
     setRankingLoading(true);
     setRankingError("");
+
     try {
       if (rankingTab === "weekly") {
-        const { data, error } = await supabase.rpc("who_weekly_ranking");
+        const { data, error } = await supabase.rpc(
+          "who_weekly_ranking"
+        );
+
         if (error) throw error;
-        const users = (data || []).map((user, index) => ({
-          ...user, id: user.user_id, rank: index + 1,
-          weekly_points: Number(user.weekly_points || 0)
-        }));
+
+        const users = (data || [])
+          .map((user, index) => ({
+            ...user,
+            id: user.user_id,
+            rank: Number(user.rank || user.position || index + 1),
+            weekly_points: Number(user.weekly_points || 0)
+          }))
+          .sort((a, b) => a.rank - b.rank)
+          .slice(0, 100);
+
         setWeeklyRanking(users);
-        const index = users.findIndex(user => user.id === uid);
-        setMyWeeklyRank(index >= 0 ? index + 1 : null);
+
+        const mine = users.find(user => user.id === uid);
+        setMyWeeklyRank(mine ? mine.rank : null);
       } else {
-        const { data, error } = await supabase.from("profiles")
-          .select("id,nickname,avatar,who_points")
-          .order("who_points", { ascending: false })
-          .order("id", { ascending: true }).limit(100);
+        const { data, error } = await supabase
+          .from("who_leaderboard")
+          .select("user_id,nickname,avatar,who_points,position")
+          .order("position", { ascending: true })
+          .limit(100);
+
         if (error) throw error;
-        const users = (data || []).map((user, index) => ({
-          ...user, rank: index + 1,
-          who_points: Number(user.who_points || 0)
+
+        const users = (data || []).map(user => ({
+          id: user.user_id,
+          nickname: user.nickname,
+          avatar: user.avatar,
+          who_points: Number(user.who_points || 0),
+          rank: Number(user.position)
         }));
+
         setRanking(users);
-        const index = users.findIndex(user => user.id === uid);
-        setMyRank(index >= 0 ? index + 1 : null);
+
+        const mine = users.find(user => user.id === uid);
+        setMyRank(mine ? mine.rank : null);
       }
     } catch (error) {
-      setRankingError(error.message || "Classifica non disponibile");
-    } finally { setRankingLoading(false); }
+      setRankingError(
+        error.message || "Classifica non disponibile"
+      );
+    } finally {
+      setRankingLoading(false);
+    }
   }
 
   useEffect(() => {
     if (page !== "ranking" || !uid || started !== true) return;
+
     loadRanking();
     const timer = setInterval(loadRanking, 15000);
+
     return () => clearInterval(timer);
   }, [page, uid, started, rankingTab]);
 
   useEffect(() => {
     if (!uid || started !== true) return;
+
     refreshPoints();
     const timer = setInterval(refreshPoints, 10000);
+
     return () => clearInterval(timer);
   }, [uid, started]);
 
   async function loadRooms() {
-    const { data, error } = await supabase.from("rooms")
-      .select("*").order("created_at", { ascending: true });
+    const { data, error } = await supabase
+      .from("rooms")
+      .select("*")
+      .order("created_at", { ascending: true });
+
     if (error) return;
-    setRooms([...roomsDefault, ...(data || []).filter(
-      r => !roomsDefault.some(d => d.room_key === r.room_key)
-    )]);
+
+    setRooms([
+      ...roomsDefault,
+      ...(data || []).filter(
+        r => !roomsDefault.some(
+          d => d.room_key === r.room_key
+        )
+      )
+    ]);
   }
 
   async function createRoom() {
     const name = newRoomName.trim();
+
     if (name.length < 3) {
-      alertUser("Nome stanza minimo 3 caratteri."); return;
+      alertUser("Nome stanza minimo 3 caratteri.");
+      return;
     }
-    const slug = name.toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-").slice(0, 30);
-    const { data, error } = await supabase.from("rooms").insert({
-      room_key: `${slug}-${Date.now().toString(36)}`,
-      name: name.slice(0, 35).toUpperCase(),
-      description: newRoomDescription.slice(0, 120),
-      creator_id: uid, creator_nickname: profile?.nickname || nickname,
-      is_private: newRoomPrivate, is_official: false
-    }).select().single();
-    if (error) { alertUser(error.message); return; }
+
+    const slug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .slice(0, 30);
+
+    const { data, error } = await supabase
+      .from("rooms")
+      .insert({
+        room_key: `${slug}-${Date.now().toString(36)}`,
+        name: name.slice(0, 35).toUpperCase(),
+        description: newRoomDescription.slice(0, 120),
+        creator_id: uid,
+        creator_nickname: profile?.nickname || nickname,
+        is_private: newRoomPrivate,
+        is_official: false
+      })
+      .select()
+      .single();
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
     setRooms(old => [...old, data]);
-    setShowCreateRoom(false); setNewRoomName("");
-    setNewRoomDescription(""); setNewRoomPrivate(false);
+    setShowCreateRoom(false);
+    setNewRoomName("");
+    setNewRoomDescription("");
+    setNewRoomPrivate(false);
   }
 
   async function loadMessages() {
     const target = roomRef.current;
-    const { data, error } = await supabase.from("messages")
-      .select("*").eq("room", target)
-      .order("id", { ascending: true }).limit(300);
-    if (error) { console.error("WHO messages:", error); return; }
-    if (roomRef.current === target) setMessages(data || []);
+
+    const { data, error } = await supabase
+      .from("messages")
+      .select("*")
+      .eq("room", target)
+      .order("id", { ascending: true })
+      .limit(300);
+
+    if (error) {
+      console.error("WHO messages:", error);
+      return;
+    }
+
+    if (roomRef.current === target)
+      setMessages(data || []);
   }
 
   async function sendMessage() {
     const text = message.trim();
+
     if (!uid || !text || sending) return;
+
     setSending(true);
-    const { error } = await supabase.from("messages").insert({
-      room: currentRoom, user_id: uid,
-      nickname: profile?.nickname || nickname, avatar,
-      content: text.slice(0, 500), likes: 0, dislikes: 0,
-      message_color: messageColor, message_font: messageFont,
-      reply_to_id: replyingTo?.id || null,
-      reply_to_nickname: replyingTo?.nickname || null,
-      reply_preview: replyingTo?.content?.slice(0, 100) || null
-    });
+
+    const { error } = await supabase
+      .from("messages")
+      .insert({
+        room: currentRoom,
+        user_id: uid,
+        nickname: profile?.nickname || nickname,
+        avatar,
+        content: text.slice(0, 500),
+        likes: 0,
+        dislikes: 0,
+        message_color: messageColor,
+        message_font: messageFont,
+        reply_to_id: replyingTo?.id || null,
+        reply_to_nickname: replyingTo?.nickname || null,
+        reply_preview: replyingTo?.content?.slice(0, 100) || null
+      });
+
     setSending(false);
-    if (error) { alertUser(error.message); return; }
-    setMessage(""); setReplyingTo(null);
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
+    setMessage("");
+    setReplyingTo(null);
     nearBottomRef.current = true;
-    await Promise.all([loadMessages(), refreshPoints()]);
+
+    await Promise.all([
+      loadMessages(),
+      refreshPoints()
+    ]);
   }
 
   async function loadVotes() {
     if (!uid) return;
-    const { data, error } = await supabase.from("message_votes")
-      .select("message_id,vote").eq("user_id", uid);
-    if (!error) setMyVotes(Object.fromEntries(
-      (data || []).map(x => [x.message_id,
-        Number(x.vote) === 1 ? "like" : "dislike"])
-    ));
+
+    const { data, error } = await supabase
+      .from("message_votes")
+      .select("message_id,vote")
+      .eq("user_id", uid);
+
+    if (!error) {
+      setMyVotes(
+        Object.fromEntries(
+          (data || []).map(x => [
+            x.message_id,
+            Number(x.vote) === 1 ? "like" : "dislike"
+          ])
+        )
+      );
+    }
   }
 
   async function voteMessage(msg, vote) {
     if (!uid || msg.user_id === uid) return;
-    const { error } = await supabase.from("message_votes").upsert({
-      message_id: msg.id, user_id: uid,
-      vote: vote === "like" ? 1 : -1
-    }, { onConflict: "message_id,user_id" });
-    if (error) { alertUser(error.message); return; }
-    setMyVotes(old => ({ ...old, [msg.id]: vote }));
+
+    const { error } = await supabase
+      .from("message_votes")
+      .upsert({
+        message_id: msg.id,
+        user_id: uid,
+        vote: vote === "like" ? 1 : -1
+      }, {
+        onConflict: "message_id,user_id"
+      });
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
+    setMyVotes(old => ({
+      ...old,
+      [msg.id]: vote
+    }));
+
     await loadMessages();
   }
 
   async function loadReports() {
     if (!uid) return;
-    const { data, error } = await supabase.from("message_reports")
-      .select("message_id").eq("reporter_id", uid);
-    if (!error) setReportedMessages((data || []).map(x => x.message_id));
+
+    const { data, error } = await supabase
+      .from("message_reports")
+      .select("message_id")
+      .eq("reporter_id", uid);
+
+    if (!error)
+      setReportedMessages(
+        (data || []).map(x => x.message_id)
+      );
   }
 
   async function reportMessage(msg) {
-    if (!uid || msg.user_id === uid || reportedMessages.includes(msg.id))
+    if (
+      !uid ||
+      msg.user_id === uid ||
+      reportedMessages.includes(msg.id)
+    ) return;
+
+    const { error } = await supabase
+      .from("message_reports")
+      .insert({
+        message_id: msg.id,
+        reporter_id: uid,
+        reason: "user_report"
+      });
+
+    if (error) {
+      alertUser(error.message);
       return;
-    const { error } = await supabase.from("message_reports").insert({
-      message_id: msg.id, reporter_id: uid, reason: "user_report"
-    });
-    if (error) { alertUser(error.message); return; }
+    }
+
     setReportedMessages(old => [...old, msg.id]);
-    alertUser("Segnalazione ricevuta. Nessuna penalità automatica.");
+    alertUser(
+      "Segnalazione ricevuta. Nessuna penalità automatica."
+    );
   }
 
   async function openUserProfile(msg) {
     if (!msg?.user_id && !msg?.id) return;
+
     const userId = msg.user_id || msg.id;
-    const { data } = await supabase.from("profiles")
-      .select("*").eq("id", userId).maybeSingle();
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", userId)
+      .maybeSingle();
+
     setSelectedUser(data || {
-      id: userId, nickname: msg.nickname, avatar: msg.avatar,
-      vibe: 100, reputation: 100, who_points: 0
+      id: userId,
+      nickname: msg.nickname,
+      avatar: msg.avatar,
+      vibe: 100,
+      reputation: 100,
+      who_points: 0
     });
   }
 
   async function loadInbox() {
     if (!uid) return;
-    const { data, error } = await supabase.from("direct_messages")
-      .select("*").or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-      .order("created_at", { ascending: false }).limit(500);
+
+    const { data, error } = await supabase
+      .from("direct_messages")
+      .select("*")
+      .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
+      .order("created_at", { ascending: false })
+      .limit(500);
+
     if (error) return;
+
     const all = data || [];
-    setUnreadDM(all.filter(m => m.receiver_id === uid && !m.is_read).length);
+
+    setUnreadDM(
+      all.filter(
+        m => m.receiver_id === uid && !m.is_read
+      ).length
+    );
+
     const peers = new Map();
+
     for (const msg of all) {
       const other = msg.sender_id === uid
-        ? msg.receiver_id : msg.sender_id;
-      if (!peers.has(other)) peers.set(other, {
-        id: other,
-        nickname: msg.sender_id === uid
-          ? msg.receiver_nickname : msg.sender_nickname,
-        avatar: msg.sender_id === uid ? "Shadow" : msg.sender_avatar,
-        last: msg.content, unread: 0
-      });
+        ? msg.receiver_id
+        : msg.sender_id;
+
+      if (!peers.has(other)) {
+        peers.set(other, {
+          id: other,
+          nickname: msg.sender_id === uid
+            ? msg.receiver_nickname
+            : msg.sender_nickname,
+          avatar: msg.sender_id === uid
+            ? "Shadow"
+            : msg.sender_avatar,
+          last: msg.content,
+          unread: 0
+        });
+      }
+
       if (msg.receiver_id === uid && !msg.is_read)
         peers.get(other).unread++;
     }
+
     setConversations([...peers.values()]);
   }
 
   async function loadDirectMessages(user) {
     if (!uid || !user?.id) return;
-    const { data, error } = await supabase.from("direct_messages")
+
+    const { data, error } = await supabase
+      .from("direct_messages")
       .select("*")
-      .or(`and(sender_id.eq.${uid},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${uid})`)
+      .or(
+        `and(sender_id.eq.${uid},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${uid})`
+      )
       .order("created_at", { ascending: true });
-    if (error) { console.error("WHO DM:", error); return; }
+
+    if (error) {
+      console.error("WHO DM:", error);
+      return;
+    }
+
     setDmMessages(data || []);
-    await supabase.from("direct_messages")
-      .update({ is_read: true }).eq("sender_id", user.id)
-      .eq("receiver_id", uid).eq("is_read", false);
+
+    await supabase
+      .from("direct_messages")
+      .update({ is_read: true })
+      .eq("sender_id", user.id)
+      .eq("receiver_id", uid)
+      .eq("is_read", false);
+
     await loadInbox();
   }
 
   async function openPrivateChat(user) {
     if (!user?.id || user.id === uid) return;
-    setSelectedUser(null); setDmUser(user);
-    setDmMessages([]); setPage("dm");
+
+    setSelectedUser(null);
+    setDmUser(user);
+    setDmMessages([]);
+    setPage("dm");
   }
 
   async function sendDirectMessage() {
     const text = dmText.trim();
-    if (!text || !dmUser?.id || !uid || dmSending) return;
+
+    if (!text || !dmUser?.id || !uid || dmSending)
+      return;
+
     setDmSending(true);
-    const { error } = await supabase.from("direct_messages").insert({
-      sender_id: uid, receiver_id: dmUser.id,
-      sender_nickname: profile?.nickname || nickname,
-      sender_avatar: avatar, receiver_nickname: dmUser.nickname,
-      content: text.slice(0, 500),
-      message_color: messageColor, message_font: messageFont,
-      is_read: false
-    });
+
+    const { error } = await supabase
+      .from("direct_messages")
+      .insert({
+        sender_id: uid,
+        receiver_id: dmUser.id,
+        sender_nickname: profile?.nickname || nickname,
+        sender_avatar: avatar,
+        receiver_nickname: dmUser.nickname,
+        content: text.slice(0, 500),
+        message_color: messageColor,
+        message_font: messageFont,
+        is_read: false
+      });
+
     setDmSending(false);
-    if (error) { alertUser(error.message); return; }
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
     setDmText("");
     await loadDirectMessages(dmUser);
   }
 
   async function saveStyle(field, value) {
     if (!uid) return;
-    const { error } = await supabase.from("profiles")
-      .update({ [field]: value }).eq("id", uid);
-    if (error) { alertUser(error.message); return; }
-    if (field === "message_color") setMessageColor(value);
-    else setMessageFont(value);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ [field]: value })
+      .eq("id", uid);
+
+    if (error) {
+      alertUser(error.message);
+      return;
+    }
+
+    if (field === "message_color")
+      setMessageColor(value);
+    else
+      setMessageFont(value);
   }
 
   useEffect(() => {
     if (!uid || started !== true) return;
-    loadRooms(); loadVotes(); loadReports(); loadInbox();
+
+    loadRooms();
+    loadVotes();
+    loadReports();
+    loadInbox();
   }, [uid, started]);
 
   useEffect(() => {
     if (!uid || started !== true) return;
+
     roomRef.current = currentRoom;
-    setMessages([]); setNewMessages(0);
+    setMessages([]);
+    setNewMessages(0);
     lastMessageRef.current = null;
     nearBottomRef.current = true;
+
     loadMessages();
-    const channel = supabase.channel(`who-public-${currentRoom}`)
+
+    const channel = supabase
+      .channel(`who-public-${currentRoom}`)
       .on("postgres_changes", {
-        event: "*", schema: "public", table: "messages",
+        event: "*",
+        schema: "public",
+        table: "messages",
         filter: `room=eq.${currentRoom}`
-      }, () => loadMessages()).subscribe();
+      }, () => loadMessages())
+      .subscribe();
+
     const timer = setInterval(loadMessages, 5000);
+
     return () => {
       clearInterval(timer);
       supabase.removeChannel(channel);
@@ -606,13 +948,21 @@ export default function Home() {
 
   useEffect(() => {
     if (!uid || started !== true) return;
+
     loadInbox();
-    const channel = supabase.channel(`who-inbox-${uid}`)
+
+    const channel = supabase
+      .channel(`who-inbox-${uid}`)
       .on("postgres_changes", {
-        event: "INSERT", schema: "public", table: "direct_messages",
+        event: "INSERT",
+        schema: "public",
+        table: "direct_messages",
         filter: `receiver_id=eq.${uid}`
-      }, () => loadInbox()).subscribe();
+      }, () => loadInbox())
+      .subscribe();
+
     const timer = setInterval(loadInbox, 6000);
+
     return () => {
       clearInterval(timer);
       supabase.removeChannel(channel);
@@ -620,30 +970,55 @@ export default function Home() {
   }, [uid, started]);
 
   useEffect(() => {
-    if (page !== "dm" || !dmUser?.id || !uid) return;
+    if (page !== "dm" || !dmUser?.id || !uid)
+      return;
+
     loadDirectMessages(dmUser);
-    const timer = setInterval(() => loadDirectMessages(dmUser), 5000);
+
+    const timer = setInterval(
+      () => loadDirectMessages(dmUser),
+      5000
+    );
+
     return () => clearInterval(timer);
   }, [page, dmUser?.id, uid]);
 
   useEffect(() => {
     if (!uid || started !== true) return;
-    const channel = supabase.channel("who-global-presence", {
-      config: { presence: { key: uid } }
-    });
-    presenceRef.current = channel;
-    channel.on("presence", { event: "sync" }, () => {
-      const result = {};
-      for (const entries of Object.values(channel.presenceState())) {
-        for (const p of entries) {
-          if (p.user_id) result[p.user_id] = p.room;
+
+    const channel = supabase.channel(
+      "who-global-presence",
+      {
+        config: {
+          presence: { key: uid }
         }
       }
+    );
+
+    presenceRef.current = channel;
+
+    channel.on("presence", { event: "sync" }, () => {
+      const result = {};
+
+      for (const entries of Object.values(
+        channel.presenceState()
+      )) {
+        for (const p of entries) {
+          if (p.user_id)
+            result[p.user_id] = p.room;
+        }
+      }
+
       setOnline(result);
     }).subscribe(async status => {
-      if (status === "SUBSCRIBED")
-        await channel.track({ user_id: uid, room: roomRef.current });
+      if (status === "SUBSCRIBED") {
+        await channel.track({
+          user_id: uid,
+          room: roomRef.current
+        });
+      }
     });
+
     return () => {
       presenceRef.current = null;
       supabase.removeChannel(channel);
@@ -651,57 +1026,99 @@ export default function Home() {
   }, [uid, started]);
 
   useEffect(() => {
-    if (uid && presenceRef.current)
-      presenceRef.current.track({ user_id: uid, room: currentRoom });
+    if (uid && presenceRef.current) {
+      presenceRef.current.track({
+        user_id: uid,
+        room: currentRoom
+      });
+    }
   }, [uid, currentRoom]);
 
   useEffect(() => {
     const el = publicChatRef.current;
     if (!el || page !== "chat") return;
+
     const last = messages[messages.length - 1]?.id;
+
     if (last !== lastMessageRef.current) {
-      if (lastMessageRef.current !== null && !nearBottomRef.current)
+      if (
+        lastMessageRef.current !== null &&
+        !nearBottomRef.current
+      ) {
         setNewMessages(n => n + 1);
-      else requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+      } else {
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight;
+        });
+      }
+
       lastMessageRef.current = last;
     }
   }, [messages, page]);
 
   useEffect(() => {
-    if (page === "dm" && dmChatRef.current)
-      dmChatRef.current.scrollTop = dmChatRef.current.scrollHeight;
+    if (page === "dm" && dmChatRef.current) {
+      dmChatRef.current.scrollTop =
+        dmChatRef.current.scrollHeight;
+    }
   }, [dmMessages, page]);
 
   function Nav() {
     return (
       <nav style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        zIndex: 100, display: "grid",
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
+        display: "grid",
         gridTemplateColumns: "repeat(5,1fr)",
         background: "rgba(7,5,10,.98)",
         borderTop: `1px solid ${C.border}`,
         padding: "8px 2px 12px"
       }}>
         {[
-          ["chat", "✦", "Chat"], ["inbox", "✉", "Privati"],
-          ["rooms", "◉", "Stanze"], ["ranking", "🏆", "Ranking"],
+          ["chat", "✦", "Chat"],
+          ["inbox", "✉", "Privati"],
+          ["rooms", "◉", "Stanze"],
+          ["ranking", "🏆", "Ranking"],
           ["profile", "●", "Profilo"]
         ].map(([id, symbol, label]) => (
-          <button key={id} onClick={() => {
-            setSelectedUser(null); setPage(id);
-          }} style={{
-            position: "relative", border: 0, background: "transparent",
-            color: page === id ? "#edaaff" : "#776d7b",
-            fontWeight: 900, fontSize: 10, cursor: "pointer"
-          }}>
-            <div style={{ fontSize: 19 }}>{symbol}</div>
+          <button
+            key={id}
+            onClick={() => {
+              setSelectedUser(null);
+              setPage(id);
+            }}
+            style={{
+              position: "relative",
+              border: 0,
+              background: "transparent",
+              color: page === id
+                ? "#edaaff"
+                : "#776d7b",
+              fontWeight: 900,
+              fontSize: 10,
+              cursor: "pointer"
+            }}
+          >
+            <div style={{ fontSize: 19 }}>
+              {symbol}
+            </div>
             {label}
             {id === "inbox" && unreadDM > 0 && (
               <span style={{
-                position: "absolute", top: -3, right: "12%",
-                borderRadius: 20, background: C.red,
-                color: "white", padding: "2px 5px", fontSize: 9
-              }}>{unreadDM > 99 ? "99+" : unreadDM}</span>
+                position: "absolute",
+                top: -3,
+                right: "12%",
+                borderRadius: 20,
+                background: C.red,
+                color: "white",
+                padding: "2px 5px",
+                fontSize: 9
+              }}>
+                {unreadDM > 99 ? "99+" : unreadDM}
+              </span>
             )}
           </button>
         ))}
@@ -711,121 +1128,264 @@ export default function Home() {
 
   function Notice() {
     if (!notice) return null;
+
     return (
       <div role="alert" style={{
-        position: "fixed", bottom: 95, left: 14, right: 14,
-        maxWidth: 600, margin: "auto", zIndex: 900,
-        ...panel, padding: 15, border: `1px solid ${C.pink}`,
+        position: "fixed",
+        bottom: 95,
+        left: 14,
+        right: 14,
+        maxWidth: 600,
+        margin: "auto",
+        zIndex: 900,
+        ...panel,
+        padding: 15,
+        border: `1px solid ${C.pink}`,
         boxShadow: "0 0 30px rgba(0,0,0,.8)"
       }}>
-        <strong style={{ color: C.pink }}>WHO</strong>
+        <strong style={{ color: C.pink }}>
+          WHO
+        </strong>
         <p style={{
-          fontSize: 12, overflowWrap: "anywhere", whiteSpace: "pre-wrap"
-        }}>{notice}</p>
-        <button style={buttonStyle} onClick={() => setNotice("")}>OK</button>
+          fontSize: 12,
+          overflowWrap: "anywhere",
+          whiteSpace: "pre-wrap"
+        }}>
+          {notice}
+        </p>
+        <button
+          style={buttonStyle}
+          onClick={() => setNotice("")}
+        >
+          OK
+        </button>
       </div>
     );
   }
 
   function UserModal() {
     if (!selectedUser) return null;
+
     return (
-      <div onClick={() => setSelectedUser(null)} style={{
-        position: "fixed", inset: 0, zIndex: 500,
-        background: "rgba(0,0,0,.82)",
-        display: "grid", placeItems: "center", padding: 18
-      }}>
-        <div onClick={e => e.stopPropagation()} style={{
-          ...panel, width: "100%", maxWidth: 390,
-          boxSizing: "border-box", padding: 20, textAlign: "center"
-        }}>
-          <button style={{ ...secondaryButton, float: "right" }}
-            onClick={() => setSelectedUser(null)}>✕</button>
+      <div
+        onClick={() => setSelectedUser(null)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 500,
+          background: "rgba(0,0,0,.82)",
+          display: "grid",
+          placeItems: "center",
+          padding: 18
+        }}
+      >
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            ...panel,
+            width: "100%",
+            maxWidth: 390,
+            boxSizing: "border-box",
+            padding: 20,
+            textAlign: "center"
+          }}
+        >
+          <button
+            style={{
+              ...secondaryButton,
+              float: "right"
+            }}
+            onClick={() => setSelectedUser(null)}
+          >
+            ✕
+          </button>
+
           <div style={{
-            display: "grid", placeItems: "center", padding: "20px 0 5px"
+            display: "grid",
+            placeItems: "center",
+            padding: "20px 0 5px"
           }}>
-            <AvatarView name={selectedUser.avatar || "Shadow"} size={105} />
+            <AvatarView
+              name={selectedUser.avatar || "Shadow"}
+              size={105}
+            />
           </div>
-          <h2>@{selectedUser.nickname || "anonimo"}</h2>
-          {String(selectedUser.role || "").toUpperCase() === "FOUNDER" && (
-            <strong style={{ color: C.pink }}>♛ WHO FOUNDER</strong>
+
+          <h2>
+            @{selectedUser.nickname || "anonimo"}
+          </h2>
+
+          {String(
+            selectedUser.role || ""
+          ).toUpperCase() === "FOUNDER" && (
+            <strong style={{ color: C.pink }}>
+              ♛ WHO FOUNDER
+            </strong>
           )}
+
           <div style={{
-            display: "grid", gridTemplateColumns: "repeat(3,1fr)",
-            gap: 7, marginTop: 18
+            display: "grid",
+            gridTemplateColumns: "repeat(3,1fr)",
+            gap: 7,
+            marginTop: 18
           }}>
             {[
               ["VIBE", `⚡ ${clampScore(selectedUser.vibe)}`],
-              ["LEVEL", Math.max(1, Math.floor(
-                Number(selectedUser.who_points ?? 0) / 250
-              ) + 1)],
+              ["LEVEL", Math.max(
+                1,
+                Math.floor(
+                  Number(selectedUser.who_points ?? 0) / 250
+                ) + 1
+              )],
               ["REP", clampScore(selectedUser.reputation)]
             ].map(([label, value]) => (
               <div key={label} style={{
-                background: "#09070c", border: `1px solid ${C.border}`,
-                borderRadius: 12, padding: 10
+                background: "#09070c",
+                border: `1px solid ${C.border}`,
+                borderRadius: 12,
+                padding: 10
               }}>
-                <small style={{ color: C.muted }}>{label}</small>
-                <strong style={{ display: "block", marginTop: 5 }}>
+                <small style={{ color: C.muted }}>
+                  {label}
+                </small>
+                <strong style={{
+                  display: "block",
+                  marginTop: 5
+                }}>
                   {value}
                 </strong>
               </div>
             ))}
           </div>
-          <p style={{ color: C.cyan, fontSize: 12 }}>
+
+          <p style={{
+            color: C.cyan,
+            fontSize: 12
+          }}>
             {vibeTitle(selectedUser.vibe)}
           </p>
+
           {selectedUser.id !== uid && (
-            <button style={{
-              ...buttonStyle, width: "100%", padding: 14, marginTop: 16
-            }} onClick={() => openPrivateChat(selectedUser)}>
+            <button
+              style={{
+                ...buttonStyle,
+                width: "100%",
+                padding: 14,
+                marginTop: 16
+              }}
+              onClick={() => openPrivateChat(selectedUser)}
+            >
               ✉ MESSAGGIO PRIVATO
             </button>
           )}
-          <button style={{
-            ...secondaryButton, width: "100%", marginTop: 9
-          }} onClick={() => setSelectedUser(null)}>CHIUDI</button>
+
+          <button
+            style={{
+              ...secondaryButton,
+              width: "100%",
+              marginTop: 9
+            }}
+            onClick={() => setSelectedUser(null)}
+          >
+            CHIUDI
+          </button>
         </div>
       </div>
     );
   }
 
   if (loading) return (
-    <main style={{ ...background, display: "grid", placeItems: "center" }}>
+    <main style={{
+      ...background,
+      display: "grid",
+      placeItems: "center"
+    }}>
       <Logo />
     </main>
   );
 
   if (!session) return (
     <main style={background}>
-      <section style={{ maxWidth: 420, margin: "auto", padding: "75px 20px" }}>
-        <div style={{ textAlign: "center", marginBottom: 25 }}>
+      <section style={{
+        maxWidth: 420,
+        margin: "auto",
+        padding: "75px 20px"
+      }}>
+        <div style={{
+          textAlign: "center",
+          marginBottom: 25
+        }}>
           <Logo />
           <p style={{ color: C.muted }}>
             Nessun nome. Nessun giudizio. Solo WHO.
           </p>
         </div>
+
         <div style={{ ...panel, padding: 20 }}>
-          <h2>{authMode === "login"
-            ? "Bentornato in WHO" : "Crea il tuo account WHO"}</h2>
-          <input style={inputStyle} placeholder="Nickname"
+          <h2>
+            {authMode === "login"
+              ? "Bentornato in WHO"
+              : "Crea il tuo account WHO"}
+          </h2>
+
+          <input
+            style={inputStyle}
+            placeholder="Nickname"
             value={nickname}
-            onChange={e => setNickname(cleanNickname(e.target.value))} />
-          <input style={{ ...inputStyle, marginTop: 9 }}
-            type="password" placeholder="Password"
+            onChange={e =>
+              setNickname(cleanNickname(e.target.value))
+            }
+          />
+
+          <input
+            style={{
+              ...inputStyle,
+              marginTop: 9
+            }}
+            type="password"
+            placeholder="Password"
             value={password}
-            onChange={e => setPassword(e.target.value)} />
-          {authError && <p style={{ color: C.red }}>{authError}</p>}
-          <button style={{ ...buttonStyle, width: "100%", marginTop: 14 }}
-            onClick={authMode === "login" ? login : register}>
-            {authMode === "login" ? "ACCEDI" : "CREA ACCOUNT"}
+            onChange={e => setPassword(e.target.value)}
+          />
+
+          {authError && (
+            <p style={{ color: C.red }}>
+              {authError}
+            </p>
+          )}
+
+          <button
+            style={{
+              ...buttonStyle,
+              width: "100%",
+              marginTop: 14
+            }}
+            onClick={
+              authMode === "login"
+                ? login
+                : register
+            }
+          >
+            {authMode === "login"
+              ? "ACCEDI"
+              : "CREA ACCOUNT"}
           </button>
-          <button style={{
-            ...secondaryButton, width: "100%", marginTop: 10
-          }} onClick={() => {
-            setAuthMode(authMode === "login" ? "register" : "login");
-            setAuthError("");
-          }}>
+
+          <button
+            style={{
+              ...secondaryButton,
+              width: "100%",
+              marginTop: 10
+            }}
+            onClick={() => {
+              setAuthMode(
+                authMode === "login"
+                  ? "register"
+                  : "login"
+              );
+              setAuthError("");
+            }}
+          >
             {authMode === "login"
               ? "Non hai un account? Registrati"
               : "Hai già un account? Accedi"}
@@ -838,40 +1398,76 @@ export default function Home() {
 
   if (started === "identity") return (
     <main style={background}>
-      <section style={{ maxWidth: 650, margin: "auto", padding: 18 }}>
+      <section style={{
+        maxWidth: 650,
+        margin: "auto",
+        padding: 18
+      }}>
         <h1>Scegli la tua identità</h1>
+
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 10
+          display: "grid",
+          gridTemplateColumns: "repeat(2,1fr)",
+          gap: 10
         }}>
-          {[...(isFounder ? [ownerAvatar] : []), ...avatars].map(item => (
-            <button key={item.name} onClick={() => selectAvatar(item.name)}
+          {[
+            ...(isFounder ? [ownerAvatar] : []),
+            ...avatars
+          ].map(item => (
+            <button
+              key={item.name}
+              onClick={() => selectAvatar(item.name)}
               style={{
-                ...panel, padding: 13, textAlign: "center",
+                ...panel,
+                padding: 13,
+                textAlign: "center",
                 cursor: "pointer",
                 border: avatar === item.name
-                  ? `1px solid ${C.cyan}` : panel.border
-              }}>
-              <AvatarView name={item.name} size={105} />
+                  ? `1px solid ${C.cyan}`
+                  : panel.border
+              }}
+            >
+              <AvatarView
+                name={item.name}
+                size={105}
+              />
               <div style={{
-                marginTop: 12, color: C.pink, fontWeight: 900
-              }}>{item.name}</div>
-              <div style={{
-                fontSize: 11, color: C.muted, marginTop: 5
+                marginTop: 12,
+                color: C.pink,
+                fontWeight: 900
               }}>
-                {avatar === item.name ? "✓ SELEZIONATO" : "SCEGLI"}
+                {item.name}
+              </div>
+              <div style={{
+                fontSize: 11,
+                color: C.muted,
+                marginTop: 5
+              }}>
+                {avatar === item.name
+                  ? "✓ SELEZIONATO"
+                  : "SCEGLI"}
               </div>
             </button>
           ))}
         </div>
-        <button style={{
-          ...buttonStyle, width: "100%", marginTop: 15, padding: 16
-        }} onClick={() => setStarted(true)}>CONTINUA →</button>
+
+        <button
+          style={{
+            ...buttonStyle,
+            width: "100%",
+            marginTop: 15,
+            padding: 16
+          }}
+          onClick={() => setStarted(true)}
+        >
+          CONTINUA →
+        </button>
       </section>
       <Notice />
     </main>
   );
 
-  // CONTINUA CON IL BLOCCO 2
+  // BLOCCO 2 SUBITO SOTTO
   if (page === "rooms") return (
     <main style={background}>
       <section style={{ maxWidth: 650, margin: "auto", padding: 18 }}>
