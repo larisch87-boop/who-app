@@ -53,12 +53,6 @@ const legacyShop=[
   category:slot,active:true,legacy:true
 }));
 
-const newShopIds=[
-  "shadow-reborn","neon-phantom","dark-emperor",
-  "void-halo","cyber-frame","purple-storm",
-  "ghost-flame","black-market-edition"
-];
-
 const newShopFallback=[
   ["shadow-reborn","SHADOW REBORN","LEGENDARY",1800,"skin"],
   ["neon-phantom","NEON PHANTOM","LEGENDARY",2200,"skin"],
@@ -165,13 +159,24 @@ function ShopPicture({item,size=140}){
           }}/>
       ):(
         <div style={{
-          textAlign:"center",color:C.pink,
-          fontWeight:900,fontSize:12,padding:12
+          width:"80%",height:"75%",
+          border:"1px solid rgba(181,76,255,.3)",
+          borderRadius:18,
+          display:"grid",placeItems:"center",
+          background:"radial-gradient(circle,#301340,#100b16)",
+          textAlign:"center",padding:8
         }}>
-          <div style={{fontSize:35,marginBottom:8}}>◇</div>
-          {item.name}
-          <div style={{fontSize:9,color:C.muted,marginTop:6}}>
-            IMMAGINE DA CARICARE
+          <div>
+            <div style={{
+              color:C.pink,fontSize:35,
+              textShadow:"0 0 15px #b54cff"
+            }}>✦</div>
+            <strong style={{fontSize:10,color:C.text}}>
+              {item.name}
+            </strong>
+            <div style={{fontSize:9,color:C.muted,marginTop:5}}>
+              ANTEPRIMA NON DISPONIBILE
+            </div>
           </div>
         </div>
       )}
@@ -195,28 +200,32 @@ function AvatarView({
   ]);
 
   const layer=(item,slot)=>{
-    if(!item||failed[item.id])return null;
+    if(!item?.image||failed[item.id])return null;
 
     const styles={
       aura:{
-        width:"135%",height:"135%",
+        width:"130%",height:"130%",
         left:"50%",top:"50%",
-        transform:"translate(-50%,-50%)",zIndex:0
+        transform:"translate(-50%,-50%)",
+        zIndex:0,opacity:.55
       },
       frame:{
-        width:"120%",height:"120%",
+        width:"116%",height:"116%",
         left:"50%",top:"50%",
-        transform:"translate(-50%,-50%)",zIndex:5
+        transform:"translate(-50%,-50%)",
+        zIndex:1,opacity:.7
       },
       head:{
-        width:"70%",height:"36%",
-        left:"50%",top:"4%",
-        transform:"translateX(-50%)",zIndex:4
+        width:"64%",height:"30%",
+        left:"50%",top:"1%",
+        transform:"translateX(-50%)",
+        zIndex:4
       },
       face:{
-        width:"64%",height:"35%",
-        left:"50%",top:"39%",
-        transform:"translate(-50%,-50%)",zIndex:4
+        width:"52%",height:"22%",
+        left:"50%",top:"48%",
+        transform:"translate(-50%,-50%)",
+        zIndex:4
       }
     };
 
@@ -237,6 +246,7 @@ function AvatarView({
       isolation:"isolate"
     }}>
       {layer(aura,"aura")}
+      {layer(frame,"frame")}
       <img src={avatarImage(name)} alt={name}
         onError={e=>{
           if(!e.currentTarget.src.endsWith("/shadow.png"))
@@ -250,7 +260,6 @@ function AvatarView({
         }}/>
       {layer(face,"face")}
       {layer(head,"head")}
-      {layer(frame,"frame")}
     </div>
   );
 }
@@ -483,11 +492,19 @@ export default function Home(){
       };
     });
 
-    const ids=new Set(dbItems.map(x=>x.id));
-    setCatalog([
-      ...legacyShop.filter(x=>!ids.has(x.id)),
-      ...dbItems
-    ]);
+    const byId=new Map();
+    for(const item of [...legacyShop,...dbItems]){
+      byId.set(item.id,item);
+    }
+    const uniqueNames=new Set();
+    const clean=[...byId.values()].filter(item=>{
+      const key=String(item.name||"")
+        .trim().toLowerCase().replace(/\s+/g," ");
+      if(uniqueNames.has(key))return false;
+      uniqueNames.add(key);
+      return true;
+    });
+    setCatalog(clean);
   }
 
   async function loadInventory(){
@@ -1082,7 +1099,7 @@ export default function Home(){
     </main>
   );
 
-  // BLOCCO 2: INCOLLA SUBITO DOPO QUESTA RIGA
+  // CONTINUA IMMEDIATAMENTE CON IL BLOCCO 2
   if(page==="rooms")return (
     <main style={background}>
       <section style={{maxWidth:650,margin:"auto",padding:18}}>
