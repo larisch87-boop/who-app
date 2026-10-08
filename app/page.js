@@ -30,10 +30,7 @@ const displayFont='"Arial Black","Trebuchet MS",sans-serif';
 const avatars=[
   "Shadow","Pixie","King","Azra","Zero","Luna",
   "Ranger","Neon","Ares","Vix","Nova","Ghost"
-].map(name=>({
-  name,
-  image:`/${name.toLowerCase()}.png`
-}));
+].map(name=>({name,image:`/${name.toLowerCase()}.png`}));
 
 const ownerAvatar={
   name:"UNKNOWN",
@@ -43,25 +40,18 @@ const ownerAvatar={
 const roomsDefault=[
   ["who-general","generale","WHO GENERAL","La community principale di WHO"],
   ["night-who","night-who","NIGHT WHO","Chat notturna"],
-  ["gaming","gaming","GAMING","Gaming","Gaming community"],
+  ["gaming","gaming","GAMING","Gaming community"],
   ["music","music","MUSIC","Musica e nuove scoperte"],
   ["meet-people","meet-people","MEET PEOPLE","Conosci nuove persone"]
 ].map(row=>({
-  id:row[0],
-  room_key:row[1],
-  name:row[2],
-  description:row[row.length-1],
-  is_official:true,
-  is_private:false
+  id:row[0],room_key:row[1],name:row[2],
+  description:row[3],is_official:true,is_private:false
 }));
 
 const messageColors={
-  purple:"#e4a7ff",
-  cyan:"#64e8ff",
-  pink:"#ff8fda",
-  red:"#ff728f",
-  green:"#61e5a4",
-  white:"#f8f4fb"
+  purple:"#e4a7ff",cyan:"#64e8ff",
+  pink:"#ff8fda",red:"#ff728f",
+  green:"#61e5a4",white:"#f8f4fb"
 };
 
 const messageFonts={
@@ -71,28 +61,18 @@ const messageFonts={
   elegant:'Georgia,"Times New Roman",serif'
 };
 
-const cleanNickname=s=>
-  String(s||"")
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g,"")
-    .slice(0,20);
+const cleanNickname=s=>String(s||"")
+  .toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,20);
 
-const internalEmail=n=>
-  `${cleanNickname(n)}@account.who.local`;
+const internalEmail=n=>`${cleanNickname(n)}@account.who.local`;
+const roomKey=r=>r?.room_key||String(r?.id||"generale");
 
-const roomKey=r=>
-  r?.room_key||String(r?.id||"generale");
+const avatarImage=name=>name==="UNKNOWN"
+  ?ownerAvatar.image
+  :avatars.find(x=>x.name===name)?.image||"/shadow.png";
 
-const avatarImage=name=>
-  name==="UNKNOWN"
-    ?ownerAvatar.image
-    :avatars.find(x=>x.name===name)?.image||"/shadow.png";
-
-const getMessageColor=x=>
-  messageColors[x]||messageColors.purple;
-
-const getMessageFont=x=>
-  messageFonts[x]||messageFonts.standard;
+const getMessageColor=x=>messageColors[x]||messageColors.purple;
+const getMessageFont=x=>messageFonts[x]||messageFonts.standard;
 
 const messageStyle=m=>({
   color:getMessageColor(m.message_color),
@@ -105,141 +85,103 @@ const messageStyle=m=>({
 const panel={
   background:"linear-gradient(145deg,#1b1124,#0c0811)",
   border:`1px solid ${C.border}`,
-  borderRadius:18,
-  color:C.text
+  borderRadius:18,color:C.text
 };
 
 const inputStyle={
-  width:"100%",
-  boxSizing:"border-box",
-  padding:13,
-  background:"#08060b",
-  color:"#fff",
+  width:"100%",boxSizing:"border-box",padding:13,
+  background:"#08060b",color:"#fff",
   border:`1px solid ${C.border}`,
-  borderRadius:13,
-  outline:0,
-  fontFamily:font
+  borderRadius:13,outline:0,fontFamily:font
 };
 
 const buttonStyle={
   background:"linear-gradient(135deg,#9c38cc,#5b1a7d)",
   border:"1px solid rgba(220,110,255,.55)",
-  borderRadius:12,
-  padding:"11px 14px",
-  color:"#fff",
-  fontWeight:900,
-  fontFamily:font,
+  borderRadius:12,padding:"11px 14px",
+  color:"#fff",fontWeight:900,fontFamily:font,
   cursor:"pointer"
 };
 
 const secondaryButton={
-  background:"#130d19",
-  border:`1px solid ${C.border}`,
-  borderRadius:11,
-  padding:"9px 11px",
-  color:"#e5c4ee",
-  fontWeight:800,
-  cursor:"pointer"
+  background:"#130d19",border:`1px solid ${C.border}`,
+  borderRadius:11,padding:"9px 11px",
+  color:"#e5c4ee",fontWeight:800,cursor:"pointer"
 };
 
 function AvatarView({name="Shadow",size=46}){
-  return (
-    <img
-      src={avatarImage(name)}
-      alt={name}
-      onError={e=>{
-        if(!e.currentTarget.src.endsWith("/shadow.png")){
-          e.currentTarget.src="/shadow.png";
-        }
-      }}
-      style={{
-        width:size,
-        height:size,
-        flexShrink:0,
-        borderRadius:"50%",
-        objectFit:"cover",
-        border:"1px solid rgba(200,100,255,.35)",
-        boxShadow:"0 0 12px rgba(181,76,255,.15)"
-      }}
-    />
-  );
+  return <img
+    src={avatarImage(name)} alt={name}
+    onError={e=>{
+      if(!e.currentTarget.src.endsWith("/shadow.png"))
+        e.currentTarget.src="/shadow.png";
+    }}
+    style={{
+      width:size,height:size,flexShrink:0,
+      borderRadius:"50%",objectFit:"cover",
+      border:"1px solid rgba(200,100,255,.35)",
+      boxShadow:"0 0 12px rgba(181,76,255,.15)"
+    }}
+  />;
 }
 
 function Logo(){
-  return (
-    <div style={{
-      fontFamily:displayFont,
-      fontSize:39,
-      fontWeight:900,
-      background:"linear-gradient(90deg,#fff,#f0b4ff,#9b63ff,#6eeeff)",
-      WebkitBackgroundClip:"text",
-      WebkitTextFillColor:"transparent"
-    }}>
-      WHO
-    </div>
-  );
+  return <div style={{
+    fontFamily:displayFont,fontSize:39,fontWeight:900,
+    background:"linear-gradient(90deg,#fff,#f0b4ff,#9b63ff,#6eeeff)",
+    WebkitBackgroundClip:"text",
+    WebkitTextFillColor:"transparent"
+  }}>WHO</div>;
 }
 
 export default function Home(){
-
   const [loading,setLoading]=useState(true);
   const [session,setSession]=useState(null);
   const [profile,setProfile]=useState(null);
-
   const [nickname,setNickname]=useState("");
   const [password,setPassword]=useState("");
   const [authMode,setAuthMode]=useState("login");
   const [authError,setAuthError]=useState("");
-
   const [started,setStarted]=useState(false);
   const [page,setPage]=useState("chat");
-
   const [avatar,setAvatar]=useState("Shadow");
   const [points,setPoints]=useState(500);
   const [vibe,setVibe]=useState(100);
   const [reputation,setReputation]=useState(100);
-
   const [dmPrivacy,setDmPrivacy]=useState("vibe");
   const [dmMinVibe,setDmMinVibe]=useState(100);
-
   const [messageColor,setMessageColor]=useState("purple");
   const [messageFont,setMessageFont]=useState("standard");
-
   const [rooms,setRooms]=useState(roomsDefault);
   const [activeRoom,setActiveRoom]=useState(roomsDefault[0]);
-
   const [messages,setMessages]=useState([]);
   const [message,setMessage]=useState("");
   const [replyingTo,setReplyingTo]=useState(null);
   const [sending,setSending]=useState(false);
-
   const [myVotes,setMyVotes]=useState({});
   const [reportedMessages,setReportedMessages]=useState([]);
-
   const [selectedUser,setSelectedUser]=useState(null);
-
   const [showCreateRoom,setShowCreateRoom]=useState(false);
   const [newRoomName,setNewRoomName]=useState("");
   const [newRoomDescription,setNewRoomDescription]=useState("");
   const [newRoomPrivate,setNewRoomPrivate]=useState(false);
-
   const [dmUser,setDmUser]=useState(null);
   const [dmMessages,setDmMessages]=useState([]);
   const [dmText,setDmText]=useState("");
   const [dmSending,setDmSending]=useState(false);
   const [unreadDM,setUnreadDM]=useState(0);
   const [conversations,setConversations]=useState([]);
-
   const [online,setOnline]=useState({});
   const [newMessages,setNewMessages]=useState(0);
   const [notice,setNotice]=useState("");
 
-  // WHO RANKING
   const [ranking,setRanking]=useState([]);
+  const [weeklyRanking,setWeeklyRanking]=useState([]);
   const [rankingLoading,setRankingLoading]=useState(false);
   const [rankingError,setRankingError]=useState("");
   const [rankingTab,setRankingTab]=useState("global");
   const [myRank,setMyRank]=useState(null);
+  const [myWeeklyRank,setMyWeeklyRank]=useState(null);
 
   const publicChatRef=useRef(null);
   const dmChatRef=useRef(null);
@@ -250,25 +192,16 @@ export default function Home(){
 
   const uid=session?.user?.id;
   const currentRoom=roomKey(activeRoom);
-
-  const isFounder=
-    String(profile?.role||"").toUpperCase()==="FOUNDER";
-
-  const level=Math.max(
-    1,Math.floor(points/250)+1
-  );
+  const isFounder=String(profile?.role||"").toUpperCase()==="FOUNDER";
+  const level=Math.max(1,Math.floor(points/250)+1);
 
   const background={
-    minHeight:"100dvh",
-    color:C.text,
-    fontFamily:font,
+    minHeight:"100dvh",color:C.text,fontFamily:font,
     background:"radial-gradient(circle at 50% -15%,rgba(137,42,190,.38),transparent 35%),linear-gradient(180deg,#0b0710,#050407)",
     paddingBottom:session&&started?90:25
   };
 
-  function alertUser(text){
-    setNotice(String(text));
-  }
+  function alertUser(text){setNotice(String(text));}
 
   function applyProfile(p){
     setProfile(p);
@@ -283,78 +216,52 @@ export default function Home(){
     setMessageFont(p.message_font||"standard");
   }
 
+  async function refreshPoints(){
+    if(!uid)return;
+    const {data,error}=await supabase.from("profiles")
+      .select("who_points,vibe,reputation")
+      .eq("id",uid).maybeSingle();
+    if(!error&&data){
+      setPoints(Number(data.who_points??0));
+      setVibe(Number(data.vibe??100));
+      setReputation(Number(data.reputation??100));
+    }
+  }
+
   async function loadProfile(user,preferred=""){
-    const {data,error}=await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id",user.id)
-      .maybeSingle();
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
-    if(data){
-      applyProfile(data);
-      setStarted(true);
-      return;
-    }
+    const {data,error}=await supabase.from("profiles")
+      .select("*").eq("id",user.id).maybeSingle();
+    if(error){alertUser(error.message);return;}
+    if(data){applyProfile(data);setStarted(true);return;}
 
     const name=cleanNickname(
-      preferred||
-      user.user_metadata?.nickname||
-      user.user_metadata?.username||
-      user.email?.split("@")[0]
+      preferred||user.user_metadata?.nickname||
+      user.user_metadata?.username||user.email?.split("@")[0]
     )||`who_${user.id.slice(0,8)}`;
 
-    const created=await supabase
-      .from("profiles")
-      .insert({
-        id:user.id,
-        nickname:name,
-        avatar:"Shadow",
-        message_color:"purple",
-        message_font:"standard"
-      })
-      .select()
-      .single();
+    const created=await supabase.from("profiles").insert({
+      id:user.id,nickname:name,avatar:"Shadow",
+      message_color:"purple",message_font:"standard"
+    }).select().single();
 
-    if(created.error){
-      alertUser(created.error.message);
-      return;
-    }
-
+    if(created.error){alertUser(created.error.message);return;}
     applyProfile(created.data);
     setStarted("identity");
   }
 
   useEffect(()=>{
     let alive=true;
-
     supabase.auth.getSession().then(({data})=>{
       if(!alive)return;
       setSession(data.session||null);
       setLoading(false);
     });
-
-    const {data}=supabase.auth.onAuthStateChange(
-      (_event,s)=>{
-        setSession(s);
-
-        if(!s){
-          setProfile(null);
-          setStarted(false);
-        }
-
-        setLoading(false);
-      }
-    );
-
-    return ()=>{
-      alive=false;
-      data.subscription.unsubscribe();
-    };
+    const {data}=supabase.auth.onAuthStateChange((_event,s)=>{
+      setSession(s);
+      if(!s){setProfile(null);setStarted(false);}
+      setLoading(false);
+    });
+    return ()=>{alive=false;data.subscription.unsubscribe();};
   },[]);
 
   useEffect(()=>{
@@ -363,158 +270,101 @@ export default function Home(){
 
   async function register(){
     const name=cleanNickname(nickname);
-
-    if(name.length<3){
-      setAuthError("Nickname minimo 3 caratteri.");
-      return;
-    }
-
-    if(password.length<8){
-      setAuthError("Password minimo 8 caratteri.");
-      return;
-    }
-
+    if(name.length<3){setAuthError("Nickname minimo 3 caratteri.");return;}
+    if(password.length<8){setAuthError("Password minimo 8 caratteri.");return;}
     setAuthError("");
-
     const {data,error}=await supabase.auth.signUp({
-      email:internalEmail(name),
-      password,
-      options:{
-        data:{
-          username:name,
-          nickname:name
-        }
-      }
+      email:internalEmail(name),password,
+      options:{data:{username:name,nickname:name}}
     });
-
-    if(error){
-      setAuthError(error.message);
-      return;
-    }
-
-    if(data.session&&data.user){
-      await loadProfile(data.user,name);
-    }else{
+    if(error){setAuthError(error.message);return;}
+    if(data.session&&data.user)await loadProfile(data.user,name);
+    else{
       setAuthMode("login");
       setAuthError("Account creato. Ora prova ad accedere.");
     }
-
     setPassword("");
   }
 
   async function login(){
     const name=cleanNickname(nickname);
-
-    if(!name){
-      setAuthError("Inserisci il nickname.");
-      return;
-    }
-
+    if(!name){setAuthError("Inserisci il nickname.");return;}
     const {error}=await supabase.auth.signInWithPassword({
-      email:internalEmail(name),
-      password
+      email:internalEmail(name),password
     });
-
-    if(error){
-      setAuthError("Nickname o password non corretti.");
-      return;
-    }
-
+    if(error){setAuthError("Nickname o password non corretti.");return;}
     setPassword("");
   }
 
   async function logout(){
     await supabase.auth.signOut();
-
-    setProfile(null);
-    setStarted(false);
-    setPage("chat");
-    setNickname("");
-    setPassword("");
-    setMessages([]);
-    setDmMessages([]);
-    setDmUser(null);
-    setConversations([]);
-    setUnreadDM(0);
-    setRanking([]);
-    setMyRank(null);
+    setProfile(null);setStarted(false);setPage("chat");
+    setNickname("");setPassword("");setMessages([]);
+    setDmMessages([]);setDmUser(null);setConversations([]);
+    setUnreadDM(0);setRanking([]);setWeeklyRanking([]);
+    setMyRank(null);setMyWeeklyRank(null);
   }
 
   async function selectAvatar(name){
-    if(!uid)return;
-    if(name==="UNKNOWN"&&!isFounder)return;
-
-    const {data,error}=await supabase
-      .from("profiles")
-      .update({
-        avatar:name,
-        updated_at:new Date().toISOString()
-      })
-      .eq("id",uid)
-      .select()
-      .single();
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
+    if(!uid||name==="UNKNOWN"&&!isFounder)return;
+    const {data,error}=await supabase.from("profiles").update({
+      avatar:name,updated_at:new Date().toISOString()
+    }).eq("id",uid).select().single();
+    if(error){alertUser(error.message);return;}
     applyProfile(data);
   }
 
-  // CLASSIFICA MONDIALE
   async function loadRanking(){
     if(!uid)return;
-
     setRankingLoading(true);
     setRankingError("");
-
     try{
-      const {data,error}=await supabase
-        .from("profiles")
-        .select("id,nickname,avatar,who_points")
-        .order("who_points",{ascending:false})
-        .order("id",{ascending:true})
-        .limit(100);
-
-      if(error)throw error;
-
-      const users=(data||[]).map((user,index)=>({
-        ...user,
-        rank:index+1,
-        who_points:Number(user.who_points||0)
-      }));
-
-      setRanking(users);
-
-      const myIndex=users.findIndex(x=>x.id===uid);
-
-      setMyRank(myIndex>=0?myIndex+1:null);
-
-    }catch(error){
-      setRanking([]);
-      setMyRank(null);
-      setRankingError(
-        error.message||"Classifica non disponibile"
-      );
-    }finally{
-      setRankingLoading(false);
-    }
+      if(rankingTab==="weekly"){
+        const {data,error}=await supabase.rpc("who_weekly_ranking");
+        if(error)throw error;
+        const users=(data||[]).map((u,i)=>({
+          ...u,id:u.user_id,rank:i+1,
+          weekly_points:Number(u.weekly_points||0)
+        }));
+        setWeeklyRanking(users);
+        const index=users.findIndex(u=>u.id===uid);
+        setMyWeeklyRank(index>=0?index+1:null);
+      }else{
+        const {data,error}=await supabase.from("profiles")
+          .select("id,nickname,avatar,who_points")
+          .order("who_points",{ascending:false})
+          .order("id",{ascending:true}).limit(100);
+        if(error)throw error;
+        const users=(data||[]).map((u,i)=>({
+          ...u,rank:i+1,who_points:Number(u.who_points||0)
+        }));
+        setRanking(users);
+        const index=users.findIndex(u=>u.id===uid);
+        setMyRank(index>=0?index+1:null);
+      }
+    }catch(e){
+      setRankingError(e.message||"Classifica non disponibile");
+    }finally{setRankingLoading(false);}
   }
 
   useEffect(()=>{
     if(page!=="ranking"||!uid||started!==true)return;
     loadRanking();
-  },[page,uid,started]);
+    const timer=setInterval(loadRanking,15000);
+    return ()=>clearInterval(timer);
+  },[page,uid,started,rankingTab]);
+
+  useEffect(()=>{
+    if(!uid||started!==true)return;
+    refreshPoints();
+    const timer=setInterval(refreshPoints,10000);
+    return ()=>clearInterval(timer);
+  },[uid,started]);
 
   async function loadRooms(){
-    const {data,error}=await supabase
-      .from("rooms")
-      .select("*")
-      .order("created_at",{ascending:true});
-
+    const {data,error}=await supabase.from("rooms")
+      .select("*").order("created_at",{ascending:true});
     if(error)return;
-
     setRooms([
       ...roomsDefault,
       ...(data||[]).filter(r=>
@@ -525,772 +375,390 @@ export default function Home(){
 
   async function createRoom(){
     const name=newRoomName.trim();
-
     if(name.length<3){
-      alertUser("Nome stanza minimo 3 caratteri.");
-      return;
+      alertUser("Nome stanza minimo 3 caratteri.");return;
     }
-
     const slug=name.toLowerCase()
-      .replace(/[^a-z0-9]+/g,"-")
-      .slice(0,30);
-
-    const {data,error}=await supabase
-      .from("rooms")
-      .insert({
-        room_key:`${slug}-${Date.now().toString(36)}`,
-        name:name.slice(0,35).toUpperCase(),
-        description:newRoomDescription.slice(0,120),
-        creator_id:uid,
-        creator_nickname:profile?.nickname||nickname,
-        is_private:newRoomPrivate,
-        is_official:false
-      })
-      .select()
-      .single();
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
+      .replace(/[^a-z0-9]+/g,"-").slice(0,30);
+    const {data,error}=await supabase.from("rooms").insert({
+      room_key:`${slug}-${Date.now().toString(36)}`,
+      name:name.slice(0,35).toUpperCase(),
+      description:newRoomDescription.slice(0,120),
+      creator_id:uid,
+      creator_nickname:profile?.nickname||nickname,
+      is_private:newRoomPrivate,is_official:false
+    }).select().single();
+    if(error){alertUser(error.message);return;}
     setRooms(old=>[...old,data]);
-    setShowCreateRoom(false);
-    setNewRoomName("");
-    setNewRoomDescription("");
-    setNewRoomPrivate(false);
+    setShowCreateRoom(false);setNewRoomName("");
+    setNewRoomDescription("");setNewRoomPrivate(false);
   }
 
   async function loadMessages(){
     const target=roomRef.current;
-
-    const {data,error}=await supabase
-      .from("messages")
-      .select("*")
-      .eq("room",target)
-      .order("id",{ascending:true})
-      .limit(300);
-
-    if(error){
-      console.error("WHO messages:",error);
-      return;
-    }
-
-    if(roomRef.current!==target)return;
-
-    setMessages(data||[]);
+    const {data,error}=await supabase.from("messages")
+      .select("*").eq("room",target)
+      .order("id",{ascending:true}).limit(300);
+    if(error){console.error("WHO messages:",error);return;}
+    if(roomRef.current===target)setMessages(data||[]);
   }
 
   async function sendMessage(){
     const text=message.trim();
-
     if(!uid||!text||sending)return;
-
     setSending(true);
-
-    const {error}=await supabase
-      .from("messages")
-      .insert({
-        room:currentRoom,
-        user_id:uid,
-        nickname:profile?.nickname||nickname,
-        avatar,
-        content:text.slice(0,500),
-        likes:0,
-        dislikes:0,
-        message_color:messageColor,
-        message_font:messageFont,
-        reply_to_id:replyingTo?.id||null,
-        reply_to_nickname:replyingTo?.nickname||null,
-        reply_preview:replyingTo?.content?.slice(0,100)||null
-      });
-
+    const {error}=await supabase.from("messages").insert({
+      room:currentRoom,user_id:uid,
+      nickname:profile?.nickname||nickname,
+      avatar,content:text.slice(0,500),
+      likes:0,dislikes:0,
+      message_color:messageColor,message_font:messageFont,
+      reply_to_id:replyingTo?.id||null,
+      reply_to_nickname:replyingTo?.nickname||null,
+      reply_preview:replyingTo?.content?.slice(0,100)||null
+    });
     setSending(false);
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
-    setMessage("");
-    setReplyingTo(null);
+    if(error){alertUser(error.message);return;}
+    setMessage("");setReplyingTo(null);
     nearBottomRef.current=true;
-    await loadMessages();
+    await Promise.all([loadMessages(),refreshPoints()]);
   }
 
   async function loadVotes(){
     if(!uid)return;
-
-    const {data,error}=await supabase
-      .from("message_votes")
-      .select("message_id,vote")
-      .eq("user_id",uid);
-
-    if(!error){
-      setMyVotes(Object.fromEntries(
-        (data||[]).map(x=>[
-          x.message_id,
-          Number(x.vote)===1?"like":"dislike"
-        ])
-      ));
-    }
+    const {data,error}=await supabase.from("message_votes")
+      .select("message_id,vote").eq("user_id",uid);
+    if(!error)setMyVotes(Object.fromEntries(
+      (data||[]).map(x=>[
+        x.message_id,Number(x.vote)===1?"like":"dislike"
+      ])
+    ));
   }
 
   async function voteMessage(msg,vote){
     if(!uid)return;
-
-    const {error}=await supabase
-      .from("message_votes")
-      .upsert({
-        message_id:msg.id,
-        user_id:uid,
-        vote:vote==="like"?1:-1
-      },{
-        onConflict:"message_id,user_id"
-      });
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
+    const {error}=await supabase.from("message_votes").upsert({
+      message_id:msg.id,user_id:uid,
+      vote:vote==="like"?1:-1
+    },{onConflict:"message_id,user_id"});
+    if(error){alertUser(error.message);return;}
     setMyVotes(old=>({...old,[msg.id]:vote}));
     await loadMessages();
   }
 
   async function loadReports(){
     if(!uid)return;
-
-    const {data,error}=await supabase
-      .from("message_reports")
-      .select("message_id")
-      .eq("reporter_id",uid);
-
-    if(!error){
-      setReportedMessages(
-        (data||[]).map(x=>x.message_id)
-      );
-    }
+    const {data,error}=await supabase.from("message_reports")
+      .select("message_id").eq("reporter_id",uid);
+    if(!error)setReportedMessages((data||[]).map(x=>x.message_id));
   }
 
   async function reportMessage(msg){
     if(!uid||reportedMessages.includes(msg.id))return;
-
-    const {error}=await supabase
-      .from("message_reports")
-      .insert({
-        message_id:msg.id,
-        reporter_id:uid,
-        reason:"user_report"
-      });
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
+    const {error}=await supabase.from("message_reports").insert({
+      message_id:msg.id,reporter_id:uid,reason:"user_report"
+    });
+    if(error){alertUser(error.message);return;}
     setReportedMessages(old=>[...old,msg.id]);
-    alertUser(
-      "Segnalazione ricevuta. Nessuna penalità automatica."
-    );
+    alertUser("Segnalazione ricevuta. Nessuna penalità automatica.");
   }
 
   async function openUserProfile(msg){
     if(!msg?.user_id)return;
-
-    const {data}=await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id",msg.user_id)
-      .maybeSingle();
-
+    const {data}=await supabase.from("profiles")
+      .select("*").eq("id",msg.user_id).maybeSingle();
     setSelectedUser(data||{
-      id:msg.user_id,
-      nickname:msg.nickname,
-      avatar:msg.avatar,
-      vibe:100,
-      reputation:100,
-      who_points:0
+      id:msg.user_id,nickname:msg.nickname,
+      avatar:msg.avatar,vibe:100,reputation:100,who_points:0
     });
   }
 
   async function loadInbox(){
     if(!uid)return;
-
-    const {data,error}=await supabase
-      .from("direct_messages")
+    const {data,error}=await supabase.from("direct_messages")
       .select("*")
       .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-      .order("created_at",{ascending:false})
-      .limit(500);
-
+      .order("created_at",{ascending:false}).limit(500);
     if(error)return;
-
     const all=data||[];
-
-    setUnreadDM(
-      all.filter(m=>
-        m.receiver_id===uid&&!m.is_read
-      ).length
-    );
-
+    setUnreadDM(all.filter(m=>m.receiver_id===uid&&!m.is_read).length);
     const peers=new Map();
-
     for(const m of all){
-      const other=m.sender_id===uid
-        ?m.receiver_id
-        :m.sender_id;
-
+      const other=m.sender_id===uid?m.receiver_id:m.sender_id;
       if(!peers.has(other)){
         peers.set(other,{
           id:other,
           nickname:m.sender_id===uid
-            ?m.receiver_nickname
-            :m.sender_nickname,
-          avatar:m.sender_id===uid
-            ?"Shadow"
-            :m.sender_avatar,
-          last:m.content,
-          unread:0
+            ?m.receiver_nickname:m.sender_nickname,
+          avatar:m.sender_id===uid?"Shadow":m.sender_avatar,
+          last:m.content,unread:0
         });
       }
-
-      if(m.receiver_id===uid&&!m.is_read){
-        peers.get(other).unread++;
-      }
+      if(m.receiver_id===uid&&!m.is_read)peers.get(other).unread++;
     }
-
     setConversations([...peers.values()]);
   }
 
   async function loadDirectMessages(user){
     if(!uid||!user?.id)return;
-
-    const {data,error}=await supabase
-      .from("direct_messages")
+    const {data,error}=await supabase.from("direct_messages")
       .select("*")
-      .or(
-        `and(sender_id.eq.${uid},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${uid})`
-      )
+      .or(`and(sender_id.eq.${uid},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${uid})`)
       .order("created_at",{ascending:true});
-
-    if(error){
-      console.error("WHO DM:",error);
-      return;
-    }
-
+    if(error){console.error("WHO DM:",error);return;}
     setDmMessages(data||[]);
-
-    await supabase
-      .from("direct_messages")
-      .update({is_read:true})
-      .eq("sender_id",user.id)
-      .eq("receiver_id",uid)
+    await supabase.from("direct_messages").update({is_read:true})
+      .eq("sender_id",user.id).eq("receiver_id",uid)
       .eq("is_read",false);
-
     await loadInbox();
   }
 
   async function openPrivateChat(user){
     if(!user?.id||user.id===uid)return;
-
-    setSelectedUser(null);
-    setDmUser(user);
-    setDmMessages([]);
-    setPage("dm");
+    setSelectedUser(null);setDmUser(user);
+    setDmMessages([]);setPage("dm");
   }
 
   async function sendDirectMessage(){
     const text=dmText.trim();
-
     if(!text||!dmUser?.id||!uid||dmSending)return;
-
     setDmSending(true);
-
-    const {error}=await supabase
-      .from("direct_messages")
-      .insert({
-        sender_id:uid,
-        receiver_id:dmUser.id,
-        sender_nickname:profile?.nickname||nickname,
-        sender_avatar:avatar,
-        receiver_nickname:dmUser.nickname,
-        content:text.slice(0,500),
-        message_color:messageColor,
-        message_font:messageFont,
-        is_read:false
-      });
-
+    const {error}=await supabase.from("direct_messages").insert({
+      sender_id:uid,receiver_id:dmUser.id,
+      sender_nickname:profile?.nickname||nickname,
+      sender_avatar:avatar,receiver_nickname:dmUser.nickname,
+      content:text.slice(0,500),
+      message_color:messageColor,message_font:messageFont,
+      is_read:false
+    });
     setDmSending(false);
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
+    if(error){alertUser(error.message);return;}
     setDmText("");
     await loadDirectMessages(dmUser);
   }
 
   async function saveStyle(field,value){
     if(!uid)return;
-
-    const {error}=await supabase
-      .from("profiles")
-      .update({[field]:value})
-      .eq("id",uid);
-
-    if(error){
-      alertUser(error.message);
-      return;
-    }
-
-    if(field==="message_color"){
-      setMessageColor(value);
-    }else{
-      setMessageFont(value);
-    }
+    const {error}=await supabase.from("profiles")
+      .update({[field]:value}).eq("id",uid);
+    if(error){alertUser(error.message);return;}
+    if(field==="message_color")setMessageColor(value);
+    else setMessageFont(value);
   }
 
   useEffect(()=>{
     if(!uid||started!==true)return;
-
-    loadRooms();
-    loadVotes();
-    loadReports();
-    loadInbox();
+    loadRooms();loadVotes();loadReports();loadInbox();
   },[uid,started]);
 
   useEffect(()=>{
     if(!uid||started!==true)return;
-
     roomRef.current=currentRoom;
-    setMessages([]);
-    setNewMessages(0);
+    setMessages([]);setNewMessages(0);
     lastMessageRef.current=null;
     nearBottomRef.current=true;
-
     loadMessages();
-
-    const ch=supabase
-      .channel(`who-public-${currentRoom}`)
+    const ch=supabase.channel(`who-public-${currentRoom}`)
       .on("postgres_changes",{
-        event:"*",
-        schema:"public",
-        table:"messages",
+        event:"*",schema:"public",table:"messages",
         filter:`room=eq.${currentRoom}`
-      },()=>loadMessages())
-      .subscribe();
-
+      },()=>loadMessages()).subscribe();
     const timer=setInterval(loadMessages,5000);
-
-    return ()=>{
-      clearInterval(timer);
-      supabase.removeChannel(ch);
-    };
+    return ()=>{clearInterval(timer);supabase.removeChannel(ch);};
   },[uid,started,currentRoom]);
 
   useEffect(()=>{
     if(!uid||started!==true)return;
-
     loadInbox();
-
-    const ch=supabase
-      .channel(`who-inbox-${uid}`)
+    const ch=supabase.channel(`who-inbox-${uid}`)
       .on("postgres_changes",{
-        event:"INSERT",
-        schema:"public",
-        table:"direct_messages",
+        event:"INSERT",schema:"public",table:"direct_messages",
         filter:`receiver_id=eq.${uid}`
-      },()=>loadInbox())
-      .subscribe();
-
+      },()=>loadInbox()).subscribe();
     const timer=setInterval(loadInbox,6000);
-
-    return ()=>{
-      clearInterval(timer);
-      supabase.removeChannel(ch);
-    };
+    return ()=>{clearInterval(timer);supabase.removeChannel(ch);};
   },[uid,started]);
 
   useEffect(()=>{
     if(page!=="dm"||!dmUser?.id||!uid)return;
-
     loadDirectMessages(dmUser);
-
-    const timer=setInterval(
-      ()=>loadDirectMessages(dmUser),
-      5000
-    );
-
+    const timer=setInterval(()=>loadDirectMessages(dmUser),5000);
     return ()=>clearInterval(timer);
   },[page,dmUser?.id,uid]);
 
   useEffect(()=>{
     if(!uid||started!==true)return;
-
     const ch=supabase.channel(
-      "who-global-presence",
-      {config:{presence:{key:uid}}}
+      "who-global-presence",{config:{presence:{key:uid}}}
     );
-
     presenceRef.current=ch;
-
     ch.on("presence",{event:"sync"},()=>{
       const result={};
-
-      for(const entries of Object.values(
-        ch.presenceState()
-      )){
+      for(const entries of Object.values(ch.presenceState())){
         for(const p of entries){
-          if(p.user_id){
-            result[p.user_id]=p.room;
-          }
+          if(p.user_id)result[p.user_id]=p.room;
         }
       }
-
       setOnline(result);
     }).subscribe(async status=>{
-      if(status==="SUBSCRIBED"){
-        await ch.track({
-          user_id:uid,
-          room:roomRef.current
-        });
-      }
+      if(status==="SUBSCRIBED")
+        await ch.track({user_id:uid,room:roomRef.current});
     });
-
     return ()=>{
-      presenceRef.current=null;
-      supabase.removeChannel(ch);
+      presenceRef.current=null;supabase.removeChannel(ch);
     };
   },[uid,started]);
 
   useEffect(()=>{
-    if(uid&&presenceRef.current){
-      presenceRef.current.track({
-        user_id:uid,
-        room:currentRoom
-      });
-    }
+    if(uid&&presenceRef.current)
+      presenceRef.current.track({user_id:uid,room:currentRoom});
   },[uid,currentRoom]);
 
   useEffect(()=>{
     const el=publicChatRef.current;
-
     if(!el||page!=="chat")return;
-
     const last=messages[messages.length-1]?.id;
-
     if(last!==lastMessageRef.current){
-      if(
-        lastMessageRef.current!==null&&
-        !nearBottomRef.current
-      ){
+      if(lastMessageRef.current!==null&&!nearBottomRef.current)
         setNewMessages(n=>n+1);
-      }else{
-        requestAnimationFrame(()=>{
-          el.scrollTop=el.scrollHeight;
-        });
-      }
-
+      else requestAnimationFrame(()=>{el.scrollTop=el.scrollHeight;});
       lastMessageRef.current=last;
     }
   },[messages,page]);
 
   useEffect(()=>{
-    if(page==="dm"&&dmChatRef.current){
-      dmChatRef.current.scrollTop=
-        dmChatRef.current.scrollHeight;
-    }
+    if(page==="dm"&&dmChatRef.current)
+      dmChatRef.current.scrollTop=dmChatRef.current.scrollHeight;
   },[dmMessages,page]);
 
   function Nav(){
-    return (
-      <nav style={{
-        position:"fixed",
-        bottom:0,
-        left:0,
-        right:0,
-        zIndex:100,
-        display:"grid",
-        gridTemplateColumns:"repeat(5,1fr)",
-        background:"rgba(7,5,10,.98)",
-        borderTop:`1px solid ${C.border}`,
-        padding:"8px 2px 12px"
-      }}>
-        {[
-          ["chat","✦","Chat"],
-          ["inbox","✉","Privati"],
-          ["rooms","◉","Stanze"],
-          ["ranking","🏆","Ranking"],
-          ["profile","●","Profilo"]
-        ].map(([id,symbol,label])=>(
-          <button
-            key={id}
-            onClick={()=>setPage(id)}
-            style={{
-              position:"relative",
-              border:0,
-              background:"transparent",
-              color:page===id
-                ?"#edaaff"
-                :"#776d7b",
-              fontWeight:900,
-              fontSize:10,
-              cursor:"pointer"
-            }}
-          >
-            <div style={{fontSize:19}}>
-              {symbol}
-            </div>
-            {label}
-
-            {id==="inbox"&&unreadDM>0&&(
-              <span style={{
-                position:"absolute",
-                top:-3,
-                right:"12%",
-                borderRadius:20,
-                background:C.red,
-                color:"white",
-                padding:"2px 5px",
-                fontSize:9
-              }}>
-                {unreadDM>99?"99+":unreadDM}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-    );
+    return <nav style={{
+      position:"fixed",bottom:0,left:0,right:0,zIndex:100,
+      display:"grid",gridTemplateColumns:"repeat(5,1fr)",
+      background:"rgba(7,5,10,.98)",
+      borderTop:`1px solid ${C.border}`,padding:"8px 2px 12px"
+    }}>
+      {[
+        ["chat","✦","Chat"],["inbox","✉","Privati"],
+        ["rooms","◉","Stanze"],["ranking","🏆","Ranking"],
+        ["profile","●","Profilo"]
+      ].map(([id,symbol,label])=>(
+        <button key={id} onClick={()=>setPage(id)} style={{
+          position:"relative",border:0,background:"transparent",
+          color:page===id?"#edaaff":"#776d7b",
+          fontWeight:900,fontSize:10,cursor:"pointer"
+        }}>
+          <div style={{fontSize:19}}>{symbol}</div>
+          {label}
+          {id==="inbox"&&unreadDM>0&&(
+            <span style={{
+              position:"absolute",top:-3,right:"12%",
+              borderRadius:20,background:C.red,color:"white",
+              padding:"2px 5px",fontSize:9
+            }}>{unreadDM>99?"99+":unreadDM}</span>
+          )}
+        </button>
+      ))}
+    </nav>;
   }
 
   function Notice(){
     if(!notice)return null;
-
-    return (
-      <div role="alert" style={{
-        position:"fixed",
-        bottom:95,
-        left:14,
-        right:14,
-        maxWidth:600,
-        margin:"auto",
-        zIndex:900,
-        ...panel,
-        padding:15,
-        border:`1px solid ${C.pink}`,
-        boxShadow:"0 0 30px rgba(0,0,0,.8)"
-      }}>
-        <strong style={{color:C.pink}}>
-          WHO
-        </strong>
-        <p style={{
-          fontSize:12,
-          overflowWrap:"anywhere",
-          whiteSpace:"pre-wrap"
-        }}>
-          {notice}
-        </p>
-        <button
-          style={buttonStyle}
-          onClick={()=>setNotice("")}
-        >
-          OK
-        </button>
-      </div>
-    );
+    return <div role="alert" style={{
+      position:"fixed",bottom:95,left:14,right:14,
+      maxWidth:600,margin:"auto",zIndex:900,
+      ...panel,padding:15,border:`1px solid ${C.pink}`,
+      boxShadow:"0 0 30px rgba(0,0,0,.8)"
+    }}>
+      <strong style={{color:C.pink}}>WHO</strong>
+      <p style={{
+        fontSize:12,overflowWrap:"anywhere",whiteSpace:"pre-wrap"
+      }}>{notice}</p>
+      <button style={buttonStyle} onClick={()=>setNotice("")}>OK</button>
+    </div>;
   }
 
-  if(loading)return (
-    <main style={{
-      ...background,
-      display:"grid",
-      placeItems:"center"
-    }}>
-      <Logo/>
-    </main>
-  );
+  if(loading)return <main style={{
+    ...background,display:"grid",placeItems:"center"
+  }}><Logo/></main>;
 
-  if(!session)return (
-    <main style={background}>
-      <section style={{
-        maxWidth:420,
-        margin:"auto",
-        padding:"75px 20px"
-      }}>
-        <div style={{
-          textAlign:"center",
-          marginBottom:25
-        }}>
-          <Logo/>
-          <p style={{color:C.muted}}>
-            Nessun nome. Nessun giudizio. Solo WHO.
-          </p>
-        </div>
-
-        <div style={{...panel,padding:20}}>
-          <h2>
-            {authMode==="login"
-              ?"Bentornato in WHO"
-              :"Crea il tuo account WHO"}
-          </h2>
-
-          <input
-            style={inputStyle}
-            placeholder="Nickname"
-            value={nickname}
-            onChange={e=>setNickname(
-              cleanNickname(e.target.value)
-            )}
-          />
-
-          <input
-            style={{
-              ...inputStyle,
-              marginTop:9
-            }}
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e=>setPassword(e.target.value)}
-          />
-
-          {authError&&(
-            <p style={{color:C.red}}>
-              {authError}
-            </p>
-          )}
-
-          <button
-            style={{
-              ...buttonStyle,
-              width:"100%",
-              marginTop:14
-            }}
-            onClick={
-              authMode==="login"
-                ?login
-                :register
-            }
-          >
-            {authMode==="login"
-              ?"ACCEDI"
-              :"CREA ACCOUNT"}
-          </button>
-
-          <button
-            style={{
-              ...secondaryButton,
-              width:"100%",
-              marginTop:10
-            }}
-            onClick={()=>{
-              setAuthMode(
-                authMode==="login"
-                  ?"register"
-                  :"login"
-              );
-              setAuthError("");
-            }}
-          >
-            {authMode==="login"
-              ?"Non hai un account? Registrati"
-              :"Hai già un account? Accedi"}
-          </button>
-        </div>
-      </section>
-      <Notice/>
-    </main>
-  );
-
-  if(started==="identity")return (
-    <main style={background}>
-      <section style={{
-        maxWidth:650,
-        margin:"auto",
-        padding:18
-      }}>
-        <h1>Scegli la tua identità</h1>
-
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"repeat(2,1fr)",
-          gap:10
-        }}>
-          {[
-            ...(isFounder?[ownerAvatar]:[]),
-            ...avatars
-          ].map(a=>(
-            <button
-              key={a.name}
-              onClick={()=>selectAvatar(a.name)}
-              style={{
-                ...panel,
-                padding:13,
-                textAlign:"center",
-                cursor:"pointer",
-                border:avatar===a.name
-                  ?`1px solid ${C.cyan}`
-                  :panel.border
-              }}
-            >
-              <AvatarView
-                name={a.name}
-                size={105}
-              />
-
-              <div style={{
-                marginTop:12,
-                color:C.pink,
-                fontWeight:900
-              }}>
-                {a.name}
-              </div>
-
-              <div style={{
-                fontSize:11,
-                color:C.muted,
-                marginTop:5
-              }}>
-                {avatar===a.name
-                  ?"✓ SELEZIONATO"
-                  :"SCEGLI"}
-              </div>
-            </button>
-          ))}
-        </div>
-
-        <button
-          style={{
-            ...buttonStyle,
-            width:"100%",
-            marginTop:15,
-            padding:16
-          }}
-          onClick={()=>setStarted(true)}
-        >
-          CONTINUA →
+  if(!session)return <main style={background}>
+    <section style={{maxWidth:420,margin:"auto",padding:"75px 20px"}}>
+      <div style={{textAlign:"center",marginBottom:25}}>
+        <Logo/>
+        <p style={{color:C.muted}}>
+          Nessun nome. Nessun giudizio. Solo WHO.
+        </p>
+      </div>
+      <div style={{...panel,padding:20}}>
+        <h2>{authMode==="login"
+          ?"Bentornato in WHO":"Crea il tuo account WHO"}</h2>
+        <input style={inputStyle} placeholder="Nickname"
+          value={nickname}
+          onChange={e=>setNickname(cleanNickname(e.target.value))}/>
+        <input style={{...inputStyle,marginTop:9}}
+          type="password" placeholder="Password"
+          value={password}
+          onChange={e=>setPassword(e.target.value)}/>
+        {authError&&<p style={{color:C.red}}>{authError}</p>}
+        <button style={{...buttonStyle,width:"100%",marginTop:14}}
+          onClick={authMode==="login"?login:register}>
+          {authMode==="login"?"ACCEDI":"CREA ACCOUNT"}
         </button>
-      </section>
-      <Notice/>
-    </main>
-  );
+        <button style={{
+          ...secondaryButton,width:"100%",marginTop:10
+        }} onClick={()=>{
+          setAuthMode(authMode==="login"?"register":"login");
+          setAuthError("");
+        }}>
+          {authMode==="login"
+            ?"Non hai un account? Registrati"
+            :"Hai già un account? Accedi"}
+        </button>
+      </div>
+    </section>
+    <Notice/>
+  </main>;
 
-  // CONTINUA CON IL BLOCCO 2
+  if(started==="identity")return <main style={background}>
+    <section style={{maxWidth:650,margin:"auto",padding:18}}>
+      <h1>Scegli la tua identità</h1>
+      <div style={{
+        display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10
+      }}>
+        {[...(isFounder?[ownerAvatar]:[]),...avatars].map(a=>(
+          <button key={a.name} onClick={()=>selectAvatar(a.name)}
+            style={{
+              ...panel,padding:13,textAlign:"center",cursor:"pointer",
+              border:avatar===a.name
+                ?`1px solid ${C.cyan}`:panel.border
+            }}>
+            <AvatarView name={a.name} size={105}/>
+            <div style={{
+              marginTop:12,color:C.pink,fontWeight:900
+            }}>{a.name}</div>
+            <div style={{
+              fontSize:11,color:C.muted,marginTop:5
+            }}>{avatar===a.name?"✓ SELEZIONATO":"SCEGLI"}</div>
+          </button>
+        ))}
+      </div>
+      <button style={{
+        ...buttonStyle,width:"100%",marginTop:15,padding:16
+      }} onClick={()=>setStarted(true)}>CONTINUA →</button>
+    </section>
+    <Notice/>
+  </main>;
+
+  // INCOLLA IL BLOCCO 2 SUBITO QUI SOTTO
   if(page==="rooms")return (
     <main style={background}>
-      <section style={{
-        maxWidth:650,margin:"auto",padding:18
-      }}>
+      <section style={{maxWidth:650,margin:"auto",padding:18}}>
         <header style={{
-          display:"flex",
-          justifyContent:"space-between",
+          display:"flex",justifyContent:"space-between",
           alignItems:"center",gap:10
         }}>
-          <h1 style={{fontFamily:displayFont}}>
-            STANZE
-          </h1>
+          <h1 style={{fontFamily:displayFont}}>STANZE</h1>
           <button style={buttonStyle}
             onClick={()=>setShowCreateRoom(!showCreateRoom)}>
             ＋ CREA
@@ -1305,9 +773,7 @@ export default function Home(){
         </div>
 
         {showCreateRoom&&(
-          <div style={{
-            ...panel,padding:15,marginBottom:14
-          }}>
+          <div style={{...panel,padding:15,marginBottom:14}}>
             <h3>CREA UNA STANZA</h3>
             <input style={inputStyle}
               placeholder="Nome stanza"
@@ -1315,9 +781,7 @@ export default function Home(){
               value={newRoomName}
               onChange={e=>setNewRoomName(e.target.value)}
             />
-            <input style={{
-              ...inputStyle,marginTop:8
-            }}
+            <input style={{...inputStyle,marginTop:8}}
               placeholder="Descrizione"
               maxLength={120}
               value={newRoomDescription}
@@ -1338,8 +802,7 @@ export default function Home(){
                 onClick={()=>setShowCreateRoom(false)}>
                 ANNULLA
               </button>
-              <button style={buttonStyle}
-                onClick={createRoom}>
+              <button style={buttonStyle} onClick={createRoom}>
                 CREA STANZA
               </button>
             </div>
@@ -1385,9 +848,7 @@ export default function Home(){
 
   if(page==="inbox")return (
     <main style={background}>
-      <section style={{
-        maxWidth:650,margin:"auto",padding:18
-      }}>
+      <section style={{maxWidth:650,margin:"auto",padding:18}}>
         <h1 style={{fontFamily:displayFont}}>
           MESSAGGI PRIVATI
         </h1>
@@ -1474,17 +935,14 @@ export default function Home(){
           }} onClick={()=>setSelectedUser(dmUser)}>
             <AvatarView name={dmUser.avatar||"Shadow"} size={42}/>
             <div style={{textAlign:"left"}}>
-              <small style={{color:C.pink}}>
-                CHAT PRIVATA
-              </small>
+              <small style={{color:C.pink}}>CHAT PRIVATA</small>
               <div><strong>@{dmUser.nickname}</strong></div>
             </div>
           </button>
         </header>
 
         <div ref={dmChatRef} style={{
-          flex:1,minHeight:0,
-          overflowY:"auto",paddingTop:12
+          flex:1,minHeight:0,overflowY:"auto",paddingTop:12
         }}>
           {dmMessages.length===0&&(
             <div style={{
@@ -1504,8 +962,7 @@ export default function Home(){
                 marginBottom:9
               }}>
                 <div style={{
-                  ...panel,maxWidth:"82%",
-                  padding:"10px 12px",
+                  ...panel,maxWidth:"82%",padding:"10px 12px",
                   background:mine?"#30133f":"#17101f",
                   borderRadius:mine
                     ?"15px 15px 4px 15px"
@@ -1560,232 +1017,218 @@ export default function Home(){
     </main>
   );
 
-  // WHO RANKING
-  if(page==="ranking")return (
-    <main style={background}>
-      <section style={{
-        maxWidth:650,margin:"auto",padding:18
-      }}>
-        <header style={{
-          display:"flex",alignItems:"center",
-          justifyContent:"space-between",gap:10
+  // WHO RANKING MONDIALE E SETTIMANALE
+  if(page==="ranking"){
+    const weekly=rankingTab==="weekly";
+    const users=weekly?weeklyRanking:ranking;
+    const position=weekly?myWeeklyRank:myRank;
+    const myWeeklyPoints=weeklyRanking.find(
+      u=>u.id===uid
+    )?.weekly_points??0;
+
+    return (
+      <main style={background}>
+        <section style={{
+          maxWidth:650,margin:"auto",padding:18
         }}>
-          <div>
-            <small style={{
-              color:C.pink,fontWeight:900
-            }}>
-              WHO GLOBAL
+          <header style={{
+            display:"flex",alignItems:"center",
+            justifyContent:"space-between",gap:10
+          }}>
+            <div>
+              <small style={{
+                color:C.pink,fontWeight:900
+              }}>
+                WHO GLOBAL
+              </small>
+              <h1 style={{
+                fontFamily:displayFont,margin:"5px 0"
+              }}>
+                🏆 RANKING
+              </h1>
+            </div>
+            <button style={secondaryButton}
+              disabled={rankingLoading}
+              onClick={loadRanking}>
+              ↻ AGGIORNA
+            </button>
+          </header>
+
+          <div style={{
+            ...panel,padding:18,margin:"15px 0",
+            textAlign:"center"
+          }}>
+            <small style={{color:C.muted}}>
+              {weekly
+                ?"I TUOI PUNTI SETTIMANALI"
+                :"I TUOI WHO POINTS"}
             </small>
             <h1 style={{
-              fontFamily:displayFont,
-              margin:"5px 0"
+              color:C.pink,fontSize:36,margin:"8px 0"
             }}>
-              🏆 RANKING
+              ✦ {(weekly?myWeeklyPoints:points)
+                .toLocaleString("it-IT")}
             </h1>
-          </div>
-          <button style={secondaryButton}
-            disabled={rankingLoading}
-            onClick={loadRanking}>
-            ↻ AGGIORNA
-          </button>
-        </header>
-
-        <div style={{
-          ...panel,padding:18,margin:"15px 0",
-          textAlign:"center"
-        }}>
-          <small style={{color:C.muted}}>
-            I TUOI WHO POINTS
-          </small>
-          <h1 style={{
-            color:C.pink,fontSize:36,
-            margin:"8px 0"
-          }}>
-            ✦ {points.toLocaleString("it-IT")}
-          </h1>
-          <strong style={{color:C.cyan}}>
-            {myRank
-              ?`POSIZIONE #${myRank}`
-              :"POSIZIONE NON DISPONIBILE"}
-          </strong>
-          <p style={{
-            color:C.muted,fontSize:11
-          }}>
-            {myRank
-              ?"Sei nella TOP 100 WHO"
-              :"La posizione fuori dalla TOP 100 non è ancora calcolata."}
-          </p>
-        </div>
-
-        <div style={{
-          display:"grid",
-          gridTemplateColumns:"1fr 1fr",
-          gap:8,marginBottom:16
-        }}>
-          <button style={{
-            ...buttonStyle,
-            background:rankingTab==="global"
-              ?"linear-gradient(135deg,#9c38cc,#5b1a7d)"
-              :"#17101f"
-          }} onClick={()=>setRankingTab("global")}>
-            🌍 MONDIALE
-          </button>
-          <button style={{
-            ...buttonStyle,
-            background:rankingTab==="weekly"
-              ?"linear-gradient(135deg,#9c38cc,#5b1a7d)"
-              :"#17101f"
-          }} onClick={()=>setRankingTab("weekly")}>
-            ⚡ SETTIMANALE
-          </button>
-        </div>
-
-        {rankingTab==="weekly"?(
-          <div style={{
-            ...panel,padding:25,textAlign:"center"
-          }}>
-            <div style={{fontSize:40}}>⚡</div>
-            <h2>SFIDA SETTIMANALE</h2>
+            <strong style={{color:C.cyan}}>
+              {position
+                ?`POSIZIONE #${position}`
+                :"POSIZIONE NON DISPONIBILE"}
+            </strong>
             <p style={{
-              color:C.muted,fontSize:12,lineHeight:1.7
+              color:C.muted,fontSize:11
             }}>
-              La classifica settimanale sarà disponibile
-              dopo la configurazione del registro
-              dei punti guadagnati su Supabase.
-            </p>
-            <p style={{color:C.cyan,fontSize:12}}>
-              Ogni settimana una nuova opportunità
-              per raggiungere la vetta.
+              {weekly
+                ?"I punti settimanali ripartono ogni lunedì alle 00:00 UTC."
+                :"La classifica mondiale usa i WHO Points totali."}
             </p>
           </div>
-        ):(
-          <>
-            <h3 style={{
-              fontFamily:displayFont,color:C.pink
+
+          <div style={{
+            display:"grid",
+            gridTemplateColumns:"1fr 1fr",
+            gap:8,marginBottom:16
+          }}>
+            <button style={{
+              ...buttonStyle,
+              background:!weekly
+                ?"linear-gradient(135deg,#9c38cc,#5b1a7d)"
+                :"#17101f"
+            }} onClick={()=>setRankingTab("global")}>
+              🌍 MONDIALE
+            </button>
+            <button style={{
+              ...buttonStyle,
+              background:weekly
+                ?"linear-gradient(135deg,#9c38cc,#5b1a7d)"
+                :"#17101f"
+            }} onClick={()=>setRankingTab("weekly")}>
+              ⚡ SETTIMANALE
+            </button>
+          </div>
+
+          <h3 style={{
+            fontFamily:displayFont,color:C.pink
+          }}>
+            {weekly?"TOP 100 SETTIMANALE":"TOP 100 WHO"}
+          </h3>
+
+          {rankingLoading&&(
+            <p style={{
+              textAlign:"center",color:C.muted
             }}>
-              TOP 100 WHO
-            </h3>
+              Caricamento classifica...
+            </p>
+          )}
 
-            {rankingLoading&&(
-              <p style={{
-                textAlign:"center",color:C.muted
-              }}>
-                Caricamento classifica...
-              </p>
-            )}
+          {rankingError&&(
+            <div style={{
+              ...panel,padding:15,
+              color:C.red,marginBottom:12
+            }}>
+              Classifica non disponibile: {rankingError}
+            </div>
+          )}
 
-            {rankingError&&(
+          {!rankingLoading&&!rankingError&&
+            users.length===0&&(
               <div style={{
-                ...panel,padding:15,
-                color:C.red,marginBottom:12
+                ...panel,padding:20,textAlign:"center"
               }}>
-                Classifica non disponibile:
-                {" "}{rankingError}
+                Nessun utente visibile in classifica.
               </div>
             )}
 
-            {!rankingLoading&&!rankingError&&
-              ranking.length===0&&(
+          {!rankingError&&users.map(user=>{
+            const mine=user.id===uid;
+            const medal=
+              user.rank===1?"🥇":
+              user.rank===2?"🥈":
+              user.rank===3?"🥉":null;
+
+            const title=
+              user.rank===1?"WHO CHAMPION":
+              user.rank<=10?"WHO ELITE":
+              "WHO TOP 100";
+
+            const score=weekly
+              ?user.weekly_points
+              :user.who_points;
+
+            return (
+              <div key={user.id} style={{
+                ...panel,display:"flex",
+                alignItems:"center",gap:12,
+                padding:12,marginBottom:8,
+                border:mine
+                  ?`1px solid ${C.cyan}`
+                  :panel.border
+              }}>
                 <div style={{
-                  ...panel,padding:20,
-                  textAlign:"center"
+                  width:37,textAlign:"center",
+                  fontSize:medal?25:16,
+                  color:C.gold,fontWeight:900
                 }}>
-                  Nessun utente visibile in classifica.
+                  {medal||`#${user.rank}`}
                 </div>
-              )}
 
-            {!rankingError&&ranking.map(user=>{
-              const mine=user.id===uid;
-              const medal=
-                user.rank===1?"🥇":
-                user.rank===2?"🥈":
-                user.rank===3?"🥉":null;
+                <AvatarView
+                  name={user.avatar||"Shadow"}
+                  size={45}
+                />
 
-              const title=
-                user.rank===1?"WHO CHAMPION":
-                user.rank<=10?"WHO ELITE":
-                "WHO TOP 100";
-
-              return (
-                <div key={user.id} style={{
-                  ...panel,
-                  display:"flex",
-                  alignItems:"center",
-                  gap:12,padding:12,
-                  marginBottom:8,
-                  border:mine
-                    ?`1px solid ${C.cyan}`
-                    :panel.border
-                }}>
-                  <div style={{
-                    width:37,textAlign:"center",
-                    fontSize:medal?25:16,
-                    color:C.gold,fontWeight:900
+                <div style={{flex:1,minWidth:0}}>
+                  <strong style={{
+                    color:mine?C.cyan:C.text,
+                    overflowWrap:"anywhere"
                   }}>
-                    {medal||`#${user.rank}`}
-                  </div>
-
-                  <AvatarView
-                    name={user.avatar||"Shadow"}
-                    size={45}
-                  />
-
+                    @{user.nickname||"anonimo"}
+                  </strong>
                   <div style={{
-                    flex:1,minWidth:0
+                    fontSize:10,color:C.muted,
+                    marginTop:4
                   }}>
-                    <strong style={{
-                      color:mine?C.cyan:C.text,
-                      overflowWrap:"anywhere"
-                    }}>
-                      @{user.nickname||"anonimo"}
-                    </strong>
-                    <div style={{
-                      fontSize:10,color:C.muted,
-                      marginTop:4
-                    }}>
-                      {title}{mine?" · TU":""}
-                    </div>
-                  </div>
-
-                  <div style={{textAlign:"right"}}>
-                    <strong style={{color:C.pink}}>
-                      ✦ {user.who_points.toLocaleString("it-IT")}
-                    </strong>
-                    <div style={{
-                      fontSize:10,color:C.muted,
-                      marginTop:4
-                    }}>
-                      WHO Points
-                    </div>
+                    {title}{mine?" · TU":""}
                   </div>
                 </div>
-              );
-            })}
-          </>
-        )}
 
-        <div style={{
-          ...panel,padding:15,marginTop:18
-        }}>
-          <h3 style={{color:C.green}}>
-            🛡 WHO FAIR PLAY
-          </h3>
-          <p style={{
-            fontSize:12,color:C.muted,
-            lineHeight:1.7
+                <div style={{textAlign:"right"}}>
+                  <strong style={{color:C.pink}}>
+                    ✦ {Number(score||0)
+                      .toLocaleString("it-IT")}
+                  </strong>
+                  <div style={{
+                    fontSize:10,color:C.muted,
+                    marginTop:4
+                  }}>
+                    {weekly?"Punti settimana":"WHO Points"}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{
+            ...panel,padding:15,marginTop:18
           }}>
-            WHO premia il comportamento positivo.
-            Le segnalazioni non sottraggono punti
-            automaticamente. Le violazioni devono
-            essere verificate prima di applicare
-            eventuali penalità.
-          </p>
-        </div>
-      </section>
-      <Notice/>
-      <Nav/>
-    </main>
-  );
+            <h3 style={{color:C.green}}>
+              🛡 WHO FAIR PLAY
+            </h3>
+            <p style={{
+              fontSize:12,color:C.muted,lineHeight:1.7
+            }}>
+              WHO premia il comportamento positivo.
+              Le segnalazioni non sottraggono punti
+              automaticamente. Le violazioni devono
+              essere verificate prima di applicare
+              eventuali penalità.
+            </p>
+          </div>
+        </section>
+        <Notice/>
+        <Nav/>
+      </main>
+    );
+  }
 
   if(page==="profile")return (
     <main style={background}>
@@ -1813,8 +1256,7 @@ export default function Home(){
 
         <div style={{
           display:"grid",
-          gridTemplateColumns:"repeat(3,1fr)",
-          gap:8
+          gridTemplateColumns:"repeat(3,1fr)",gap:8
         }}>
           {[
             ["POINTS",`✦ ${points}`],
@@ -1844,11 +1286,14 @@ export default function Home(){
           </p>
           <p style={{fontSize:12,color:C.muted}}>
             Partecipa alla community e scala
-            la classifica mondiale WHO.
+            la classifica mondiale e settimanale WHO.
           </p>
           <button style={{
             ...buttonStyle,width:"100%"
-          }} onClick={()=>setPage("ranking")}>
+          }} onClick={()=>{
+            setRankingTab("global");
+            setPage("ranking");
+          }}>
             VAI ALLA CLASSIFICA →
           </button>
         </div>
@@ -1947,11 +1392,11 @@ export default function Home(){
             e il comportamento positivo.
           </p>
           <p style={{
-            fontSize:12,color:C.muted,lineHeight:1.7
+            fontSize:12,color:C.cyan,lineHeight:1.7
           }}>
-            Le ricompense automatiche e le eventuali
-            penalità saranno gestite da regole
-            sicure sul database.
+            Il primo messaggio valido della giornata
+            può assegnare +5 WHO Points.
+            La ricompensa viene gestita da Supabase.
           </p>
         </div>
 
@@ -1977,50 +1422,37 @@ export default function Home(){
 
   return (
     <main style={{
-      ...background,
-      height:"100dvh",
-      overflow:"hidden",
-      paddingBottom:0
+      ...background,height:"100dvh",
+      overflow:"hidden",paddingBottom:0
     }}>
       <section style={{
-        maxWidth:650,
-        height:"100%",
-        margin:"auto",
+        maxWidth:650,height:"100%",margin:"auto",
         padding:"12px 14px 78px",
         boxSizing:"border-box",
-        display:"flex",
-        flexDirection:"column"
+        display:"flex",flexDirection:"column"
       }}>
         <header style={{
           display:"flex",
           justifyContent:"space-between",
-          alignItems:"center",
-          minHeight:58
+          alignItems:"center",minHeight:58
         }}>
           <Logo/>
-          <div style={{
-            display:"flex",gap:6
-          }}>
+          <div style={{display:"flex",gap:6}}>
             <button style={{
-              ...secondaryButton,
-              position:"relative"
+              ...secondaryButton,position:"relative"
             }} onClick={()=>setPage("inbox")}>
               ✉ PRIVATI
               {unreadDM>0&&(
                 <span style={{
-                  position:"absolute",
-                  top:-7,right:-7,
-                  background:C.red,
-                  color:"#fff",
-                  borderRadius:20,
-                  padding:"2px 6px",
+                  position:"absolute",top:-7,right:-7,
+                  background:C.red,color:"#fff",
+                  borderRadius:20,padding:"2px 6px",
                   fontSize:10
                 }}>
                   {unreadDM}
                 </span>
               )}
             </button>
-
             <button style={secondaryButton}
               onClick={()=>setPage("rooms")}>
               ◉ Stanze
@@ -2031,22 +1463,19 @@ export default function Home(){
         <div style={{
           display:"flex",
           justifyContent:"space-between",
-          alignItems:"center",
-          marginBottom:8
+          alignItems:"center",marginBottom:8
         }}>
           <div>
             <small style={{color:"#c879ef"}}>
               CHAT PUBBLICA
             </small>
             <div style={{
-              fontFamily:displayFont,
-              fontSize:19
+              fontFamily:displayFont,fontSize:19
             }}>
               {activeRoom.name}
             </div>
             <div style={{
-              color:C.green,fontSize:10,
-              marginTop:4
+              color:C.green,fontSize:10,marginTop:4
             }}>
               ● {Object.keys(online).length} online WHO
               {" · "}
@@ -2055,10 +1484,8 @@ export default function Home(){
               ).length} in stanza
             </div>
           </div>
-
           <div style={{
-            display:"flex",
-            alignItems:"center",gap:8
+            display:"flex",alignItems:"center",gap:8
           }}>
             <AvatarView name={avatar} size={35}/>
             <small style={{color:C.muted}}>
@@ -2072,21 +1499,16 @@ export default function Home(){
             const el=e.currentTarget;
             nearBottomRef.current=
               el.scrollHeight-el.scrollTop-el.clientHeight<100;
-            if(nearBottomRef.current){
-              setNewMessages(0);
-            }
+            if(nearBottomRef.current)setNewMessages(0);
           }}
           style={{
-            flex:1,
-            overflowY:"auto",
-            minHeight:0
+            flex:1,overflowY:"auto",minHeight:0
           }}
         >
           {messages.length===0&&(
             <p style={{
               color:C.muted,
-              textAlign:"center",
-              fontSize:12
+              textAlign:"center",fontSize:12
             }}>
               Nessun messaggio in questa stanza.
             </p>
@@ -2102,39 +1524,27 @@ export default function Home(){
                   ?"rgba(112,37,150,.10)"
                   :"rgba(255,255,255,.018)",
                 border:"1px solid rgba(190,100,255,.08)",
-                borderRadius:12,
-                padding:8,
-                marginBottom:6
+                borderRadius:12,padding:8,marginBottom:6
               }}>
-                <div style={{
-                  display:"flex",gap:8
-                }}>
+                <div style={{display:"flex",gap:8}}>
                   <button disabled={mine}
                     onClick={()=>openUserProfile(msg)}
                     style={{
                       background:"transparent",
-                      border:0,
-                      padding:0,
-                      height:34
+                      border:0,padding:0,height:34
                     }}>
                     <AvatarView
-                      name={msg.avatar||"Shadow"}
-                      size={34}
+                      name={msg.avatar||"Shadow"} size={34}
                     />
                   </button>
 
-                  <div style={{
-                    flex:1,minWidth:0
-                  }}>
+                  <div style={{flex:1,minWidth:0}}>
                     <button disabled={mine}
                       onClick={()=>openUserProfile(msg)}
                       style={{
-                        background:"transparent",
-                        border:0,
-                        color:"#fff",
-                        fontWeight:900,
-                        padding:0,
-                        fontFamily:font
+                        background:"transparent",border:0,
+                        color:"#fff",fontWeight:900,
+                        padding:0,fontFamily:font
                       }}>
                       @{msg.nickname||"anonimo"}
                     </button>
@@ -2142,30 +1552,24 @@ export default function Home(){
                     {msg.reply_to_nickname&&(
                       <div style={{
                         borderLeft:`2px solid ${C.purple}`,
-                        paddingLeft:7,
-                        color:C.muted,
-                        fontSize:10,
-                        marginTop:4
+                        paddingLeft:7,color:C.muted,
+                        fontSize:10,marginTop:4
                       }}>
                         ↩ @{msg.reply_to_nickname}
                         {msg.reply_preview
-                          ?` · ${msg.reply_preview}`
-                          :""}
+                          ?` · ${msg.reply_preview}`:""}
                       </div>
                     )}
 
                     <div style={{
-                      ...messageStyle(msg),
-                      margin:"6px 0"
+                      ...messageStyle(msg),margin:"6px 0"
                     }}>
                       {msg.content}
                     </div>
 
                     <div style={{
-                      display:"flex",
-                      gap:5,
-                      flexWrap:"wrap",
-                      marginTop:7
+                      display:"flex",gap:5,
+                      flexWrap:"wrap",marginTop:7
                     }}>
                       <button style={secondaryButton}
                         onClick={()=>setReplyingTo(msg)}>
@@ -2176,16 +1580,13 @@ export default function Home(){
                         <>
                           <button style={{
                             ...secondaryButton,
-                            color:C.pink,
-                            fontSize:10
+                            color:C.pink,fontSize:10
                           }} onClick={()=>openUserProfile(msg)}>
                             ● PROFILO
                           </button>
-
                           <button style={{
                             ...secondaryButton,
-                            color:C.cyan,
-                            fontSize:10
+                            color:C.cyan,fontSize:10
                           }} onClick={()=>openPrivateChat({
                             id:msg.user_id,
                             nickname:msg.nickname,
@@ -2214,8 +1615,7 @@ export default function Home(){
 
                       {!mine&&(
                         <button style={{
-                          ...secondaryButton,
-                          color:C.red,
+                          ...secondaryButton,color:C.red,
                           opacity:reported?.4:1
                         }}
                           disabled={reported}
@@ -2233,9 +1633,7 @@ export default function Home(){
 
         {newMessages>0&&(
           <button style={{
-            ...buttonStyle,
-            width:"100%",
-            marginTop:5
+            ...buttonStyle,width:"100%",marginTop:5
           }} onClick={()=>{
             const el=publicChatRef.current;
             if(el)el.scrollTop=el.scrollHeight;
@@ -2248,16 +1646,11 @@ export default function Home(){
 
         {replyingTo&&(
           <div style={{
-            ...panel,padding:9,
-            marginTop:5,
-            display:"flex",
-            alignItems:"center",
-            gap:10
+            ...panel,padding:9,marginTop:5,
+            display:"flex",alignItems:"center",gap:10
           }}>
             <div style={{
-              flex:1,
-              fontSize:11,
-              overflowWrap:"anywhere"
+              flex:1,fontSize:11,overflowWrap:"anywhere"
             }}>
               <strong style={{color:C.pink}}>
                 ↩ @{replyingTo.nickname}
@@ -2274,18 +1667,12 @@ export default function Home(){
         )}
 
         <div style={{
-          ...panel,
-          padding:5,
-          display:"flex",
-          gap:6,
-          marginTop:6
+          ...panel,padding:5,display:"flex",
+          gap:6,marginTop:6
         }}>
           <input style={{
-            ...inputStyle,
-            flex:1,
-            minWidth:0,
-            border:0,
-            background:"transparent",
+            ...inputStyle,flex:1,minWidth:0,
+            border:0,background:"transparent",
             color:getMessageColor(messageColor),
             fontFamily:getMessageFont(messageFont)
           }}
@@ -2311,33 +1698,24 @@ export default function Home(){
       {selectedUser&&(
         <div onClick={()=>setSelectedUser(null)}
           style={{
-            position:"fixed",
-            inset:0,
-            zIndex:500,
+            position:"fixed",inset:0,zIndex:500,
             background:"rgba(0,0,0,.82)",
-            display:"grid",
-            placeItems:"center",
-            padding:18
+            display:"grid",placeItems:"center",padding:18
           }}>
           <div onClick={e=>e.stopPropagation()}
             style={{
-              ...panel,
-              width:"100%",
-              maxWidth:390,
-              padding:20,
-              textAlign:"center",
+              ...panel,width:"100%",maxWidth:390,
+              padding:20,textAlign:"center",
               boxShadow:"0 0 50px rgba(181,76,255,.18)"
             }}>
             <button style={{
-              ...secondaryButton,
-              float:"right"
+              ...secondaryButton,float:"right"
             }} onClick={()=>setSelectedUser(null)}>
               ✕
             </button>
 
             <div style={{
-              display:"grid",
-              placeItems:"center",
+              display:"grid",placeItems:"center",
               padding:"20px 0 5px"
             }}>
               <AvatarView
@@ -2360,14 +1738,12 @@ export default function Home(){
             <div style={{
               display:"grid",
               gridTemplateColumns:"repeat(3,1fr)",
-              gap:7,
-              marginTop:18
+              gap:7,marginTop:18
             }}>
               {[
                 ["VIBE",`⚡ ${selectedUser.vibe??100}`],
                 ["LEVEL",Math.max(
-                  1,
-                  Math.floor(
+                  1,Math.floor(
                     Number(selectedUser.who_points??0)/250
                   )+1
                 )],
@@ -2376,15 +1752,13 @@ export default function Home(){
                 <div key={label} style={{
                   background:"#09070c",
                   border:`1px solid ${C.border}`,
-                  borderRadius:12,
-                  padding:10
+                  borderRadius:12,padding:10
                 }}>
                   <small style={{color:C.muted}}>
                     {label}
                   </small>
                   <strong style={{
-                    display:"block",
-                    marginTop:5
+                    display:"block",marginTop:5
                   }}>
                     {value}
                   </strong>
@@ -2394,19 +1768,15 @@ export default function Home(){
 
             {selectedUser.id!==uid&&(
               <button style={{
-                ...buttonStyle,
-                width:"100%",
-                padding:14,
-                marginTop:16
+                ...buttonStyle,width:"100%",
+                padding:14,marginTop:16
               }} onClick={()=>openPrivateChat(selectedUser)}>
                 ✉ MESSAGGIO PRIVATO
               </button>
             )}
 
             <button style={{
-              ...secondaryButton,
-              width:"100%",
-              marginTop:9
+              ...secondaryButton,width:"100%",marginTop:9
             }} onClick={()=>setSelectedUser(null)}>
               CHIUDI
             </button>
