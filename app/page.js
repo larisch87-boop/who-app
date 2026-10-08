@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -9,79 +10,77 @@ const supabase = createClient(
 );
 
 const C = {
-  bg: "#07050a", panel: "#100b16", panel2: "#17101f",
-  purple: "#b54cff", pink: "#ef7dff", cyan: "#64e8ff",
-  text: "#f8f4fb", muted: "#978b9f",
-  border: "rgba(190,100,255,.20)",
-  green: "#61e5a4", red: "#ff7295"
+  bg:"#07050a",panel:"#100b16",panel2:"#17101f",
+  purple:"#b54cff",pink:"#ef7dff",cyan:"#64e8ff",
+  text:"#f8f4fb",muted:"#978b9f",
+  border:"rgba(190,100,255,.20)",
+  green:"#61e5a4",red:"#ff7295"
 };
 
-const font = '"Trebuchet MS",Inter,system-ui,sans-serif';
-const displayFont = '"Arial Black","Trebuchet MS",sans-serif';
+const font='"Trebuchet MS",Inter,system-ui,sans-serif';
+const displayFont='"Arial Black","Trebuchet MS",sans-serif';
 
-const avatars = [
+const avatars=[
   "Shadow","Pixie","King","Azra","Zero","Luna",
   "Ranger","Neon","Ares","Vix","Nova","Ghost"
-].map(name => ({
-  name, image: `/${name.toLowerCase()}.png`
-}));
+].map(name=>({name,image:`/${name.toLowerCase()}.png`}));
 
-const ownerAvatar = {
-  name: "UNKNOWN",
-  image: "/file_000000005e3881f4b9b9109dab033a80.png"
+const ownerAvatar={
+  name:"UNKNOWN",
+  image:"/file_000000005e3881f4b9b9109dab033a80.png"
 };
 
-const roomsDefault = [
+const roomsDefault=[
   ["who-general","generale","WHO GENERAL","La community principale di WHO"],
   ["night-who","night-who","NIGHT WHO","Chat notturna"],
   ["gaming","gaming","GAMING","Gaming community"],
   ["music","music","MUSIC","Musica e nuove scoperte"],
   ["meet-people","meet-people","MEET PEOPLE","Conosci nuove persone"]
-].map(([id,room_key,name,description]) => ({
+].map(([id,room_key,name,description])=>({
   id,room_key,name,description,
   is_official:true,is_private:false
 }));
 
-const shopItems = [
+const shopItems=[
   ["royal-crown","ROYAL CROWN","LEGENDARY",1200,"/shop/royal/crown.png","head"],
   ["void-mask","VOID MASK","LEGENDARY",1000,"/shop/void-mask.png","face"],
   ["glitch-eyes","GLITCH EYES","EPIC",750,"/shop/glitch-eyes.png","face"],
   ["dual-aura","DUAL AURA","EPIC",850,"/shop/dual-aura.png","aura"],
   ["neon-visor","NEON VISOR","EPIC",650,"/shop/neon-visor.png","face"],
   ["nexus-frame","NEXUS FRAME","LIMITED",1500,"/shop/nexus-frame.png","frame"]
-].map(([id,name,rarity,price,image,slot]) => ({
+].map(([id,name,rarity,price,image,slot])=>({
   id,name,rarity,price,image,slot
 }));
 
-const messageColors = {
-  purple:"#e4a7ff", cyan:"#64e8ff", pink:"#ff8fda",
-  red:"#ff728f", green:"#61e5a4", white:"#f8f4fb"
+const messageColors={
+  purple:"#e4a7ff",cyan:"#64e8ff",pink:"#ff8fda",
+  red:"#ff728f",green:"#61e5a4",white:"#f8f4fb"
 };
 
-const messageFonts = {
+const messageFonts={
   standard:'"Trebuchet MS",Inter,system-ui,sans-serif',
   tech:'"Courier New",Courier,monospace',
   bold:'Impact,"Arial Black",sans-serif',
   elegant:'Georgia,"Times New Roman",serif'
 };
 
-const cleanNickname = s =>
+const cleanNickname=s=>
   String(s||"").toLowerCase().replace(/[^a-z0-9_]/g,"").slice(0,20);
 
-const internalEmail = n => `${cleanNickname(n)}@account.who.local`;
-const roomKey = r => r?.room_key || String(r?.id||"generale");
-const avatarImage = n =>
-  n==="UNKNOWN" ? ownerAvatar.image :
-  avatars.find(x=>x.name===n)?.image || "/shadow.png";
+const internalEmail=n=>`${cleanNickname(n)}@account.who.local`;
+const roomKey=r=>r?.room_key||String(r?.id||"generale");
+const avatarImage=n=>
+  n==="UNKNOWN"?ownerAvatar.image:
+  avatars.find(x=>x.name===n)?.image||"/shadow.png";
 
-const emptyEquipment = () => ({
+const emptyEquipment=()=>({
   head:null,face:null,aura:null,frame:null
 });
 
-const getMessageColor = x => messageColors[x]||messageColors.purple;
-const getMessageFont = x => messageFonts[x]||messageFonts.standard;
+const getMessageColor=x=>messageColors[x]||messageColors.purple;
+const getMessageFont=x=>messageFonts[x]||messageFonts.standard;
 
-const messageStyle = m => ({
+const messageStyle=m=>({
   color:getMessageColor(m.message_color),
   fontFamily:getMessageFont(m.message_font),
   fontWeight:m.message_font==="bold"?900:400,
@@ -89,20 +88,20 @@ const messageStyle = m => ({
   overflowWrap:"anywhere"
 });
 
-const panel = {
+const panel={
   background:"linear-gradient(145deg,#1b1124,#0c0811)",
   border:`1px solid ${C.border}`,
   borderRadius:18,color:C.text
 };
 
-const inputStyle = {
+const inputStyle={
   width:"100%",boxSizing:"border-box",padding:13,
   background:"#08060b",color:"#fff",
   border:`1px solid ${C.border}`,
   borderRadius:13,outline:0,fontFamily:font
 };
 
-const buttonStyle = {
+const buttonStyle={
   background:"linear-gradient(135deg,#9c38cc,#5b1a7d)",
   border:"1px solid rgba(220,110,255,.55)",
   borderRadius:12,padding:"11px 14px",
@@ -110,46 +109,41 @@ const buttonStyle = {
   cursor:"pointer"
 };
 
-const secondaryButton = {
+const secondaryButton={
   background:"#130d19",border:`1px solid ${C.border}`,
   borderRadius:11,padding:"9px 11px",
   color:"#e5c4ee",fontWeight:800,cursor:"pointer"
 };
 
-function AvatarView({name="Shadow",size=46,equipment={}}) {
+function AvatarView({name="Shadow",size=46,equipment={}}){
   const eq=equipment||{};
-  const order=["aura","face","head","frame"];
   return (
     <div style={{
       width:size,height:size,position:"relative",
       flexShrink:0,display:"inline-block"
     }}>
-      {eq.aura && shopItems.some(x=>x.id===eq.aura) && (
-        <img
-          src={shopItems.find(x=>x.id===eq.aura).image}
-          alt=""
-          style={{
+      {eq.aura&&shopItems.some(x=>x.id===eq.aura)&&(
+        <img src={shopItems.find(x=>x.id===eq.aura).image}
+          alt="" style={{
             position:"absolute",width:size*1.55,height:size*1.55,
-            top:"50%",left:"50%",transform:"translate(-50%,-50%)",
-            objectFit:"contain",pointerEvents:"none",zIndex:0,
-            mixBlendMode:"screen"
-          }}
-        />
+            top:"50%",left:"50%",
+            transform:"translate(-50%,-50%)",
+            objectFit:"contain",pointerEvents:"none",
+            zIndex:0,mixBlendMode:"screen"
+          }}/>
       )}
-      <img
-        src={avatarImage(name)}
-        alt={name}
+      <img src={avatarImage(name)} alt={name}
         onError={e=>{
           if(!e.currentTarget.src.endsWith("/shadow.png"))
             e.currentTarget.src="/shadow.png";
         }}
         style={{
-          position:"relative",zIndex:2,width:size,height:size,
-          borderRadius:"50%",objectFit:"cover",
+          position:"relative",zIndex:2,
+          width:size,height:size,borderRadius:"50%",
+          objectFit:"cover",
           border:"1px solid rgba(200,100,255,.35)"
-        }}
-      />
-      {order.filter(s=>s!=="aura").map(slot=>{
+        }}/>
+      {["face","head","frame"].map(slot=>{
         const item=shopItems.find(x=>x.id===eq[slot]);
         if(!item)return null;
         return (
@@ -160,18 +154,18 @@ function AvatarView({name="Shadow",size=46,equipment={}}) {
               width:size*(slot==="frame"?1.25:slot==="head"?.85:.9),
               height:size*(slot==="frame"?1.25:slot==="head"?.85:.9),
               left:"50%",top:slot==="head"?"-30%":"50%",
-              transform:slot==="head"?"translateX(-50%)":"translate(-50%,-50%)",
+              transform:slot==="head"
+                ?"translateX(-50%)":"translate(-50%,-50%)",
               objectFit:"contain",mixBlendMode:"screen",
               pointerEvents:"none"
-            }}
-          />
+            }}/>
         );
       })}
     </div>
   );
 }
 
-export default function Home() {
+export default function Home(){
   const [loading,setLoading]=useState(true);
   const [session,setSession]=useState(null);
   const [profile,setProfile]=useState(null);
@@ -237,11 +231,11 @@ export default function Home() {
     paddingBottom:session&&started?90:25
   };
 
-  function alertUser(text) {
+  function alertUser(text){
     setNotice(String(text));
   }
 
-  function applyProfile(p) {
+  function applyProfile(p){
     setProfile(p);
     setNickname(p.nickname||p.username||"");
     setAvatar(p.avatar||"Shadow");
@@ -260,13 +254,13 @@ export default function Home() {
     });
   }
 
-  async function loadProfile(user,preferred="") {
+  async function loadProfile(user,preferred=""){
     const {data,error}=await supabase.from("profiles")
       .select("*").eq("id",user.id).maybeSingle();
 
     if(error)return alertUser(error.message);
 
-    if(data) {
+    if(data){
       applyProfile(data);
       setStarted(true);
       return;
@@ -310,7 +304,7 @@ export default function Home() {
     if(uid)loadProfile(session.user);
   },[uid]);
 
-  async function register() {
+  async function register(){
     const name=cleanNickname(nickname);
     if(name.length<3)return setAuthError("Nickname minimo 3 caratteri.");
     if(password.length<8)return setAuthError("Password minimo 8 caratteri.");
@@ -322,16 +316,16 @@ export default function Home() {
     });
 
     if(error)return setAuthError(error.message);
-    if(data.session&&data.user) {
+    if(data.session&&data.user){
       await loadProfile(data.user,name);
-    } else {
+    }else{
       setAuthMode("login");
       setAuthError("Account creato. Ora prova ad accedere.");
     }
     setPassword("");
   }
 
-  async function login() {
+  async function login(){
     const name=cleanNickname(nickname);
     if(!name)return setAuthError("Inserisci il nickname.");
     const {error}=await supabase.auth.signInWithPassword({
@@ -341,7 +335,7 @@ export default function Home() {
     setPassword("");
   }
 
-  async function logout() {
+  async function logout(){
     await supabase.auth.signOut();
     setProfile(null);setStarted(false);setPage("chat");
     setNickname("");setPassword("");setOwned([]);
@@ -350,7 +344,7 @@ export default function Home() {
     setEquipped(emptyEquipment());
   }
 
-  async function selectAvatar(name) {
+  async function selectAvatar(name){
     if(!uid||(name==="UNKNOWN"&&!isFounder))return;
     const {data,error}=await supabase.from("profiles")
       .update({avatar:name,updated_at:new Date().toISOString()})
@@ -359,53 +353,84 @@ export default function Home() {
     applyProfile(data);
   }
 
-  async function loadInventory() {
-    if(!uid)return;
+  async function loadInventory(){
+    if(!uid)return false;
     const [a,b]=await Promise.all([
       supabase.from("user_inventory").select("item_id").eq("user_id",uid),
       supabase.from("profiles").select("*").eq("id",uid).single()
     ]);
-    if(!a.error)setOwned((a.data||[]).map(x=>x.item_id));
-    if(b.data)applyProfile(b.data);
+    if(a.error)alertUser("Inventario: "+a.error.message);
+    else setOwned((a.data||[]).map(x=>x.item_id));
+    if(b.error)alertUser("Profilo: "+b.error.message);
+    else if(b.data)applyProfile(b.data);
+    return !a.error&&!b.error;
   }
 
-  async function buyItem(item) {
-    if(!uid||owned.includes(item.id)||busyPurchase)return;
-    if(points<item.price)return alertUser("WHO Points insufficienti.");
+  async function buyItem(item){
+    if(!uid)return alertUser("Devi effettuare l'accesso.");
+    if(busyPurchase)return;
+    if(owned.includes(item.id))
+      return alertUser("Possiedi già questo oggetto.");
+    if(points<item.price)
+      return alertUser(
+        `WHO Points insufficienti: hai ${points}, ne servono ${item.price}.`
+      );
 
     setBusyPurchase(true);
-    const {error}=await supabase.rpc("purchase_item",{
-      p_item_id:item.id,p_price:item.price
-    });
-    setBusyPurchase(false);
+    setNotice("");
+    try{
+      const {error}=await supabase.rpc("purchase_item",{
+        p_item_id:item.id,
+        p_price:item.price
+      });
+      if(error)throw error;
 
-    if(error)return alertUser(
-      "Acquisto non eseguito. Serve la funzione SQL purchase_item: "+error.message
-    );
-    await loadInventory();
-    alertUser(`${item.name} aggiunto alla tua collezione.`);
+      const ok=await loadInventory();
+      if(!ok)throw new Error(
+        "Acquisto inviato, ma aggiornamento inventario non riuscito. Ricarica la pagina prima di riprovare."
+      );
+      alertUser(`${item.name}: acquisto completato. Controlla la tua collezione.`);
+    }catch(error){
+      alertUser("SHOP: "+(error?.message||"Errore sconosciuto."));
+    }finally{
+      setBusyPurchase(false);
+    }
   }
 
-  async function equipItem(item) {
+  async function equipItem(item){
     if(!uid||!owned.includes(item.id))return;
     setEquipmentBusy(item.id);
-    const {error}=await supabase.rpc("equip_item",{p_item_id:item.id});
-    setEquipmentBusy(null);
-    if(error)return alertUser(error.message);
-    await loadInventory();
-    alertUser(`${item.name} equipaggiato.`);
+    try{
+      const {error}=await supabase.rpc("equip_item",{
+        p_item_id:item.id
+      });
+      if(error)throw error;
+      await loadInventory();
+      alertUser(`${item.name} equipaggiato.`);
+    }catch(error){
+      alertUser("Equipaggiamento: "+error.message);
+    }finally{
+      setEquipmentBusy(null);
+    }
   }
 
-  async function unequipSlot(slot) {
+  async function unequipSlot(slot){
     if(!uid)return;
     setEquipmentBusy(`remove-${slot}`);
-    const {error}=await supabase.rpc("unequip_item",{p_slot:slot});
-    setEquipmentBusy(null);
-    if(error)return alertUser(error.message);
-    await loadInventory();
+    try{
+      const {error}=await supabase.rpc("unequip_item",{
+        p_slot:slot
+      });
+      if(error)throw error;
+      await loadInventory();
+    }catch(error){
+      alertUser("Rimozione: "+error.message);
+    }finally{
+      setEquipmentBusy(null);
+    }
   }
 
-  async function loadRooms() {
+  async function loadRooms(){
     const {data,error}=await supabase.from("rooms")
       .select("*").order("created_at",{ascending:true});
     if(error)return;
@@ -417,11 +442,14 @@ export default function Home() {
     ]);
   }
 
-  async function createRoom() {
+  async function createRoom(){
     const name=newRoomName.trim();
-    if(name.length<3)return alertUser("Nome stanza minimo 3 caratteri.");
+    if(name.length<3)
+      return alertUser("Nome stanza minimo 3 caratteri.");
 
-    const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").slice(0,30);
+    const slug=name.toLowerCase()
+      .replace(/[^a-z0-9]+/g,"-").slice(0,30);
+
     const {data,error}=await supabase.from("rooms").insert({
       room_key:`${slug}-${Date.now().toString(36)}`,
       name:name.slice(0,35).toUpperCase(),
@@ -438,18 +466,17 @@ export default function Home() {
     setNewRoomPrivate(false);
   }
 
-  async function loadMessages() {
+  async function loadMessages(){
     const target=roomRef.current;
     const {data,error}=await supabase.from("messages")
       .select("*").eq("room",target)
       .order("id",{ascending:true}).limit(300);
-
     if(error)return console.error("WHO messages:",error);
     if(roomRef.current!==target)return;
     setMessages(data||[]);
   }
 
-  async function sendMessage() {
+  async function sendMessage(){
     const text=message.trim();
     if(!uid||!text||sending)return;
     setSending(true);
@@ -472,7 +499,7 @@ export default function Home() {
     await loadMessages();
   }
 
-  async function loadVotes() {
+  async function loadVotes(){
     if(!uid)return;
     const {data,error}=await supabase.from("message_votes")
       .select("message_id,vote").eq("user_id",uid);
@@ -483,7 +510,7 @@ export default function Home() {
     ));
   }
 
-  async function voteMessage(msg,vote) {
+  async function voteMessage(msg,vote){
     if(!uid)return;
     const {error}=await supabase.from("message_votes").upsert({
       message_id:msg.id,user_id:uid,
@@ -494,14 +521,14 @@ export default function Home() {
     await loadMessages();
   }
 
-  async function loadReports() {
+  async function loadReports(){
     if(!uid)return;
     const {data,error}=await supabase.from("message_reports")
       .select("message_id").eq("reporter_id",uid);
     if(!error)setReportedMessages((data||[]).map(x=>x.message_id));
   }
 
-  async function reportMessage(msg) {
+  async function reportMessage(msg){
     if(!uid||reportedMessages.includes(msg.id))return;
     const {error}=await supabase.from("message_reports").insert({
       message_id:msg.id,reporter_id:uid,reason:"user_report"
@@ -511,7 +538,7 @@ export default function Home() {
     alertUser("Segnalazione inviata.");
   }
 
-  async function openUserProfile(msg) {
+  async function openUserProfile(msg){
     if(!msg?.user_id)return;
     const {data}=await supabase.from("profiles").select("*")
       .eq("id",msg.user_id).maybeSingle();
@@ -521,7 +548,7 @@ export default function Home() {
     });
   }
 
-  async function loadInbox() {
+  async function loadInbox(){
     if(!uid)return;
     const {data,error}=await supabase.from("direct_messages")
       .select("*")
@@ -533,7 +560,7 @@ export default function Home() {
     setUnreadDM(all.filter(m=>m.receiver_id===uid&&!m.is_read).length);
 
     const peers=new Map();
-    for(const m of all) {
+    for(const m of all){
       const other=m.sender_id===uid?m.receiver_id:m.sender_id;
       if(!peers.has(other))peers.set(other,{
         id:other,
@@ -541,12 +568,13 @@ export default function Home() {
         avatar:m.sender_id===uid?"Shadow":m.sender_avatar,
         last:m.content,unread:0
       });
-      if(m.receiver_id===uid&&!m.is_read)peers.get(other).unread++;
+      if(m.receiver_id===uid&&!m.is_read)
+        peers.get(other).unread++;
     }
     setConversations([...peers.values()]);
   }
 
-  async function loadDirectMessages(user) {
+  async function loadDirectMessages(user){
     if(!uid||!user?.id)return;
     const {data,error}=await supabase.from("direct_messages")
       .select("*")
@@ -560,7 +588,7 @@ export default function Home() {
     await loadInbox();
   }
 
-  async function openPrivateChat(user) {
+  async function openPrivateChat(user){
     if(!user?.id||user.id===uid)return;
     setSelectedUser(null);
     setDmUser(user);
@@ -568,7 +596,7 @@ export default function Home() {
     setPage("dm");
   }
 
-  async function sendDirectMessage() {
+  async function sendDirectMessage(){
     const text=dmText.trim();
     if(!text||!dmUser?.id||!uid||dmSending)return;
     setDmSending(true);
@@ -587,7 +615,7 @@ export default function Home() {
     await loadDirectMessages(dmUser);
   }
 
-  async function saveStyle(field,value) {
+  async function saveStyle(field,value){
     const {error}=await supabase.from("profiles")
       .update({[field]:value}).eq("id",uid);
     if(error)return alertUser(error.message);
@@ -654,14 +682,14 @@ export default function Home() {
 
     ch.on("presence",{event:"sync"},()=>{
       const result={};
-      for(const entries of Object.values(ch.presenceState())) {
-        for(const p of entries) {
+      for(const entries of Object.values(ch.presenceState())){
+        for(const p of entries){
           if(p.user_id)result[p.user_id]=p.room;
         }
       }
       setOnline(result);
     }).subscribe(async status=>{
-      if(status==="SUBSCRIBED") {
+      if(status==="SUBSCRIBED"){
         await ch.track({user_id:uid,room:roomRef.current});
       }
     });
@@ -674,14 +702,16 @@ export default function Home() {
 
   useEffect(()=>{
     if(uid&&presenceRef.current)
-      presenceRef.current.track({user_id:uid,room:currentRoom});
+      presenceRef.current.track({
+        user_id:uid,room:currentRoom
+      });
   },[uid,currentRoom]);
 
   useEffect(()=>{
     const el=publicChatRef.current;
     if(!el||page!=="chat")return;
     const last=messages[messages.length-1]?.id;
-    if(last!==lastMessageRef.current) {
+    if(last!==lastMessageRef.current){
       if(lastMessageRef.current!==null&&!nearBottomRef.current)
         setNewMessages(n=>n+1);
       else requestAnimationFrame(()=>{
@@ -696,23 +726,25 @@ export default function Home() {
       dmChatRef.current.scrollTop=dmChatRef.current.scrollHeight;
   },[dmMessages,page]);
 
-  function Logo() {
+  function Logo(){
     return (
       <div style={{
         fontFamily:displayFont,fontSize:39,fontWeight:900,
         background:"linear-gradient(90deg,#fff,#f0b4ff,#9b63ff,#6eeeff)",
-        WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"
+        WebkitBackgroundClip:"text",
+        WebkitTextFillColor:"transparent"
       }}>WHO</div>
     );
   }
 
-  function Nav() {
+  function Nav(){
     return (
       <nav style={{
         position:"fixed",bottom:0,left:0,right:0,zIndex:100,
         display:"grid",gridTemplateColumns:"repeat(5,1fr)",
         background:"rgba(7,5,10,.98)",
-        borderTop:`1px solid ${C.border}`,padding:"8px 2px 12px"
+        borderTop:`1px solid ${C.border}`,
+        padding:"8px 2px 12px"
       }}>
         {[
           ["chat","✦","Chat"],
@@ -722,7 +754,8 @@ export default function Home() {
           ["profile","●","Profilo"]
         ].map(([id,symbol,label])=>(
           <button key={id} onClick={()=>setPage(id)} style={{
-            position:"relative",border:0,background:"transparent",
+            position:"relative",border:0,
+            background:"transparent",
             color:page===id?"#edaaff":"#776d7b",
             fontWeight:900,fontSize:10
           }}>
@@ -731,8 +764,8 @@ export default function Home() {
             {id==="inbox"&&unreadDM>0&&(
               <span style={{
                 position:"absolute",top:-3,right:"12%",
-                borderRadius:20,background:C.red,color:"white",
-                padding:"2px 5px",fontSize:9
+                borderRadius:20,background:C.red,
+                color:"white",padding:"2px 5px",fontSize:9
               }}>{unreadDM>99?"99+":unreadDM}</span>
             )}
           </button>
@@ -741,74 +774,132 @@ export default function Home() {
     );
   }
 
+  function Notice(){
+    if(!notice)return null;
+    return (
+      <div role="alert" style={{
+        position:"fixed",bottom:95,left:14,right:14,
+        maxWidth:600,margin:"auto",zIndex:900,
+        ...panel,padding:15,
+        border:`1px solid ${C.pink}`,
+        boxShadow:"0 0 30px rgba(0,0,0,.8)"
+      }}>
+        <strong style={{color:C.pink}}>WHO</strong>
+        <p style={{
+          fontSize:12,overflowWrap:"anywhere",
+          whiteSpace:"pre-wrap"
+        }}>{notice}</p>
+        <button style={buttonStyle}
+          onClick={()=>setNotice("")}>OK</button>
+      </div>
+    );
+  }
+
   if(loading)return (
-    <main style={{...background,display:"grid",placeItems:"center"}}>
+    <main style={{
+      ...background,display:"grid",placeItems:"center"
+    }}>
       <Logo/>
     </main>
   );
 
   if(!session)return (
     <main style={background}>
-      <section style={{maxWidth:420,margin:"auto",padding:"75px 20px"}}>
-        <div style={{textAlign:"center",marginBottom:25}}>
+      <section style={{
+        maxWidth:420,margin:"auto",padding:"75px 20px"
+      }}>
+        <div style={{
+          textAlign:"center",marginBottom:25
+        }}>
           <Logo/>
           <p style={{color:C.muted}}>
             Nessun nome. Nessun giudizio. Solo WHO.
           </p>
         </div>
         <div style={{...panel,padding:20}}>
-          <h2>{authMode==="login"?"Bentornato in WHO":"Crea il tuo account WHO"}</h2>
-          <input style={inputStyle} placeholder="Nickname"
+          <h2>{authMode==="login"
+            ?"Bentornato in WHO"
+            :"Crea il tuo account WHO"}</h2>
+          <input style={inputStyle}
+            placeholder="Nickname"
             value={nickname}
-            onChange={e=>setNickname(cleanNickname(e.target.value))}/>
-          <input style={{...inputStyle,marginTop:9}}
-            type="password" placeholder="Password"
+            onChange={e=>setNickname(
+              cleanNickname(e.target.value)
+            )}/>
+          <input style={{
+            ...inputStyle,marginTop:9
+          }} type="password" placeholder="Password"
             value={password}
             onChange={e=>setPassword(e.target.value)}/>
-          {authError&&<p style={{color:C.red}}>{authError}</p>}
-          <button style={{...buttonStyle,width:"100%",marginTop:14}}
-            onClick={authMode==="login"?login:register}>
+          {authError&&(
+            <p style={{color:C.red}}>{authError}</p>
+          )}
+          <button style={{
+            ...buttonStyle,width:"100%",marginTop:14
+          }} onClick={authMode==="login"?login:register}>
             {authMode==="login"?"ACCEDI":"CREA ACCOUNT"}
           </button>
           <button style={{
             ...secondaryButton,width:"100%",marginTop:10
           }} onClick={()=>{
-            setAuthMode(authMode==="login"?"register":"login");
+            setAuthMode(
+              authMode==="login"?"register":"login"
+            );
             setAuthError("");
           }}>
-            {authMode==="login"?"Non hai un account? Registrati":"Hai già un account? Accedi"}
+            {authMode==="login"
+              ?"Non hai un account? Registrati"
+              :"Hai già un account? Accedi"}
           </button>
         </div>
       </section>
+      <Notice/>
     </main>
   );
 
   if(started==="identity")return (
     <main style={background}>
-      <section style={{maxWidth:650,margin:"auto",padding:18}}>
+      <section style={{
+        maxWidth:650,margin:"auto",padding:18
+      }}>
         <h1>Scegli la tua identità</h1>
         <div style={{
-          display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10
+          display:"grid",
+          gridTemplateColumns:"repeat(2,1fr)",gap:10
         }}>
-          {[...(isFounder?[ownerAvatar]:[]),...avatars].map(a=>(
-            <button key={a.name} onClick={()=>selectAvatar(a.name)}
-              style={{...panel,padding:13,textAlign:"center"}}>
+          {[...(isFounder?[ownerAvatar]:[]),...avatars]
+            .map(a=>(
+            <button key={a.name}
+              onClick={()=>selectAvatar(a.name)}
+              style={{
+                ...panel,padding:13,textAlign:"center"
+              }}>
               <AvatarView name={a.name} size={105}
-                equipment={avatar===a.name?equipped:{}}/>
-              <div style={{marginTop:12,color:C.pink,fontWeight:900}}>
-                {avatar===a.name?"✓ SELEZIONATO":"SCEGLI"}
+                equipment={
+                  avatar===a.name?equipped:{}
+                }/>
+              <div style={{
+                marginTop:12,color:C.pink,
+                fontWeight:900
+              }}>
+                {avatar===a.name
+                  ?"✓ SELEZIONATO":"SCEGLI"}
               </div>
             </button>
           ))}
         </div>
         <button style={{
-          ...buttonStyle,width:"100%",marginTop:15,padding:16
-        }} onClick={()=>setStarted(true)}>CONTINUA →</button>
+          ...buttonStyle,width:"100%",
+          marginTop:15,padding:16
+        }} onClick={()=>setStarted(true)}>
+          CONTINUA →
+        </button>
       </section>
+      <Notice/>
     </main>
   );
 
-  // CONTINUA CON IL BLOCCO 2 QUI SOTTO
+  // INCOLLA IL BLOCCO 2 IMMEDIATAMENTE QUI
   if(page==="rooms")return (
     <main style={background}>
       <section style={{maxWidth:650,margin:"auto",padding:18}}>
@@ -881,6 +972,7 @@ export default function Home() {
           </button>
         ))}
       </section>
+      <Notice/>
       <Nav/>
     </main>
   );
@@ -931,6 +1023,7 @@ export default function Home() {
           </button>
         ))}
       </section>
+      <Notice/>
       <Nav/>
     </main>
   );
@@ -1023,6 +1116,7 @@ export default function Home() {
             onClick={sendDirectMessage}>➤</button>
         </div>
       </section>
+      <Notice/>
       <Nav/>
     </main>
   );
@@ -1034,6 +1128,28 @@ export default function Home() {
         <div style={{...panel,padding:15,marginBottom:14}}>
           ✦ {points} WHO Points
         </div>
+
+        {notice&&(
+          <div role="alert" style={{
+            ...panel,padding:15,marginBottom:14,
+            border:`1px solid ${C.pink}`,
+            background:"#30133f"
+          }}>
+            <strong style={{color:C.pink}}>WHO SHOP</strong>
+            <p style={{
+              fontSize:12,overflowWrap:"anywhere",
+              whiteSpace:"pre-wrap"
+            }}>{notice}</p>
+            <button style={secondaryButton}
+              onClick={()=>setNotice("")}>CHIUDI</button>
+          </div>
+        )}
+
+        <p style={{fontSize:12,color:C.muted}}>
+          Sblocca gli item con i WHO Points.
+          Gli oggetti acquistati appariranno nella tua collezione.
+        </p>
+
         <div style={{
           display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",
           gap:10
@@ -1041,6 +1157,7 @@ export default function Home() {
           {shopItems.map(item=>{
             const hasItem=owned.includes(item.id);
             const active=equipped[item.slot]===item.id;
+            const insufficient=!hasItem&&points<item.price;
             return (
               <div key={item.id} style={{
                 ...panel,overflow:"hidden",
@@ -1062,15 +1179,27 @@ export default function Home() {
                     fontSize:9,marginTop:5,fontWeight:900
                   }}>{item.rarity}</div>
                   <p style={{color:"#dc9aff"}}>✦ {item.price}</p>
-                  <button style={{
+
+                  {insufficient&&(
+                    <div style={{
+                      color:C.red,fontSize:10,marginBottom:8
+                    }}>
+                      Ti mancano {item.price-points} WHO Points
+                    </div>
+                  )}
+
+                  <button type="button" style={{
                     ...buttonStyle,width:"100%",fontSize:10,
-                    opacity:busyPurchase||equipmentBusy?.length?0.6:1
+                    opacity:busyPurchase||!!equipmentBusy?0.6:1
                   }} disabled={busyPurchase||!!equipmentBusy}
-                    onClick={()=>
-                      !hasItem?buyItem(item):
-                      active?unequipSlot(item.slot):equipItem(item)
-                    }>
-                    {!hasItem?"SBLOCCA":
+                    onClick={()=>{
+                      setNotice("");
+                      if(!hasItem)buyItem(item);
+                      else if(active)unequipSlot(item.slot);
+                      else equipItem(item);
+                    }}>
+                    {busyPurchase&&!hasItem?"ATTENDI...":
+                      !hasItem?"SBLOCCA":
                       active?"✓ RIMUOVI":"EQUIPAGGIA"}
                   </button>
                 </div>
@@ -1083,7 +1212,7 @@ export default function Home() {
     </main>
   );
 
-  if(page==="profile") {
+  if(page==="profile"){
     const ownedItems=shopItems.filter(x=>owned.includes(x.id));
     return (
       <main style={background}>
@@ -1277,6 +1406,7 @@ export default function Home() {
             padding:15,color:C.red
           }} onClick={logout}>ESCI</button>
         </section>
+        <Notice/>
         <Nav/>
       </main>
     );
@@ -1599,22 +1729,8 @@ export default function Home() {
         </div>
       )}
 
-      {notice&&(
-        <div style={{
-          position:"fixed",bottom:95,left:14,right:14,
-          maxWidth:600,margin:"auto",zIndex:900,
-          ...panel,padding:15,
-          boxShadow:"0 0 30px rgba(0,0,0,.8)"
-        }}>
-          <p style={{fontSize:12,overflowWrap:"anywhere"}}>
-            {notice}
-          </p>
-          <button style={buttonStyle}
-            onClick={()=>setNotice("")}>OK</button>
-        </div>
-      )}
-
+      <Notice/>
       <Nav/>
     </main>
   );
-              }
+}
