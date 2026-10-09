@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -142,6 +143,18 @@ const secondaryButton = {
 
 const fmt = n => Number(n || 0).toLocaleString("it-IT");
 
+// ORARIO REALE DEI MESSAGGI - ITALIA
+const formatMessageTime = date => {
+  if (!date) return "";
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("it-IT", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Europe/Rome"
+  });
+};
+
 function AvatarView({ name = "Shadow", size = 46 }) {
   return (
     <img
@@ -253,7 +266,6 @@ export default function Home() {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
-  // Eliminazione account
   const [deletionRequest, setDeletionRequest] = useState(null);
   const [deletionBusy, setDeletionBusy] = useState(false);
   const [deletionLoading, setDeletionLoading] = useState(false);
@@ -999,7 +1011,6 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [page, isFounder, uid]);
 
-  // Gestione eliminazione account
   async function loadDeletionRequest() {
     if (!uid) return;
     setDeletionLoading(true);
@@ -1620,6 +1631,15 @@ export default function Home() {
                 <div style={messageStyle(m)}>
                   {m.content}
                 </div>
+                <div style={{
+                  textAlign: "right",
+                  color: C.muted,
+                  fontSize: 10,
+                  marginTop: 5,
+                  fontVariantNumeric: "tabular-nums"
+                }}>
+                  {formatMessageTime(m.created_at)}
+                </div>
               </div>
             </div>;
           })}
@@ -2212,7 +2232,7 @@ export default function Home() {
           CAMBIA AVATAR
         </button>
 
-        {/* NUOVA SEZIONE ELIMINAZIONE ACCOUNT */}
+        {/* ELIMINAZIONE ACCOUNT */}
         <div style={{
           ...panel,
           padding: 18,
@@ -2870,20 +2890,38 @@ export default function Home() {
               </button>
 
               <div style={{ flex: 1, minWidth: 0 }}>
-                <button
-                  disabled={mine}
-                  onClick={() => openUserProfile(msg)}
-                  style={{
-                    background: "transparent",
-                    border: 0,
-                    color: "#fff",
-                    fontWeight: 900,
-                    padding: 0,
-                    fontFamily: font
-                  }}
-                >
-                  @{msg.nickname || "anonimo"}
-                </button>
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8
+                }}>
+                  <button
+                    disabled={mine}
+                    onClick={() => openUserProfile(msg)}
+                    style={{
+                      background: "transparent",
+                      border: 0,
+                      color: "#fff",
+                      fontWeight: 900,
+                      padding: 0,
+                      fontFamily: font,
+                      overflowWrap: "anywhere",
+                      textAlign: "left"
+                    }}
+                  >
+                    @{msg.nickname || "anonimo"}
+                  </button>
+
+                  <span style={{
+                    color: C.muted,
+                    fontSize: 10,
+                    flexShrink: 0,
+                    fontVariantNumeric: "tabular-nums"
+                  }}>
+                    {formatMessageTime(msg.created_at)}
+                  </span>
+                </div>
 
                 {msg.reply_to_nickname &&
                   <div style={{
@@ -3080,4 +3118,4 @@ export default function Home() {
     <Notice/>
     <Nav/>
   </main>;
-            }
+}
