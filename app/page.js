@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -254,6 +253,13 @@ export default function Home() {
   const [passwordBusy, setPasswordBusy] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
 
+  // Eliminazione account
+  const [deletionRequest, setDeletionRequest] = useState(null);
+  const [deletionBusy, setDeletionBusy] = useState(false);
+  const [deletionLoading, setDeletionLoading] = useState(false);
+  const [deletionPassword, setDeletionPassword] = useState("");
+  const [showDeletionForm, setShowDeletionForm] = useState(false);
+
   const publicChatRef = useRef(null);
   const dmChatRef = useRef(null);
   const nearBottomRef = useRef(true);
@@ -337,6 +343,7 @@ export default function Home() {
         setProfile(null);
         setStarted(false);
         setFounderVerified(false);
+        setDeletionRequest(null);
       }
       setLoading(false);
     });
@@ -404,7 +411,6 @@ export default function Home() {
 
     try {
       const email = session?.user?.email;
-
       if (!email) throw new Error("Email dell'account non disponibile.");
 
       const verification = await supabase.auth.signInWithPassword({
@@ -513,6 +519,9 @@ export default function Home() {
     setMyRank(null);
     setMyWeeklyRank(null);
     setFounderVerified(false);
+    setDeletionRequest(null);
+    setDeletionPassword("");
+    setShowDeletionForm(false);
   }
 
   async function selectAvatar(name) {
@@ -598,21 +607,17 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [uid, started]);
 
-  // CONTINUA NEL BLOCCO 2/4
+  // BLOCCO 2/4 CONTINUA QUI
   async function loadRooms() {
     const { data, error } = await supabase
-      .from("rooms")
-      .select("*")
+      .from("rooms").select("*")
       .order("created_at", { ascending: true });
-
-    if (!error) {
-      setRooms([
-        ...roomsDefault,
-        ...(data || []).filter(
-          r => !roomsDefault.some(d => d.room_key === r.room_key)
-        )
-      ]);
-    }
+    if (!error) setRooms([
+      ...roomsDefault,
+      ...(data || []).filter(
+        r => !roomsDefault.some(d => d.room_key === r.room_key)
+      )
+    ]);
   }
 
   async function createRoom() {
@@ -621,7 +626,6 @@ export default function Home() {
       alertUser("Nome stanza minimo 3 caratteri.");
       return;
     }
-
     const slug = name.toLowerCase()
       .replace(/[^a-z0-9]+/g, "-").slice(0, 30);
 
@@ -635,11 +639,7 @@ export default function Home() {
       is_official: false
     }).select().single();
 
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     setRooms(old => [...old, data]);
     setShowCreateRoom(false);
     setNewRoomName("");
@@ -650,27 +650,17 @@ export default function Home() {
   async function loadMessages() {
     const target = roomRef.current;
     const { data, error } = await supabase.from("messages")
-      .select("*")
-      .eq("room", target)
-      .order("id", { ascending: false })
-      .limit(300);
-
-    if (error) {
-      console.error("WHO messages:", error);
-      return;
-    }
-
-    if (roomRef.current === target) {
+      .select("*").eq("room", target)
+      .order("id", { ascending: false }).limit(300);
+    if (error) return console.error(error);
+    if (roomRef.current === target)
       setMessages((data || []).reverse());
-    }
   }
 
   async function sendMessage() {
     const text = message.trim();
     if (!uid || !text || sending) return;
-
     setSending(true);
-
     const { error } = await supabase.from("messages").insert({
       room: currentRoom,
       user_id: uid,
@@ -685,14 +675,8 @@ export default function Home() {
       reply_to_nickname: replyingTo?.nickname || null,
       reply_preview: replyingTo?.content?.slice(0, 100) || null
     });
-
     setSending(false);
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     setMessage("");
     setReplyingTo(null);
     nearBottomRef.current = true;
@@ -701,89 +685,57 @@ export default function Home() {
 
   async function loadVotes() {
     if (!uid) return;
-
     const { data, error } = await supabase
-      .from("message_votes")
-      .select("message_id,vote")
+      .from("message_votes").select("message_id,vote")
       .eq("user_id", uid);
-
-    if (!error) {
-      setMyVotes(Object.fromEntries(
-        (data || []).map(x => [
-          x.message_id,
-          Number(x.vote) === 1 ? "like" : "dislike"
-        ])
-      ));
-    }
+    if (!error) setMyVotes(Object.fromEntries(
+      (data || []).map(x => [
+        x.message_id,
+        Number(x.vote) === 1 ? "like" : "dislike"
+      ])
+    ));
   }
 
   async function voteMessage(msg, vote) {
     if (!uid || msg.user_id === uid) return;
-
-    const { error } = await supabase
-      .from("message_votes")
+    const { error } = await supabase.from("message_votes")
       .upsert({
         message_id: msg.id,
         user_id: uid,
         vote: vote === "like" ? 1 : -1
       }, { onConflict: "message_id,user_id" });
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     setMyVotes(old => ({ ...old, [msg.id]: vote }));
     await loadMessages();
   }
 
   async function loadReports() {
     if (!uid) return;
-
     const { data, error } = await supabase
-      .from("message_reports")
-      .select("message_id")
+      .from("message_reports").select("message_id")
       .eq("reporter_id", uid);
-
-    if (!error) {
+    if (!error)
       setReportedMessages((data || []).map(x => x.message_id));
-    }
   }
 
   async function reportMessage(msg) {
-    if (
-      !uid ||
-      msg.user_id === uid ||
-      reportedMessages.includes(msg.id)
-    ) return;
-
+    if (!uid || msg.user_id === uid ||
+        reportedMessages.includes(msg.id)) return;
     const { error } = await supabase
-      .from("message_reports")
-      .insert({
+      .from("message_reports").insert({
         message_id: msg.id,
         reporter_id: uid,
         reason: "user_report"
       });
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     setReportedMessages(old => [...old, msg.id]);
-    alertUser(
-      "Segnalazione ricevuta. Nessuna penalità automatica."
-    );
+    alertUser("Segnalazione ricevuta. Nessuna penalità automatica.");
   }
 
   async function openUserProfile(msg) {
     if (!msg?.user_id) return;
-
     const { data } = await supabase.from("profiles")
-      .select("*")
-      .eq("id", msg.user_id)
-      .maybeSingle();
-
+      .select("*").eq("id", msg.user_id).maybeSingle();
     setSelectedUser(data || {
       id: msg.user_id,
       nickname: msg.nickname,
@@ -796,78 +748,54 @@ export default function Home() {
 
   async function loadInbox() {
     if (!uid) return;
-
     const { data, error } = await supabase
-      .from("direct_messages")
-      .select("*")
+      .from("direct_messages").select("*")
       .or(`sender_id.eq.${uid},receiver_id.eq.${uid}`)
-      .order("created_at", { ascending: false })
-      .limit(500);
-
+      .order("created_at", { ascending: false }).limit(500);
     if (error) return;
-
     const all = data || [];
-
     setUnreadDM(
       all.filter(m => m.receiver_id === uid && !m.is_read).length
     );
-
     const peers = new Map();
-
     for (const m of all) {
       const other = m.sender_id === uid
         ? m.receiver_id : m.sender_id;
-
-      if (!peers.has(other)) {
-        peers.set(other, {
-          id: other,
-          nickname: m.sender_id === uid
-            ? m.receiver_nickname : m.sender_nickname,
-          avatar: m.sender_id === uid
-            ? "Shadow" : m.sender_avatar,
-          last: m.content,
-          unread: 0
-        });
-      }
-
-      if (m.receiver_id === uid && !m.is_read) {
+      if (!peers.has(other)) peers.set(other, {
+        id: other,
+        nickname: m.sender_id === uid
+          ? m.receiver_nickname : m.sender_nickname,
+        avatar: m.sender_id === uid
+          ? "Shadow" : m.sender_avatar,
+        last: m.content,
+        unread: 0
+      });
+      if (m.receiver_id === uid && !m.is_read)
         peers.get(other).unread++;
-      }
     }
-
     setConversations([...peers.values()]);
   }
 
   async function loadDirectMessages(user) {
     if (!uid || !user?.id) return;
-
     const { data, error } = await supabase
-      .from("direct_messages")
-      .select("*")
+      .from("direct_messages").select("*")
       .or(
         `and(sender_id.eq.${uid},receiver_id.eq.${user.id}),and(sender_id.eq.${user.id},receiver_id.eq.${uid})`
       )
       .order("created_at", { ascending: true });
-
-    if (error) {
-      console.error("WHO DM:", error);
-      return;
-    }
-
+    if (error) return console.error(error);
     setDmMessages(data || []);
-
     await supabase.from("direct_messages")
       .update({ is_read: true })
       .eq("sender_id", user.id)
       .eq("receiver_id", uid)
       .eq("is_read", false);
-
     await loadInbox();
   }
 
   async function openPrivateChat(user) {
     if (!user?.id || user.id === uid) return;
-
     setSelectedUser(null);
     setDmUser(user);
     setDmMessages([]);
@@ -877,12 +805,9 @@ export default function Home() {
   async function sendDirectMessage() {
     const text = dmText.trim();
     if (!text || !dmUser?.id || !uid || dmSending) return;
-
     setDmSending(true);
-
     const { error } = await supabase
-      .from("direct_messages")
-      .insert({
+      .from("direct_messages").insert({
         sender_id: uid,
         receiver_id: dmUser.id,
         sender_nickname: profile?.nickname || nickname,
@@ -893,30 +818,17 @@ export default function Home() {
         message_font: messageFont,
         is_read: false
       });
-
     setDmSending(false);
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     setDmText("");
     await loadDirectMessages(dmUser);
   }
 
   async function saveStyle(field, value) {
     if (!uid) return;
-
     const { error } = await supabase.from("profiles")
-      .update({ [field]: value })
-      .eq("id", uid);
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+      .update({ [field]: value }).eq("id", uid);
+    if (error) return alertUser(error.message);
     if (field === "message_color") setMessageColor(value);
     else setMessageFont(value);
   }
@@ -931,26 +843,19 @@ export default function Home() {
 
   useEffect(() => {
     if (!uid || started !== true) return;
-
     roomRef.current = currentRoom;
     setMessages([]);
     setNewMessages(0);
     lastMessageRef.current = null;
     nearBottomRef.current = true;
-
     loadMessages();
-
     const ch = supabase.channel(`who-public-${currentRoom}`)
       .on("postgres_changes", {
-        event: "*",
-        schema: "public",
+        event: "*", schema: "public",
         table: "messages",
         filter: `room=eq.${currentRoom}`
-      }, () => loadMessages())
-      .subscribe();
-
+      }, () => loadMessages()).subscribe();
     const timer = setInterval(loadMessages, 5000);
-
     return () => {
       clearInterval(timer);
       supabase.removeChannel(ch);
@@ -959,20 +864,14 @@ export default function Home() {
 
   useEffect(() => {
     if (!uid || started !== true) return;
-
     loadInbox();
-
     const ch = supabase.channel(`who-inbox-${uid}`)
       .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
+        event: "INSERT", schema: "public",
         table: "direct_messages",
         filter: `receiver_id=eq.${uid}`
-      }, () => loadInbox())
-      .subscribe();
-
+      }, () => loadInbox()).subscribe();
     const timer = setInterval(loadInbox, 6000);
-
     return () => {
       clearInterval(timer);
       supabase.removeChannel(ch);
@@ -981,44 +880,30 @@ export default function Home() {
 
   useEffect(() => {
     if (page !== "dm" || !dmUser?.id || !uid) return;
-
     loadDirectMessages(dmUser);
-
     const timer = setInterval(
       () => loadDirectMessages(dmUser), 5000
     );
-
     return () => clearInterval(timer);
   }, [page, dmUser?.id, uid]);
 
   useEffect(() => {
     if (!uid || started !== true) return;
-
     const ch = supabase.channel("who-global-presence", {
       config: { presence: { key: uid } }
     });
-
     presenceRef.current = ch;
-
     ch.on("presence", { event: "sync" }, () => {
       const result = {};
-
       for (const entries of Object.values(ch.presenceState())) {
-        for (const p of entries) {
+        for (const p of entries)
           if (p.user_id) result[p.user_id] = p.room;
-        }
       }
-
       setOnline(result);
     }).subscribe(async status => {
-      if (status === "SUBSCRIBED") {
-        await ch.track({
-          user_id: uid,
-          room: roomRef.current
-        });
-      }
+      if (status === "SUBSCRIBED")
+        await ch.track({ user_id: uid, room: roomRef.current });
     });
-
     return () => {
       presenceRef.current = null;
       supabase.removeChannel(ch);
@@ -1026,85 +911,53 @@ export default function Home() {
   }, [uid, started]);
 
   useEffect(() => {
-    if (uid && presenceRef.current) {
+    if (uid && presenceRef.current)
       presenceRef.current.track({
-        user_id: uid,
-        room: currentRoom
+        user_id: uid, room: currentRoom
       });
-    }
   }, [uid, currentRoom]);
 
   useEffect(() => {
     const el = publicChatRef.current;
     if (!el || page !== "chat") return;
-
     const last = messages[messages.length - 1]?.id;
-
     if (last !== lastMessageRef.current) {
-      if (
-        lastMessageRef.current !== null &&
-        !nearBottomRef.current
-      ) {
+      if (lastMessageRef.current !== null &&
+          !nearBottomRef.current)
         setNewMessages(n => n + 1);
-      } else {
-        requestAnimationFrame(() => {
-          el.scrollTop = el.scrollHeight;
-        });
-      }
-
+      else requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
       lastMessageRef.current = last;
     }
   }, [messages, page]);
 
   useEffect(() => {
-    if (page === "dm" && dmChatRef.current) {
+    if (page === "dm" && dmChatRef.current)
       dmChatRef.current.scrollTop =
         dmChatRef.current.scrollHeight;
-    }
   }, [dmMessages, page]);
 
   async function loadFounderReports() {
     if (!isFounder) return;
-
     setFounderError("");
-
     const { data, error } = await supabase
-      .from("message_reports")
-      .select("*")
+      .from("message_reports").select("*")
       .eq("status", "pending")
-      .order("id", { ascending: false })
-      .limit(100);
-
-    if (error) {
-      setFounderError(error.message);
-      return;
-    }
-
-    const ids = [
-      ...new Set(
-        (data || [])
-          .map(r => r.message_id)
-          .filter(x => x != null)
-      )
-    ];
-
+      .order("id", { ascending: false }).limit(100);
+    if (error) return setFounderError(error.message);
+    const ids = [...new Set(
+      (data || []).map(r => r.message_id).filter(x => x != null)
+    )];
     let lookup = {};
-
     if (ids.length) {
-      const res = await supabase
-        .from("messages")
-        .select("id,user_id,nickname,content,room")
-        .in("id", ids);
-
-      if (res.error) {
-        setFounderError(res.error.message);
-      } else {
-        lookup = Object.fromEntries(
-          (res.data || []).map(m => [m.id, m])
-        );
-      }
+      const res = await supabase.from("messages")
+        .select("id,user_id,nickname,content,room").in("id", ids);
+      if (res.error) setFounderError(res.error.message);
+      else lookup = Object.fromEntries(
+        (res.data || []).map(m => [m.id, m])
+      );
     }
-
     setFounderReports((data || []).map(r => ({
       ...r,
       reportedMessage: lookup[r.message_id] || null
@@ -1113,77 +966,120 @@ export default function Home() {
 
   async function reviewFounderReport(report, approve) {
     if (!isFounder || founderBusy) return;
-
     const penalty = approve
-      ? Number(founderPenalties[report.id] ?? 0)
-      : 0;
-
-    if (
-      !Number.isInteger(penalty) ||
-      penalty < 0 ||
-      penalty > 100
-    ) {
-      alertUser("Penalità ammessa: da 0 a 100 WHO Points.");
-      return;
-    }
-
-    if (
-      approve &&
-      !report.reportedMessage
-    ) {
-      alertUser("Impossibile approvare senza verificare il messaggio.");
-      return;
-    }
-
+      ? Number(founderPenalties[report.id] ?? 0) : 0;
+    if (!Number.isInteger(penalty) ||
+        penalty < 0 || penalty > 100)
+      return alertUser("Penalità ammessa: da 0 a 100 WHO Points.");
+    if (approve && !report.reportedMessage)
+      return alertUser("Impossibile approvare senza verificare il messaggio.");
     if (!window.confirm(
       approve
         ? `Confermi la segnalazione #${report.id} e la penalità di ${penalty} punti?`
         : `Rifiutare la segnalazione #${report.id}?`
     )) return;
-
     setFounderBusy(true);
-
     const { data, error } = await supabase.rpc(
-      "who_founder_review_report",
-      {
+      "who_founder_review_report", {
         p_report_id: report.id,
         p_approve: approve,
         p_penalty: penalty
       }
     );
-
     setFounderBusy(false);
-
-    if (error) {
-      alertUser(error.message);
-      return;
-    }
-
+    if (error) return alertUser(error.message);
     alertUser(data || "Segnalazione gestita.");
-
-    await Promise.all([
-      loadFounderReports(),
-      refreshProfile()
-    ]);
+    await Promise.all([loadFounderReports(), refreshProfile()]);
   }
 
   useEffect(() => {
     if (page !== "founder" || !isFounder || !uid) return;
-
     loadFounderReports();
-
     const timer = setInterval(loadFounderReports, 20000);
     return () => clearInterval(timer);
   }, [page, isFounder, uid]);
 
+  // Gestione eliminazione account
+  async function loadDeletionRequest() {
+    if (!uid) return;
+    setDeletionLoading(true);
+    const { data, error } = await supabase.rpc(
+      "who_deletion_status"
+    );
+    setDeletionLoading(false);
+    if (error) {
+      alertUser("Stato eliminazione non disponibile: " + error.message);
+      return;
+    }
+    setDeletionRequest(data || null);
+  }
+
+  useEffect(() => {
+    if (uid && page === "profile") loadDeletionRequest();
+  }, [uid, page]);
+
+  async function requestAccountDeletion() {
+    if (!uid || deletionBusy) return;
+    if (!deletionPassword) {
+      alertUser("Inserisci la password per confermare.");
+      return;
+    }
+    if (!window.confirm(
+      "Confermi la richiesta di eliminazione del tuo account WHO?"
+    )) return;
+
+    setDeletionBusy(true);
+    try {
+      const verification = await supabase.auth.signInWithPassword({
+        email: session.user.email,
+        password: deletionPassword
+      });
+      if (verification.error)
+        throw new Error("Password non corretta.");
+
+      const { error } = await supabase.rpc(
+        "who_request_deletion"
+      );
+      if (error) throw error;
+
+      setDeletionPassword("");
+      setShowDeletionForm(false);
+      await loadDeletionRequest();
+      alertUser(
+        "Richiesta registrata. Hai 30 giorni per annullarla. " +
+        "La cancellazione definitiva richiede il processo server."
+      );
+    } catch (e) {
+      alertUser(e.message || "Richiesta non riuscita.");
+    } finally {
+      setDeletionBusy(false);
+    }
+  }
+
+  async function cancelAccountDeletion() {
+    if (!uid || deletionBusy) return;
+    if (!window.confirm(
+      "Vuoi annullare la richiesta di eliminazione?"
+    )) return;
+    setDeletionBusy(true);
+    try {
+      const { error } = await supabase.rpc(
+        "who_cancel_deletion"
+      );
+      if (error) throw error;
+      setDeletionRequest(null);
+      alertUser("Richiesta di eliminazione annullata.");
+    } catch (e) {
+      alertUser(e.message || "Annullamento non riuscito.");
+    } finally {
+      setDeletionBusy(false);
+    }
+  }
+
   function Nav() {
     return <nav style={{
-      position: "fixed",
-      bottom: 0,
-      left: 0,
-      right: 0,
-      zIndex: 100,
-      display: "grid",
+      position: "fixed", bottom: 0, left: 0, right: 0,
+      zIndex: 100, display: "grid",
       gridTemplateColumns: "repeat(5,1fr)",
       background: "rgba(7,5,10,.98)",
       borderTop: `1px solid ${C.border}`,
@@ -1196,29 +1092,20 @@ export default function Home() {
         ["ranking", "🏆", "Ranking"],
         ["profile", "●", "Profilo"]
       ].map(([id, symbol, label]) =>
-        <button key={id}
-          onClick={() => setPage(id)}
+        <button key={id} onClick={() => setPage(id)}
           style={{
-            position: "relative",
-            border: 0,
+            position: "relative", border: 0,
             background: "transparent",
             color: page === id ? "#edaaff" : "#776d7b",
-            fontWeight: 900,
-            fontSize: 10,
-            cursor: "pointer"
+            fontWeight: 900, fontSize: 10, cursor: "pointer"
           }}>
           <div style={{ fontSize: 19 }}>{symbol}</div>
           {label}
           {id === "inbox" && unreadDM > 0 &&
             <span style={{
-              position: "absolute",
-              top: -3,
-              right: "12%",
-              borderRadius: 20,
-              background: C.red,
-              color: "white",
-              padding: "2px 5px",
-              fontSize: 9
+              position: "absolute", top: -3, right: "12%",
+              borderRadius: 20, background: C.red,
+              color: "white", padding: "2px 5px", fontSize: 9
             }}>
               {unreadDM > 99 ? "99+" : unreadDM}
             </span>}
@@ -1229,36 +1116,24 @@ export default function Home() {
 
   function Notice() {
     if (!notice) return null;
-
     return <div role="alert" style={{
-      position: "fixed",
-      bottom: 95,
-      left: 14,
-      right: 14,
-      maxWidth: 600,
-      margin: "auto",
-      zIndex: 900,
-      ...panel,
-      padding: 15,
+      position: "fixed", bottom: 95, left: 14, right: 14,
+      maxWidth: 600, margin: "auto", zIndex: 900,
+      ...panel, padding: 15,
       border: `1px solid ${C.pink}`,
       boxShadow: "0 0 30px rgba(0,0,0,.8)"
     }}>
       <strong style={{ color: C.pink }}>WHO</strong>
       <p style={{
-        fontSize: 12,
-        overflowWrap: "anywhere",
+        fontSize: 12, overflowWrap: "anywhere",
         whiteSpace: "pre-wrap"
-      }}>
-        {notice}
-      </p>
+      }}>{notice}</p>
       <button style={buttonStyle}
-        onClick={() => setNotice("")}>
-        OK
-      </button>
+        onClick={() => setNotice("")}>OK</button>
     </div>;
   }
 
-  // CONTINUA NEL BLOCCO 3/4
+  // BLOCCO 3/4 CONTINUA QUI
   if (loading) {
     return <main style={{
       ...background,
@@ -2026,21 +1901,17 @@ export default function Home() {
     </main>;
   }
 
-  // CONTINUA NEL BLOCCO 4/4
+  // BLOCCO 4/4 CONTINUA QUI
   if (page === "profile") {
     return <main style={background}>
       <section style={{
-        maxWidth: 650,
-        margin: "auto",
-        padding: 18
+        maxWidth: 650, margin: "auto", padding: 18
       }}>
         <div style={{
-          textAlign: "center",
-          padding: "25px 0 15px"
+          textAlign: "center", padding: "25px 0 15px"
         }}>
           <div style={{
-            minHeight: 160,
-            display: "grid",
+            minHeight: 160, display: "grid",
             placeItems: "center"
           }}>
             <AvatarView name={avatar} size={130}/>
@@ -2061,8 +1932,7 @@ export default function Home() {
           {isFounder &&
             <button
               style={{
-                ...buttonStyle,
-                width: "100%",
+                ...buttonStyle, width: "100%",
                 marginTop: 12,
                 background: "linear-gradient(135deg,#8a5b14,#48300c)",
                 borderColor: C.gold
@@ -2074,9 +1944,7 @@ export default function Home() {
 
           <button
             style={{
-              ...secondaryButton,
-              width: "100%",
-              marginTop: 10
+              ...secondaryButton, width: "100%", marginTop: 10
             }}
             disabled={founderChecking}
             onClick={checkFounder}
@@ -2096,23 +1964,17 @@ export default function Home() {
             ["LEVEL", level]
           ].map(([label, value]) =>
             <div key={label} style={{
-              ...panel,
-              padding: 12,
-              textAlign: "center"
+              ...panel, padding: 12, textAlign: "center"
             }}>
-              <small style={{ color: C.muted }}>
-                {label}
-              </small>
+              <small style={{ color: C.muted }}>{label}</small>
               <h2 style={{ fontSize: 19 }}>{value}</h2>
             </div>
           )}
         </div>
 
         <div style={{
-          ...panel,
-          padding: 15,
-          marginTop: 12,
-          textAlign: "center"
+          ...panel, padding: 15,
+          marginTop: 12, textAlign: "center"
         }}>
           <h3>🏆 WHO RANKING</h3>
           <p style={{ color: C.pink, fontWeight: 900 }}>
@@ -2131,15 +1993,11 @@ export default function Home() {
         </div>
 
         <div style={{
-          ...panel,
-          padding: 15,
-          marginTop: 12
+          ...panel, padding: 15, marginTop: 12
         }}>
           <h3>STILE MESSAGGI</h3>
-
           <div style={{
-            ...panel,
-            padding: 13,
+            ...panel, padding: 13,
             ...messageStyle({
               message_color: messageColor,
               message_font: messageFont
@@ -2151,15 +2009,12 @@ export default function Home() {
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(3,1fr)",
-            gap: 7,
-            marginTop: 12
+            gap: 7, marginTop: 12
           }}>
             {Object.keys(messageColors).map(value =>
               <button
                 key={value}
-                onClick={() =>
-                  saveStyle("message_color", value)
-                }
+                onClick={() => saveStyle("message_color", value)}
                 style={{
                   ...secondaryButton,
                   color: messageColors[value],
@@ -2176,15 +2031,12 @@ export default function Home() {
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(2,1fr)",
-            gap: 7,
-            marginTop: 12
+            gap: 7, marginTop: 12
           }}>
             {Object.keys(messageFonts).map(value =>
               <button
                 key={value}
-                onClick={() =>
-                  saveStyle("message_font", value)
-                }
+                onClick={() => saveStyle("message_font", value)}
                 style={{
                   ...secondaryButton,
                   fontFamily: messageFonts[value],
@@ -2203,9 +2055,7 @@ export default function Home() {
         </div>
 
         <div style={{
-          ...panel,
-          padding: 15,
-          marginTop: 12
+          ...panel, padding: 15, marginTop: 12
         }}>
           <h3>🛡 REPUTAZIONE</h3>
           <strong style={{
@@ -2223,33 +2073,25 @@ export default function Home() {
         </div>
 
         <div style={{
-          ...panel,
-          padding: 15,
-          marginTop: 12
+          ...panel, padding: 15, marginTop: 12
         }}>
           <h3>⚡ WHO POINTS E VIBE</h3>
           <p style={{
-            fontSize: 12,
-            color: C.muted,
-            lineHeight: 1.7
+            fontSize: 12, color: C.muted, lineHeight: 1.7
           }}>
-            WHO Points: determinano il livello e
-            la posizione nella classifica mondiale.
+            WHO Points: determinano il livello e la
+            posizione nella classifica mondiale.
             I nuovi punti guadagnati vengono conteggiati
             anche nel Ranking settimanale.
           </p>
           <p style={{
-            fontSize: 12,
-            color: C.muted,
-            lineHeight: 1.7
+            fontSize: 12, color: C.muted, lineHeight: 1.7
           }}>
             VIBE: rappresenta il contributo sociale
             e il comportamento positivo.
           </p>
           <p style={{
-            fontSize: 12,
-            color: C.muted,
-            lineHeight: 1.7
+            fontSize: 12, color: C.muted, lineHeight: 1.7
           }}>
             Le segnalazioni richiedono verifica
             prima di eventuali penalità.
@@ -2257,31 +2099,22 @@ export default function Home() {
         </div>
 
         <div style={{
-          ...panel,
-          padding: 17,
-          marginTop: 12
+          ...panel, padding: 17, marginTop: 12
         }}>
           <h3 style={{ color: C.cyan }}>
             🔐 SICUREZZA ACCOUNT
           </h3>
-
           <p style={{
-            color: C.muted,
-            fontSize: 12,
-            lineHeight: 1.6
+            color: C.muted, fontSize: 12, lineHeight: 1.6
           }}>
             Proteggi la tua identità WHO.
-            Cambia la password temporanea con
-            una password personale di almeno
-            12 caratteri.
+            Cambia la password con una password
+            personale di almeno 12 caratteri.
           </p>
 
           {!showPasswordForm ?
             <button
-              style={{
-                ...buttonStyle,
-                width: "100%"
-              }}
+              style={{ ...buttonStyle, width: "100%" }}
               onClick={() => setShowPasswordForm(true)}
             >
               CAMBIA PASSWORD
@@ -2292,10 +2125,8 @@ export default function Home() {
                 changePassword();
               }}>
                 <label style={{
-                  display: "block",
-                  marginBottom: 6,
-                  color: C.muted,
-                  fontSize: 12
+                  display: "block", marginBottom: 6,
+                  color: C.muted, fontSize: 12
                 }}>
                   Password attuale
                 </label>
@@ -2304,18 +2135,14 @@ export default function Home() {
                   autoComplete="current-password"
                   style={inputStyle}
                   value={oldPassword}
-                  onChange={e =>
-                    setOldPassword(e.target.value)
-                  }
-                  placeholder="Password temporanea"
+                  onChange={e => setOldPassword(e.target.value)}
+                  placeholder="Password attuale"
                 />
 
                 <label style={{
-                  display: "block",
-                  marginTop: 13,
+                  display: "block", marginTop: 13,
                   marginBottom: 6,
-                  color: C.muted,
-                  fontSize: 12
+                  color: C.muted, fontSize: 12
                 }}>
                   Nuova password
                 </label>
@@ -2324,18 +2151,14 @@ export default function Home() {
                   autoComplete="new-password"
                   style={inputStyle}
                   value={newPassword}
-                  onChange={e =>
-                    setNewPassword(e.target.value)
-                  }
+                  onChange={e => setNewPassword(e.target.value)}
                   placeholder="Almeno 12 caratteri"
                 />
 
                 <label style={{
-                  display: "block",
-                  marginTop: 13,
+                  display: "block", marginTop: 13,
                   marginBottom: 6,
-                  color: C.muted,
-                  fontSize: 12
+                  color: C.muted, fontSize: 12
                 }}>
                   Conferma nuova password
                 </label>
@@ -2344,9 +2167,7 @@ export default function Home() {
                   autoComplete="new-password"
                   style={inputStyle}
                   value={confirmPassword}
-                  onChange={e =>
-                    setConfirmPassword(e.target.value)
-                  }
+                  onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="Ripeti la nuova password"
                 />
 
@@ -2354,8 +2175,7 @@ export default function Home() {
                   type="submit"
                   disabled={passwordBusy}
                   style={{
-                    ...buttonStyle,
-                    width: "100%",
+                    ...buttonStyle, width: "100%",
                     marginTop: 15,
                     opacity: passwordBusy ? 0.6 : 1
                   }}
@@ -2368,9 +2188,7 @@ export default function Home() {
 
               <button
                 style={{
-                  ...secondaryButton,
-                  width: "100%",
-                  marginTop: 9
+                  ...secondaryButton, width: "100%", marginTop: 9
                 }}
                 onClick={() => {
                   setShowPasswordForm(false);
@@ -2387,20 +2205,162 @@ export default function Home() {
         <button
           style={{
             ...secondaryButton,
-            width: "100%",
-            marginTop: 12,
-            padding: 15
+            width: "100%", marginTop: 12, padding: 15
           }}
           onClick={() => setStarted("identity")}
         >
           CAMBIA AVATAR
         </button>
 
+        {/* NUOVA SEZIONE ELIMINAZIONE ACCOUNT */}
+        <div style={{
+          ...panel,
+          padding: 18,
+          marginTop: 18,
+          border: `1px solid ${C.red}`
+        }}>
+          <h3 style={{ color: C.red }}>
+            ⚠ ELIMINAZIONE ACCOUNT
+          </h3>
+
+          <p style={{
+            color: C.muted,
+            fontSize: 12,
+            lineHeight: 1.7
+          }}>
+            Puoi richiedere l'eliminazione del tuo account
+            WHO. La richiesta prevede un periodo di
+            30 giorni durante il quale puoi annullarla.
+          </p>
+
+          {deletionLoading &&
+            <p style={{ color: C.muted, fontSize: 12 }}>
+              Controllo richiesta...
+            </p>}
+
+          {deletionRequest ? <>
+            <div style={{
+              background: "#28121b",
+              padding: 13,
+              borderRadius: 12,
+              marginBottom: 12
+            }}>
+              <strong style={{ color: C.red }}>
+                RICHIESTA IN ATTESA
+              </strong>
+              <p style={{ fontSize: 12 }}>
+                Termine previsto:
+              </p>
+              <strong>
+                {new Date(
+                  deletionRequest.delete_after
+                ).toLocaleString("it-IT")}
+              </strong>
+              <p style={{
+                color: C.muted, fontSize: 11
+              }}>
+                La cancellazione definitiva avverrà
+                soltanto quando sarà attivo il
+                processo server dedicato.
+              </p>
+            </div>
+
+            <button
+              style={{
+                ...buttonStyle,
+                width: "100%",
+                background: "#205a40"
+              }}
+              disabled={deletionBusy}
+              onClick={cancelAccountDeletion}
+            >
+              {deletionBusy
+                ? "ATTENDI..."
+                : "ANNULLA ELIMINAZIONE"}
+            </button>
+          </> : <>
+            {!showDeletionForm ?
+              <button
+                style={{
+                  ...secondaryButton,
+                  width: "100%",
+                  padding: 14,
+                  color: C.red
+                }}
+                disabled={deletionLoading}
+                onClick={() => setShowDeletionForm(true)}
+              >
+                RICHIEDI ELIMINAZIONE ACCOUNT
+              </button>
+            : <>
+                <p style={{
+                  color: C.red,
+                  fontSize: 12
+                }}>
+                  Conferma la tua identità inserendo
+                  la password attuale.
+                </p>
+
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  style={inputStyle}
+                  placeholder="Password attuale"
+                  value={deletionPassword}
+                  onChange={e =>
+                    setDeletionPassword(e.target.value)
+                  }
+                />
+
+                <button
+                  style={{
+                    ...buttonStyle,
+                    width: "100%",
+                    marginTop: 12,
+                    background: "#702239"
+                  }}
+                  disabled={deletionBusy || !deletionPassword}
+                  onClick={requestAccountDeletion}
+                >
+                  {deletionBusy
+                    ? "ATTENDI..."
+                    : "CONFERMA RICHIESTA"}
+                </button>
+
+                <button
+                  style={{
+                    ...secondaryButton,
+                    width: "100%",
+                    marginTop: 9
+                  }}
+                  onClick={() => {
+                    setShowDeletionForm(false);
+                    setDeletionPassword("");
+                  }}
+                >
+                  ANNULLA
+                </button>
+              </>}
+          </>}
+
+          <button
+            style={{
+              ...secondaryButton,
+              width: "100%",
+              marginTop: 10
+            }}
+            onClick={loadDeletionRequest}
+            disabled={deletionLoading}
+          >
+            ↻ AGGIORNA STATO
+          </button>
+        </div>
+
         <button
           style={{
             ...secondaryButton,
             width: "100%",
-            marginTop: 10,
+            marginTop: 12,
             padding: 15,
             color: C.red
           }}
@@ -3120,4 +3080,4 @@ export default function Home() {
     <Notice/>
     <Nav/>
   </main>;
-}
+            }
